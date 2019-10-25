@@ -3,46 +3,22 @@
 #include <iostream>
 #include <algorithm>
 
+#include "SpectralBuffer.h"
+
 using namespace xcdp;
 
 AudioBuffer::AudioBuffer() 
 	: info( {} )
 	, buffer()
-	{
-	}
-xcdp::AudioBuffer::AudioBuffer( const std::string & filePath ) 
+	{}
+AudioBuffer::AudioBuffer( const std::string & filePath ) 
 	: info( {} )
 	{
 	load( filePath );
 	}
-AudioBuffer::~AudioBuffer() 
-	{
-	}
-AudioBuffer::AudioBuffer( const AudioBuffer & other ) 
-	: info( other.info )
-	, buffer( other.buffer )
-	{
-	}
-AudioBuffer::AudioBuffer( AudioBuffer && other ) noexcept 
-	: info( other.info )
-	, buffer( std::move( other.buffer ) )
-	{
-	}
-AudioBuffer & AudioBuffer::operator=( const AudioBuffer & other ) 
-	{
-	info = other.info;
-	buffer = other.buffer;
-	return *this;
-	}
-AudioBuffer & AudioBuffer::operator=( AudioBuffer && other ) noexcept 
-	{
-	if( &other == this ) 
-		return *this;
-
-	info = other.info;
-	buffer = std::move( other.buffer );
-	return *this;
-	}
+AudioBuffer::AudioBuffer( const SpectralBuffer & spectra )
+	: AudioBuffer( spectra.getAudio() )
+	{}
 
 //======================================================
 //	I/O
@@ -123,9 +99,15 @@ int AudioBuffer::getSampleRate() const
 	{
 	return info.samplerate;
 	}
+
 double AudioBuffer::getTimeOfFrame( int sample ) const
 	{
 	return double( sample ) / double( getSampleRate() );
+	}
+
+SpectralBuffer AudioBuffer::getSpectral() const
+	{
+	return SpectralBuffer( *this );
 	}
 
 //======================================================

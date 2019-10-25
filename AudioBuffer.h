@@ -5,22 +5,19 @@
 
 #include <sndfile.h>
 
+#include "Types.h"
+
 namespace xcdp 
 {
+
+class SpectralBuffer;
 
 class AudioBuffer
 {
 public:
-
 	AudioBuffer();
 	AudioBuffer( const std::string & filePath );
-	~AudioBuffer();
-	AudioBuffer( const AudioBuffer & );
-	AudioBuffer( AudioBuffer && ) noexcept;
-	AudioBuffer & operator=( const AudioBuffer & rhs );
-	AudioBuffer & operator=( AudioBuffer && ) noexcept;
-
-
+	AudioBuffer( const SpectralBuffer & spectra );
 
 	//======================================================
 	//	I/O
@@ -29,7 +26,7 @@ public:
 	//Load a file into the buffer
 	bool load( const std::string & filePath );
 
-	//save the buffer into a file. Non-const to allow clipping on save.
+	//Save the buffer into a file. Non-const to allow clipping on save.
 	bool save( const std::string & filePath );
 
 	//Print some buffer data to the console
@@ -55,6 +52,12 @@ public:
 
 	//Return the time at which the sample occurs
 	double getTimeOfFrame( int frame ) const;
+
+	//Returns a single channel of the buffer (WARNING: This is expensive)
+	std::vector<float> getChannel( int channel );
+
+	//Get the spectrum via dft
+	SpectralBuffer getSpectral() const;
 
 
 

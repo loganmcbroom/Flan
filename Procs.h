@@ -1,19 +1,8 @@
 #pragma once
 
-#include <functional>
-
 #include "AudioBuffer.h"
 
 namespace xcdp {
-
-typedef std::function< double ( double time ) > RealFunc;
-typedef std::vector<AudioBuffer> AudioBufferVec;
-typedef const AudioBuffer & ProcInput;
-typedef const AudioBufferVec & ProcInputVec;
-
-//========================================================
-// Procs
-//========================================================
 
 //Multiply input signal by volumeLevel
 AudioBuffer modifyVolume( ProcInput in, RealFunc volumeLevel );
@@ -46,6 +35,7 @@ AudioBuffer cutAtTimes( ProcInput in, double startTime, double endTime );
 //Join any number of input files into one file
 AudioBuffer join( AudioBufferVec ins );
 
+//Scale pitch by factor
 AudioBuffer repitch( ProcInput in, RealFunc factor );
 AudioBuffer repitch( ProcInput in, double factor );
 

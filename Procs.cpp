@@ -1,3 +1,14 @@
+/** TODO:
+	housekeep chans
+	extend loop
+	filter userbank
+	filter varibank(2)
+	RealFunc ADSR( double A, double D, double S, double R, double Aexp = 0, double Dexp = 0, double Rexp = 0 );
+	distort average
+	distort interpolate
+	distort multiply
+*/
+
 #include "Procs.h"
 
 #include <string>
@@ -10,35 +21,6 @@
 namespace xcdp {
 
 const double pi = std::acos( -1.0 );
-
-/** TODO:
-
-Time-Domain
-	housekeep chans
-	extend loop
-	filter userbank
-	filter varibank(2)
-	RealFunc ADSR( double A, double D, double S, double R, double Aexp = 0, double Dexp = 0, double Rexp = 0 );
-	distort average
-	distort interpolate
-	distort multiply
-
-Spectral:
-	pvoc anal
-	pvoc synth
-	blur blur
-	blur chorus
-	blur scatter
-	stretch time
-	formants get
-	formants put
-	hilite trace
-	morph morph
-	superaccu
-	focus exag
-	combine diff
-
-*/
 
 //========================================================
 // Utility Functions
@@ -94,7 +76,7 @@ float getMaxSample( ProcInput in )
 	return std::abs( *std::max_element( 
 			in.buffer.begin(), 
 			in.buffer.end(), 
-			[](double a, double b){ return std::abs(a) < std::abs(b); }));
+			[]( float a, float b ){ return std::abs(a) < std::abs(b); }));
 	}
 
 AudioBuffer mono2Stereo( ProcInput mono )
@@ -174,7 +156,7 @@ AudioBuffer mix( ProcInputVec ins, std::vector< RealFunc > balances )
 
 	if( !doChannelCountsMatch( ins ) )
 		{
-		printToLog( "FIX: You can't mix files with differing channel counts at the moment. \n" );
+		printToLog( "You can't mix files with differing channel counts at the moment (Is there a good way?).\n" );
 		return AudioBuffer();
 		}
 
@@ -333,19 +315,22 @@ AudioBuffer repitch( ProcInput in, RealFunc factor )
 	const int blockSize = in.getSampleRate() / 32; //32 times per second
 	const int numBlocks = floor( in.getNumFrames() / blockSize );
 
+	//Protection from bad factor outputs
+	auto safeFactor = [factor]( double t ){ return std::clamp( factor(t), .00001, 100000.0 ); };
+
 	//Estimate output buffer length via integration (trapezoidal approximation)
 	//libsamplerate uses linear pitch shifting as well so this should be within a sample
 	//of the actual needed buffer length. It is rounded up, and there is an additional 
 	//protection against bad array access later.
-	double outLength = 0.5 / factor( 0 ) 
-					 + 0.5 / factor( in.getTimeOfFrame( blockSize * numBlocks ) ); // first and last terms
+	double outLength = 0.5 / safeFactor( 0 ) 
+					 + 0.5 / safeFactor( in.getTimeOfFrame( blockSize * numBlocks ) ); // first and last terms
 	for( int i = 1; i < numBlocks; ++i ) //Middle terms
-		outLength += 1.0 / factor( in.getTimeOfFrame( i * blockSize ) );
+		outLength += 1.0 / safeFactor( in.getTimeOfFrame( i * blockSize ) );
 	outLength *= blockSize; //Multiply by trapezoid base size
 	//Handle remaining ( in length modulo blockSize ) samples
 	outLength += ( in.getNumFrames() % blockSize ) 
-					* ( 0.5 / factor( in.getTimeOfFrame( numBlocks * blockSize ) ) 
-					  + 0.5 / factor( in.getTimeOfFrame( in.getNumFrames() )   ) );
+					* ( 0.5 / safeFactor( in.getTimeOfFrame( numBlocks * blockSize ) ) 
+					  + 0.5 / safeFactor( in.getTimeOfFrame( in.getNumFrames() )   ) );
 
 	AudioBuffer out;
 	out.copyFormat( in );
@@ -380,7 +365,7 @@ AudioBuffer repitch( ProcInput in, RealFunc factor )
 		{
 		//Note the 1/factor, we are increasing pitch by decreasing sample rate and then playing bate at
 		//the original sample rate
-		data.src_ratio = 1.0 / factor( in.getTimeOfFrame( (block + 1) * blockSize ) );
+		data.src_ratio = 1.0 / safeFactor( in.getTimeOfFrame( (block + 1) * blockSize ) );
 		src_process( state, &data );
 		data.data_in  += blockSize * in.getNumChannels();
 		data.data_out += data.output_frames_gen * out.getNumChannels();
@@ -390,7 +375,7 @@ AudioBuffer repitch( ProcInput in, RealFunc factor )
 	//process remainder of in samples that didn't fill a block
 	data.end_of_input = 1;
 	data.input_frames  = in.getNumFrames() % blockSize;
-	data.src_ratio = 1.0 / factor( in.getTimeOfFrame( (numBlocks + 1) * blockSize ) );
+	data.src_ratio = 1.0 / safeFactor( in.getTimeOfFrame( (numBlocks + 1) * blockSize ) );
 	src_process( state, &data );
 
 	src_delete( state );
