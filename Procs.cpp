@@ -71,12 +71,12 @@ int getMaxNumSamples( ProcInputVec ins )
 		} )->getNumFrames();
 	}
 
-float getMaxSample( ProcInput in )
+double getMaxSample( ProcInput in )
 	{
 	return std::abs( *std::max_element( 
 			in.buffer.begin(), 
 			in.buffer.end(), 
-			[]( float a, float b ){ return std::abs(a) < std::abs(b); }));
+			[]( double a, double b ){ return std::abs(a) < std::abs(b); }));
 	}
 
 AudioBuffer mono2Stereo( ProcInput mono )
@@ -310,8 +310,8 @@ AudioBuffer join( AudioBufferVec ins )
 
 AudioBuffer repitch( ProcInput in, RealFunc factor )
 	{
-	//We can't have true continuous pitch shifting, to we approximate the scaling factor
-	// piecewise linearly. blocksize decides how often the continuous factor is sampled
+	//We can't have true continuous pitch shifting, so we approximate the scaling factor
+	// piecewise linearly. Blocksize decides how often the continuous factor is sampled
 	const int blockSize = in.getSampleRate() / 32; //32 times per second
 	const int numBlocks = floor( in.getNumFrames() / blockSize );
 
@@ -354,8 +354,13 @@ AudioBuffer repitch( ProcInput in, RealFunc factor )
 	data.input_frames  = 0; 
 	src_process( state, &data );
 
-	data.data_in = in.buffer.data(); //We will increment these as needed in the main loop
-	data.data_out = out.buffer.data();
+	//We can only input floats ??? bullshit but here are floats
+	std::vector<float> inF ( in.buffer.size() * in.getNumChannels() );
+	std::vector<float> outF( ceil(outLength) * out.getNumChannels() );
+	std::transform(in.buffer.begin(), in.buffer.end(), inF.begin(), [](double d) { return float(d); });
+
+	data.data_in = inF.data(); //We will increment these as needed in the main loop
+	data.data_out = outF.data();
 	data.input_frames  = blockSize; //Process one block at a time
 	data.output_frames = out.getNumFrames();
 	data.end_of_input = 0;
@@ -363,7 +368,7 @@ AudioBuffer repitch( ProcInput in, RealFunc factor )
 	//Process blocks
 	for( int block = 0; block < numBlocks; ++block )
 		{
-		//Note the 1/factor, we are increasing pitch by decreasing sample rate and then playing bate at
+		//Note the 1/factor, we are increasing pitch by decreasing sample rate and then playing back at
 		//the original sample rate
 		data.src_ratio = 1.0 / safeFactor( in.getTimeOfFrame( (block + 1) * blockSize ) );
 		src_process( state, &data );
@@ -372,13 +377,16 @@ AudioBuffer repitch( ProcInput in, RealFunc factor )
 		data.output_frames -= data.output_frames_gen; //This protects from bad array access
 		}
 
-	//process remainder of in samples that didn't fill a block
+	//Process remainder of in samples that didn't fill a block
 	data.end_of_input = 1;
 	data.input_frames  = in.getNumFrames() % blockSize;
 	data.src_ratio = 1.0 / safeFactor( in.getTimeOfFrame( (numBlocks + 1) * blockSize ) );
 	src_process( state, &data );
 
 	src_delete( state );
+
+	//Transform back, again if we sould use src on doubles this would be waaay faster
+	std::transform(outF.begin(), outF.end(), out.buffer.begin(), [](float f) { return double(f); });
 
 	return out;                   
 	}

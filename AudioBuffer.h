@@ -19,6 +19,10 @@ public:
 	AudioBuffer( const std::string & filePath );
 	AudioBuffer( const SpectralBuffer & spectra );
 
+	struct ChannelProxy;
+	const ChannelProxy operator[]( int channel ) const;
+
+
 	//======================================================
 	//	I/O
 	//======================================================
@@ -39,7 +43,7 @@ public:
 	//======================================================
 
 	//Get the sample value at the specified frame and channel
-	float getSample( int channel, int frame ) const;
+	double getSample( int channel, int frame ) const;
 
 	//Get the current number of channels
 	int getNumChannels() const;
@@ -54,7 +58,7 @@ public:
 	double getTimeOfFrame( int frame ) const;
 
 	//Returns a single channel of the buffer (WARNING: This is expensive)
-	std::vector<float> getChannel( int channel );
+	std::vector<double> getChannel( int channel );
 
 	//Get the spectrum via dft
 	SpectralBuffer getSpectral() const;
@@ -66,7 +70,7 @@ public:
 	//======================================================
 
 	//Set the sample value at the specified frame and channel
-	void setSample( int channel, int frame, float sample );
+	void setSample( int channel, int frame, double sample );
 
 	//Set the current number of channels. 
 	// This can take a long time if data is already loaded in.
@@ -99,8 +103,17 @@ public:
 	// Is stored like this:
 	// 11 21 12 22 13 23 14 24
 	//If you modify this, as you sometimes need to do, you must also update the info struct
-	std::vector<float> buffer;
+	std::vector<double> buffer;
 
+	//Syntactic sugar array access
+	struct ChannelProxy 
+		{
+		ChannelProxy( const AudioBuffer & _buddy, int _channel ) : buddy( _buddy ), channel( _channel ) {}
+		double operator[]( int bin ) const { return buddy.getSample( channel, bin ); };
+
+		const AudioBuffer & buddy;
+		const int channel;
+		};
 };
 
 }

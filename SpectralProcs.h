@@ -4,8 +4,13 @@
 
 #include "SpectralBuffer.h"
 
-namespace xcdp {
+namespace xcdp::spec {
 
-SpectralBuffer blur_average( SpecInput in, int factor );
+SpectralBuffer average( SpecInput in, int factor );
+
+SpectralBuffer gate( SpecInput in, RealFunc cutoff );
+SpectralBuffer gate( SpecInput in, double cutoff );
+
+SpectralBuffer invert( SpecInput in, int lowerBound, int upperBound );
 
 } // End namespace xcdp

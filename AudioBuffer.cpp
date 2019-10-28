@@ -20,6 +20,11 @@ AudioBuffer::AudioBuffer( const SpectralBuffer & spectra )
 	: AudioBuffer( spectra.getAudio() )
 	{}
 
+const AudioBuffer::ChannelProxy AudioBuffer::operator[]( int channel ) const
+	{
+	return AudioBuffer::ChannelProxy( *this, channel );
+	}
+
 //======================================================
 //	I/O
 //======================================================
@@ -32,7 +37,7 @@ bool AudioBuffer::load( const std::string & filePath )
 		return false;
 		}
 	buffer.resize( info.frames * info.channels );
-	sf_readf_float( file, buffer.data(), info.frames );
+	sf_readf_double( file, buffer.data(), info.frames );
 	if( sf_close( file ) != 0 )
 		{
 		std::cout << "Error closing " << filePath << ".\n";
@@ -50,9 +55,9 @@ bool AudioBuffer::save( const std::string & filePath )
 		printSummary();
 		return false;
 		}
-	for( float & s : buffer )
+	for( double & s : buffer )
 		if( std::abs( s ) > 1 )
-			s = std::clamp( s, -1.0f, 1.0f );
+			s = std::clamp( s, -1.0, 1.0 );
 	SF_INFO outInfo = info;
 	SNDFILE * file = sf_open( filePath.data(), SFM_WRITE, &outInfo );
 	if( file == nullptr )
@@ -60,7 +65,7 @@ bool AudioBuffer::save( const std::string & filePath )
 		std::cout << filePath << " could not be opened for saving.\n";
 		return false;
 		}
-	if( sf_writef_float( file, buffer.data(), info.frames ) != info.frames )	
+	if( sf_writef_double( file, buffer.data(), info.frames ) != info.frames )	
 		{
 		std::cout << "Error writing data into " << filePath << ".\n";
 		return false;
@@ -80,7 +85,7 @@ void AudioBuffer::printSummary() const
 //======================================================
 //	Getters
 //======================================================
-float AudioBuffer::getSample( int channel, int frame ) const 
+double AudioBuffer::getSample( int channel, int frame ) const 
 	{
 	return buffer[ frame * info.channels + channel ];
 	}
@@ -113,7 +118,7 @@ SpectralBuffer AudioBuffer::getSpectral() const
 //======================================================
 //	Setters
 //======================================================
-void AudioBuffer::setSample( int channel, int frame, float sample ) 
+void AudioBuffer::setSample( int channel, int frame, double sample ) 
 	{
 	buffer[ frame * info.channels + channel ] = sample;
 	}

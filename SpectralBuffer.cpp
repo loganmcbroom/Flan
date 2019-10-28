@@ -29,25 +29,35 @@ SpectralBuffer::SpectralBuffer( const AudioBuffer & in )
 
 	const int N = in.getNumFrames();
 
-	std::complex<float> *inCpx = (std::complex<float>*) fftwf_malloc( sizeof(std::complex<float>) * N );
-	fftwf_plan plan;
+	std::complex<double> *inCpx = (std::complex<double>*) fftw_malloc( sizeof(std::complex<double>) * N );
+	fftw_plan plan;
 
 	for( int channel = 0; channel < in.getNumChannels(); ++ channel )
 		{
 		buffer[channel].resize( N );
 
-		plan = fftwf_plan_dft_1d( N, (fftwf_complex*) inCpx, (fftwf_complex*) buffer[channel].data(), FFTW_FORWARD, FFTW_ESTIMATE );
+		plan = fftw_plan_dft_1d( N, (fftw_complex*) inCpx, (fftw_complex*) buffer[channel].data(), FFTW_FORWARD, FFTW_ESTIMATE );
 
 		//Load a channel from in into inCpx
 		for( int frame = 0; frame < N; ++frame )
 			inCpx[frame] = { in.getSample( channel, frame ), 0 };
 
-		fftwf_execute( plan );
+		fftw_execute( plan );
 
-		fftwf_destroy_plan( plan );
+		fftw_destroy_plan( plan );
 		}
 	
-	fftwf_free( inCpx ); 
+	fftw_free( inCpx ); 
+	}
+
+std::vector<std::complex<double>> & xcdp::SpectralBuffer::operator[](int channel)
+	{
+	return buffer[channel];
+	}
+
+const std::vector<std::complex<double>>& xcdp::SpectralBuffer::operator[](int channel) const
+	{
+	return buffer[channel];
 	}
 
 
@@ -55,9 +65,18 @@ SpectralBuffer::SpectralBuffer( const AudioBuffer & in )
 //	I/O
 //======================================================
 
-///How to handle formatting of save?
-//Convert the spectrum to time-domain and save
-//bool save( const std::string & filePath );
+bool xcdp::SpectralBuffer::load(const std::string& filePath)
+	{
+	AudioBuffer file;
+	bool loaded = file.load( filePath );
+	*this = SpectralBuffer( file );
+	return loaded;
+	}
+
+bool SpectralBuffer::save( const std::string & filePath )
+	{
+	return AudioBuffer( *this ).save( filePath );
+	}
 
 //Print some buffer data to the console
 void SpectralBuffer::printSummary() const
@@ -73,7 +92,7 @@ void SpectralBuffer::printSummary() const
 //	Getters
 //======================================================
 
-std::complex<float> SpectralBuffer::getBin( int channel, int bin ) const
+std::complex<double> SpectralBuffer::getBin( int channel, int bin ) const
 	{
 	return buffer[channel][bin];
 	}
@@ -88,14 +107,14 @@ int SpectralBuffer::getNumBins() const
 	return buffer[0].size();
 	}
 
-float SpectralBuffer::getBinWidth() const
+double SpectralBuffer::getBinWidth() const
 	{
-	return float(sampleRate) / float( getNumBins() );
+	return double(sampleRate) / double( getNumBins() );
 	}
 
-float SpectralBuffer::getBinFreq( int bin ) const
+double SpectralBuffer::getBinFreq( int bin ) const
 	{
-	return float( bin ) * getBinWidth();
+	return double( bin ) * getBinWidth();
 	}
 
 AudioBuffer SpectralBuffer::getAudio() const
@@ -108,23 +127,26 @@ AudioBuffer SpectralBuffer::getAudio() const
 
 	const int N = getNumBins();
 
-	std::complex<float> * channelOut = (std::complex<float>*) fftwf_malloc( sizeof(std::complex<float>) * N );
-	fftwf_plan plan;
+	std::complex<double> * channelOut = (std::complex<double>*) fftw_malloc( sizeof(std::complex<double>) * N );
+	fftw_plan plan;
 
 	for( int channel = 0; channel < buffer.size(); ++ channel )
 		{
-		plan = fftwf_plan_dft_1d( N, (fftwf_complex*) buffer[channel].data(), (fftwf_complex*) channelOut, FFTW_BACKWARD, FFTW_ESTIMATE );
+		plan = fftw_plan_dft_1d( N, (fftw_complex*) buffer[channel].data(), (fftw_complex*) channelOut, FFTW_BACKWARD, FFTW_ESTIMATE );
 
-		fftwf_execute( plan );
+		fftw_execute( plan );
 
 		//Copy transformed data into out channel
 		for( int frame = 0; frame < N; ++frame )
+			{
+			//std::cout << channelOut[frame].real() << " " << channelOut[frame].imag() << " " << abs(channelOut[frame]) << "\n";
 			out.setSample( channel, frame, channelOut[frame].real() / N );
+			}
 
-		fftwf_destroy_plan( plan );
+		fftw_destroy_plan( plan );
 		}
 
-	fftwf_free( channelOut );
+	fftw_free( channelOut );
 
 	return out;
 	}
@@ -134,11 +156,10 @@ AudioBuffer SpectralBuffer::getAudio() const
 //	Setters
 //======================================================
 
-void SpectralBuffer::setBin( int channel, int bin, std::complex<float> value )
+void SpectralBuffer::setBin( int channel, int bin, std::complex<double> value )
 	{
 	buffer[channel][bin] = value;
 	}
-
 
 void SpectralBuffer::setNumChannels( int numChannels )
 	{
@@ -156,6 +177,11 @@ void SpectralBuffer::setBufferSize( int numChannels, int numBins )
 	{
 	setNumChannels( numChannels );
 	setNumBins( numBins );
+	}
+
+void xcdp::SpectralBuffer::setBufferSize(const SpectralBuffer& other)
+	{
+	setBufferSize( other.getNumChannels(), other.getNumBins() );
 	}
 
 void SpectralBuffer::copyFormat( const SpectralBuffer & in )

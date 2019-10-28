@@ -14,16 +14,19 @@ public:
 	SpectralBuffer( const std::string & filePath );
 	SpectralBuffer( const AudioBuffer & timeDomain );
 
+	std::vector<std::complex<double>> & operator[]( int channel );
+	const std::vector<std::complex<double>> & operator[]( int channel ) const;
+
+
 	//======================================================
 	//	I/O
 	//======================================================
 
 	//Load the spectrum of the given file
-	//bool load( const std::string & filePath );
+	bool load( const std::string & filePath );
 
-	///How to handle formatting of save?
 	//Convert the spectrum to time-domain and save
-	//bool save( const std::string & filePath );
+	bool save( const std::string & filePath );
 
 	//Print some buffer data to the console
 	void printSummary() const;
@@ -35,7 +38,7 @@ public:
 	//======================================================
 
 	//Get the sample value at the specified frame and channel
-	std::complex<float> getBin( int channel, int bin ) const;
+	std::complex<double> getBin( int channel, int bin ) const;
 
 	//Get the current number of channels
 	int getNumChannels() const;
@@ -44,10 +47,10 @@ public:
 	int getNumBins() const;
 
 	//Get the width of each bin in Hz
-	float getBinWidth() const;
+	double getBinWidth() const;
 
 	//Get the central frequency of a specific bin
-	float getBinFreq( int bin ) const;
+	double getBinFreq( int bin ) const;
 
 	//Convert to time domain via inverse dft
 	AudioBuffer getAudio() const;
@@ -58,7 +61,7 @@ public:
 	//======================================================
 
 	//Set the sample value at the specified frame and channel
-	void setBin( int channel, int bin, std::complex<float> value );
+	void setBin( int channel, int bin, std::complex<double> value );
 
 	//Set the number of channels
 	void setNumChannels( int numChannels );
@@ -66,8 +69,9 @@ public:
 	//Set the number of bins
 	void setNumBins( int numFreqs );
 
-	//Set both the number of channels and the number of bins
+	//Set both the number of channels and the number of bins, or copy the buffer size of another buffer
 	void setBufferSize( int numChannels, int numBins );
+	void setBufferSize( const SpectralBuffer & other );
 
 	//Copy format and sample rate of in
 	void copyFormat( const SpectralBuffer & in );
@@ -82,7 +86,7 @@ public:
 	int format;
 
 	//Spectral data. First vector is channels, second is bins.
-	std::vector<std::vector<std::complex<float>>> buffer;
+	std::vector<std::vector<std::complex<double>>> buffer;
 
 };
 
