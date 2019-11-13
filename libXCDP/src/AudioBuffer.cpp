@@ -7,7 +7,13 @@
 
 using namespace xcdp;
 
+AudioBuffer::AudioBuffer()
+	: format()
+	, buffer()
+	{}
 AudioBuffer::AudioBuffer( const std::string & filePath ) 
+	: format()
+	, buffer()
 	{
 	load( filePath );
 	}
@@ -116,7 +122,6 @@ void AudioBuffer::printSummary() const
 //======================================================
 double AudioBuffer::getSample( size_t channel, size_t frame ) const 
 	{
-	//return buffer[channel][frame];
 	return buffer[getPos( channel, frame )];
 	}
 
@@ -127,13 +132,11 @@ AudioBuffer::Format xcdp::AudioBuffer::getFormat() const
 
 size_t AudioBuffer::getNumChannels() const
 	{
-	//return buffer.size();
 	return format.numChannels;
 	}
 
 size_t AudioBuffer::getNumSamples() const 
 	{
-	//return buffer[0].size();
 	return format.numSamples;
 	}
 
@@ -160,58 +163,13 @@ double AudioBuffer::getMaxSampleMagnitude() const
 //======================================================
 void AudioBuffer::setSample( size_t channel, size_t frame, double sample ) 
 	{
-	//buffer[channel][frame] = sample;
 	buffer[getPos( channel, frame )] = sample;
 	}
 
-/*
-void AudioBuffer::setNumChannels( size_t newNumChannels ) 
+double & AudioBuffer::getSample( size_t channel, size_t frame )
 	{
-	//const size_t prevNumChannels = getNumChannels();
-	//buffer.resize( newNumChannels );
-	//if( newNumChannels > prevNumChannels )
-	//	for( size_t channel = prevNumChannels; channel < newNumChannels; ++channel )
-	//		std::fill( buffer[channel].begin(), buffer[channel].end(), 0 );
-	setBufferSize( newNumChannels, numFrames );
+	return buffer[getPos( channel, frame )];
 	}
-
-void AudioBuffer::setNumFrames( size_t newNumFrames ) 
-	{
-	//Expand or contract, if expanding fill expansion with 0
-	//const size_t prevNumFrames = getNumSamples();
-	//for( auto & channel : buffer )
-	//	{
-	//	channel.resize( newNumFrames );
-	//	if( newNumFrames > prevNumFrames )
-	//		std::fill( channel.begin() + prevNumFrames, channel.end(), 0.0f );
-	//	}
-	setBufferSize( numChannels, newNumFrames );
-	}
-
-void AudioBuffer::setBufferSize( size_t newNumChannels, size_t newNumFrames )
-	{
-	//setNumChannels( newNumChannels );
-	//setNumFrames( newNumFrames );
-	numChannels = newNumChannels;
-	numFrames = newNumFrames;
-	buffer.resize( numChannels * numFrames );
-	}
-
-void xcdp::AudioBuffer::setBufferSize( const AudioBuffer& other )
-	{
-	setBufferSize( other.getNumChannels(), other.getNumSamples() );
-	}
-
-void AudioBuffer::setSampleRate( size_t newSampleRate ) 
-	{
-	sampleRate = newSampleRate;
-	}
-
-void AudioBuffer::copyFormat( const AudioBuffer & other )
-	{
-	setSampleRate( other.getSampleRate() );
-	}
-*/
 
 void xcdp::AudioBuffer::clearBuffer()
 	{

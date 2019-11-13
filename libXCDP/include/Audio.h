@@ -14,6 +14,7 @@ class Audio : public AudioBuffer
 {
 public:
 	
+	Audio() : AudioBuffer() {} //Only called when erroring out
 	Audio( const std::string & filePath ) : AudioBuffer( filePath ) {}
 	Audio( const AudioBuffer::Format & other ) : AudioBuffer( other ) {}
 
@@ -21,13 +22,14 @@ public:
 	//	Conversions
 	//======================================================
 
+	// Main PVOC analysis function
 	PVOC convertToPVOC( const size_t frameSize = 2048, const size_t overlaps = 16 ) const;
 
-	//======================================================
+	//===========================================================================================
 	//	Procs
-	//======================================================
+	//===========================================================================================
 
-	Audio mono2Stereo( ) const;
+	Audio monoToStereo( ) const;
 
 	//Multiply input signal by volumeLevel
 	Audio modifyVolume( RealFunc volumeLevel ) const;
@@ -44,12 +46,27 @@ public:
 	 */
 	Audio pan( RealFunc panAmount ) const;
 
+	/*==============================================================
+	 *		Editing
+	 *	These processes manipulate discrete pieces of audio in time
+	*///============================================================
+
 	//Loops the input n times, applying mod to each loop
 	Audio iterate( size_t n, std::function< Audio (const Audio &, size_t n) > mod = 0 ) const;
 
-	//Cut a piece out of the input
-	Audio cutAtSamples( size_t startSample, size_t endSample ) const;
-	Audio cutAtTimes( double startTime, double endTime ) const;
+	// extend freeze
+	// drunk walk / scramble
+	// reverse
+	// extend loop
+	// extend repittions? Iterate could call it
+
+	Audio cut( double startTime, double endTime ) const;
+
+	static Audio mix( AudioVec ins, std::vector< RealFunc > balances = std::vector< RealFunc >() );
+
+	//==============================================================
+
+	//==============================================================
 
 	//Scale pitch by factor
 	Audio repitch( RealFunc factor ) const;

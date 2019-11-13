@@ -14,8 +14,9 @@ public:
 		size_t sampleRate = 48000;
 		};
 	
+	AudioBuffer();
 	AudioBuffer( const std::string & filePath );
-	AudioBuffer( const Format & );
+	AudioBuffer( const Format & ); 
 
 	//======================================================
 	//	I/O
@@ -30,7 +31,7 @@ public:
 	//======================================================
 
 	double getSample( size_t channel, size_t frame ) const;
-
+	
 	Format getFormat() const;
 	size_t getNumChannels() const;
 	size_t getNumSamples() const;
@@ -44,6 +45,7 @@ public:
 	//======================================================
 
 	void setSample( size_t channel, size_t frame, double sample );
+	double & getSample( size_t channel, size_t frame );
 	void clearBuffer();
 
 private://=================================================================================================

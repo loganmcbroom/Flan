@@ -20,4 +20,9 @@ struct RealFunc
 	std::function< double ( double ) > f;
 };
 
+class Audio;
+class PVOC;
+typedef const std::vector<const Audio &> & AudioVec;
+typedef const std::vector<const PVOC  &> & PVOCVec ;
+
 } // End namespace xcdp

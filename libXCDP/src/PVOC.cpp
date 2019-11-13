@@ -12,8 +12,6 @@
 #include "Audio.h"
 
 /** TODO:
-
-	blur blur
 	blur chorus
 	blur scatter
 	stretch time
@@ -277,11 +275,10 @@ PVOC PVOC::repitch( double factor ) const
 				size_t index = size_t( bin * factor );
 				if( index < getNumBins() )
 					{
-					out.setBin( channel, frame, index,
-						{
-						out.getBin( channel, frame, index ).magnitude + getBin( channel, frame, bin ).magnitude,
-						getBin( channel, frame, bin ).frequency * factor
-						});
+					auto & outMF = out.getBin( channel, frame, index );
+					auto & inMF  =     getBin( channel, frame, bin   );
+					outMF.magnitude += inMF.magnitude;
+					outMF.frequency =  inMF.frequency * factor;
 					}
 				}
 

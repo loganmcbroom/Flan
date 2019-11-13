@@ -47,6 +47,7 @@ public:
 	//======================================================
 
 	void setBin( size_t channel, size_t frame, size_t bin, MFPair value );
+	MFPair & getBin( size_t channel, size_t frame, size_t bin );
 	void clearBuffer();
 
 private://=================================================================================================

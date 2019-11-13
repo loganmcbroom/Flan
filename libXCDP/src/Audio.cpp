@@ -1,14 +1,3 @@
-/** TODO:
-	housekeep chans
-	extend loop
-	filter userbank
-	filter varibank(2)
-	RealFunc ADSR( double A, double D, double S, double R, double Aexp = 0, double Dexp = 0, double Rexp = 0 );
-	distort average
-	distort interpolate
-	distort multiply
-*/
-
 #include "Audio.h"
 
 #include <string>
@@ -36,7 +25,7 @@ void printToLog( std::string s )
 	{
 	std::cout << s << std::endl;
 	}
-bool doSampleRatesMatch( const std::vector<Audio> & ins )
+bool doSampleRatesMatch( AudioVec ins )
 	{
 	//Check if all sample rates match the first file
 	size_t sampleRate = ins[0].getSampleRate();
@@ -48,9 +37,11 @@ bool doSampleRatesMatch( const std::vector<Audio> & ins )
 			}
 	return true;
 	}
-bool doChannelCountsMatch( const std::vector<Audio> & ins )
+bool doChannelCountsMatch( AudioVec ins )
 	{
-	//check if all channel counts match the first file
+	if( ins.size() == 0 ) return true;
+
+	//Check if all channel counts match the first one
 	size_t numchannels = ins[0].getNumChannels();
 	for( auto & in : ins ) 
 		if( in.getNumChannels() != numchannels )
@@ -61,14 +52,14 @@ bool doChannelCountsMatch( const std::vector<Audio> & ins )
 	return true;
 	}
 
-size_t getMaxNumChannels( const std::vector<Audio> & ins )
+size_t getMaxNumChannels( AudioVec ins )
 	{
 	return std::max_element( ins.begin(), ins.end(), []( const Audio & a, const Audio & b )
 		{ 
 		return a.getNumChannels() < b.getNumChannels();
 		} )->getNumChannels();
 	}
-size_t getMaxNumSamples( const std::vector<Audio> &  ins )
+size_t getMaxNumSamples( AudioVec ins )
 	{
 	return std::max_element( ins.begin(), ins.end(), []( const Audio & a, const Audio & b )
 		{ 
@@ -76,7 +67,7 @@ size_t getMaxNumSamples( const std::vector<Audio> &  ins )
 		} )->getNumSamples();
 	}
 
-Audio Audio::mono2Stereo( ) const
+Audio Audio::monoToStereo( ) const
 	{
 	if( getNumChannels() != 1 )
 		printToLog( "That wasn't a mono file you tried to make stereo just now.\n" );
@@ -267,7 +258,7 @@ Audio Audio::pan( RealFunc panAmount ) const
 	switch( getNumChannels() )
 		{
 		case 1: //Panning mono: cast to stereo and do stereo pan
-			return mono2Stereo().pan( panAmount );
+			return monoToStereo().pan( panAmount );
 			break;
 		case 2: //Panning stereo: Use stereo pan as defined above
 			return stereoPan( panAmount );
@@ -339,13 +330,13 @@ Audio Audio::iterate( size_t n, std::function< Audio ( const Audio &, size_t n) 
 		}
 	}
 
-Audio Audio::cutAtSamples( size_t startSample, size_t endSample ) const
+Audio Audio::cut( double startTime, double endTime ) const
 	{
-	std::cout << "Cutting at samples ... ";
+	std::cout << "Cutting ... ";
 	//input validity checking
-	startSample = std::min( size_t(0), startSample );
-	endSample = std::max( getNumSamples(), endSample );
-	if( endSample < startSample ) endSample = startSample;
+	if( endTime < startTime ) endTime = startTime;
+	const size_t startSample = std::min( size_t(0),       size_t(startTime / getSampleRate()) );
+	const size_t endSample   = std::max( getNumSamples(), size_t(endTime   / getSampleRate()) );
 
 	auto format = getFormat();
 	format.numSamples =  endSample - startSample;
@@ -358,10 +349,34 @@ Audio Audio::cutAtSamples( size_t startSample, size_t endSample ) const
 	std::cout << "Done\n";
 	return out;
 	}
-Audio Audio::cutAtTimes( double startTime, double endTime ) const
+
+Audio Audio::mix( AudioVec ins, std::vector< RealFunc > balances )
 	{
-	//Input time validity is checked in cutAtSamples
-	return cutAtSamples( size_t(startTime / getSampleRate()), size_t(endTime / getSampleRate()) );
+	if( ins.size() == 0 ) return Audio();
+
+	auto format = ins[0].getFormat();
+	format.numChannels = getMaxNumChannels( ins );
+	format.numSamples  = getMaxNumSamples ( ins );
+	Audio out( format );
+
+	const double oneOverN = 1.0 / double( ins.size() );
+
+	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
+		for( size_t sample = 0; sample < out.getNumSamples(); ++sample )
+			{
+			double mixedSample = 0.0;
+			for( size_t i = 0; i < ins.size(); ++i )
+				{
+				if( channel < ins[i].getNumChannels && sample < ins[i].getNumSamples() )
+					mixedSample += ins[i].getSample( channel, sample ) * 
+						i < balances.size() ?
+							balances[i]( ins[0].getTimeOfFrame( sample ) )
+							: oneOverN;
+				}
+			out.setSample( channel, sample, mixedSample );
+			}
+
+	return out;
 	}
 
 Audio Audio::repitch( RealFunc factor ) const
@@ -489,65 +504,10 @@ Audio Audio::convolve( const std::vector<double> & ir ) const
 //========================================================
 
 //RealFunc ADSR( double A, double D, double S, double R, double Aexp = 0, double Dexp = 0, double Rexp = 0 );
+
+
+
 /*
-Audio Audio::mix( ProcInputVec ins, std::vector< RealFunc > balances ) const
-	{
-	//If we didn't get a balances input, construct a default one, otherwise check input validity
-	if( balances.size() == 0 )
-		{
-		double insSize = ins.size();
-		auto defaultBalanceFunc = [insSize]( double )
-			{ 
-			return 1.0 / insSize; //1/n trades off natural sound for guaranteed no clip
-			};
-		balances.assign( ins.size(), defaultBalanceFunc );
-		}
-	else if( balances.size() < ins.size() )
-		{
-		printToLog( "Too few balances sent to mix, padding with 1/n's. \n" );
-		double oneOverN = 1.0 / double( ins.size() ); 
-		balances.insert( balances.end(), ins.size() - balances.size(), [oneOverN]( double )
-			{ 
-			return oneOverN;
-			} );
-		}
-	else if( balances.size() > ins.size() )
-		{
-		printToLog( "Too Many balances sent to mix. Not really a problem, just thought you should know. \n" );
-		}
-
-	if( !doChannelCountsMatch( ins ) )
-		{
-		printToLog( "You can't mix files with differing channel counts at the moment (Is there a good way?).\n" );
-		return Audio();
-		}
-
-	int numChannels = getMaxNumChannels( ins );
-	int numSamples  = getMaxNumSamples ( ins );
-
-	Audio out;
-	out.copyFormat( ins[0] );
-	out.setBufferSize( numChannels, numSamples );
-
-	for( size_t channel = 0; channel < numChannels; ++channel )
-		for( size_t frame = 0; frame < numSamples; ++frame )
-			{
-			double mixedSample = 0.0;
-			for( size_t i = 0; i < ins.size(); ++i )
-				mixedSample += balances[i]( ins[0].getTimeOfFrame( frame ) ) * ins[i].getSample( channel, frame );
-			out.setSample( channel, frame, std::clamp( mixedSample, -1.0, 1.0 ) );
-			}
-
-	return out;
-	}
-Audio mix( ProcInputVec ins, const std::vector< double > & balances ) const
-	{
-	std::vector< RealFunc > funcs( balances.size() );
-	for( unsigned size_t i = 0; i < balances.size(); ++i )
-		funcs[i] = [i, &balances](double){ return balances[i]; };
-
-	return mix( ins, funcs );
-	}
 Audio join( AudioVec ins ) 
 	{
 	int numChannels = getMaxNumChannels( ins );
