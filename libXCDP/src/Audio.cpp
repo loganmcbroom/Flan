@@ -219,15 +219,11 @@ Audio Audio::modifyVolume( RealFunc volumeLevel ) const
 	std::cout << "Done\n";
 	return out;
 	}
-Audio Audio::modifyVolume( double volumeLevel ) const
-	{
-	return modifyVolume( [ volumeLevel ]( double ){ return volumeLevel; } );
-	}
 
 Audio Audio::setVolume( double level ) const
 	{
 	// Divide by maxVolume to normalize, multiply by level to set
-	double volume = level / getMaxSampleMagnitude();
+	const double volume = level / getMaxSampleMagnitude();
 	return modifyVolume( [ volume ]( double t ){ return volume; } );
 	}
 
@@ -281,17 +277,13 @@ Audio Audio::pan( RealFunc panAmount ) const
 			return *this;
 		}
 	}
-Audio Audio::pan( double panAmount ) const
-	{
-	return pan( [panAmount](double){ return panAmount; } );
-	}
 
 Audio Audio::iterate( size_t n, std::function< Audio ( const Audio &, size_t n) > mod ) const
 	{
-	std::cout << "Iterating ... ";
-	
 	if( mod == 0 ) //No mod
 		{
+		std::cout << "Iterating ... ";
+
 		auto format = getFormat();
 		format.numSamples = getNumSamples() * n;
 		Audio out( format );
@@ -314,6 +306,8 @@ Audio Audio::iterate( size_t n, std::function< Audio ( const Audio &, size_t n) 
 		}
 	else //Mod present
 		{
+		std::cout << "Iterating ... \n";
+
 		//For each iteration, apply mod to input
 		std::vector<Audio> modOutputs;
 		size_t totalFramesGenerated = 0;
@@ -465,10 +459,6 @@ Audio Audio::repitch( RealFunc factor ) const
 
 	std::cout << "Done\n";
 	return out;                   
-	}
-Audio Audio::repitch( double factor ) const
-	{
-	return repitch( [factor]( double t ){ return factor; } );
 	}
 
 Audio Audio::convolve( const std::vector<double> & ir ) const

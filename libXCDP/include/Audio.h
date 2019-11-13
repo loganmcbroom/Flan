@@ -31,7 +31,6 @@ public:
 
 	//Multiply input signal by volumeLevel
 	Audio modifyVolume( RealFunc volumeLevel ) const;
-	Audio modifyVolume( double volumeLevel ) const;
 
 	//Normalize input to level
 	Audio setVolume( double level = 1.0 ) const;
@@ -44,7 +43,6 @@ public:
 	 * This uses sin panning with gain, so a 0 pan won't alter the signal but a non-zero pan can induce clipping
 	 */
 	Audio pan( RealFunc panAmount ) const;
-	Audio pan( double panAmount ) const;
 
 	//Loops the input n times, applying mod to each loop
 	Audio iterate( size_t n, std::function< Audio (const Audio &, size_t n) > mod = 0 ) const;
@@ -55,7 +53,6 @@ public:
 
 	//Scale pitch by factor
 	Audio repitch( RealFunc factor ) const;
-	Audio repitch( double factor ) const;
 
 	Audio convolve( const std::vector<double> & ) const;
 };

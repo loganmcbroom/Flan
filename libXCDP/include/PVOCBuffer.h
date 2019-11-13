@@ -10,7 +10,7 @@ public:
 	struct MFPair { double magnitude, frequency; };
 	struct Format 
 		{ 
-		size_t numChannels, numFrames, numBins;
+		size_t numChannels = 0, numFrames = 0, numBins = 0;
 		size_t sampleRate = 48000; 
 		size_t overlaps = 32;
 		//saving format?

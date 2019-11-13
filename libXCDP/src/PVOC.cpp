@@ -1,7 +1,5 @@
 #include "PVOC.h"
 
-#include <Windows.h>
-
 #include <algorithm>
 #include <iostream>
 #include <complex>
@@ -27,6 +25,7 @@
 	focus exag
 	combine diff
 
+	should interpolators be generalized?
 */
 
 namespace xcdp {
@@ -162,8 +161,7 @@ PVOC PVOC::holdAtTimes( const std::vector<double> & timesToHold  ) const
 	return out;
 	}
 
-//should just call holdAtFrames
-PVOC PVOC::constantTimeInterpolate( int factor ) const
+PVOC PVOC::timeInterpolate_Constant( size_t decimation ) const
 	{
 	std::cout << "Constant Time Interpolation ... ";
 	PVOC out( getFormat() );
@@ -171,13 +169,12 @@ PVOC PVOC::constantTimeInterpolate( int factor ) const
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
 		for( size_t frame = 0; frame < getNumFrames(); ++frame )
 			{
-			const size_t startFrame = size_t(floor( frame / factor )) * factor;
+			const size_t startFrame = size_t(floor( frame / decimation )) * decimation;
 
 			for( size_t bin = 0; bin < getNumBins(); ++bin )
 				{
 				out.setBin( channel, frame, bin,  
 					getBin( channel, startFrame, bin ) );
-
 				}
 			}
 
@@ -185,7 +182,7 @@ PVOC PVOC::constantTimeInterpolate( int factor ) const
 	return out;
 	}
 
-PVOC PVOC::linearTimeInterpolate( int factor ) const
+PVOC PVOC::timeInterpolate_Linear( size_t decimation ) const
 	{
 	std::cout << "Linear Time Interpolation ... ";
 	PVOC out( getFormat() );
@@ -193,10 +190,10 @@ PVOC PVOC::linearTimeInterpolate( int factor ) const
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
 		for( size_t frame = 0; frame < getNumFrames(); ++frame )
 			{
-			const size_t startFrame = size_t(floor( frame / factor )) * factor;
-			const size_t endFrame	  = min( getNumFrames()-1, startFrame + factor );
+			const size_t startFrame = size_t(floor( frame / decimation )) * decimation;
+			const size_t endFrame	  = std::min( getNumFrames()-1, startFrame + decimation );
 			const size_t clampedFactor = endFrame-startFrame;
-			const double interpolation = double(frame % factor) / double(clampedFactor);
+			const double interpolation = double(frame % decimation) / double(clampedFactor);
 
 			for( size_t bin = 0; bin < getNumBins(); ++bin )
 				{
@@ -213,6 +210,59 @@ PVOC PVOC::linearTimeInterpolate( int factor ) const
 	std::cout << "Done\n";
 	return out;
 	}
+
+#include "spline.h"
+PVOC PVOC::timeInterpolate_Spline( size_t decimation ) const
+	{
+	std::cout << "Spline Time Interpolation ... ";
+	PVOC out( getFormat() );
+
+	//Set up spline x coordinates
+	std::vector<double> Xs( ceil(getNumFrames() / decimation) );
+	for( size_t n = 0; n < Xs.size() - 1; ++n )
+		Xs[n] = n * decimation;
+	Xs[Xs.size()-1] = getNumFrames() - 1;
+
+	//Allocate Y coordinate vectors
+	std::vector<double> magnitudeYs( Xs.size() );
+	std::vector<double> frequencyYs( Xs.size() );
+
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		{
+		//Channel -> bin is correct here, despite it being non-sequential access to pvoc buffer
+		for( size_t bin = 0; bin < getNumBins(); ++bin )
+			{
+			//For each x coordinate get corresponding frequency and magnitude
+			for( size_t splineFrameIndex = 0; splineFrameIndex < Xs.size(); ++splineFrameIndex )
+				{
+				magnitudeYs[splineFrameIndex] = getBin( channel, Xs[splineFrameIndex], bin ).magnitude;
+				frequencyYs[splineFrameIndex] = getBin( channel, Xs[splineFrameIndex], bin ).frequency;
+				}
+
+			//Do the splines
+			tk::spline magnitudeSpline, frequencySpline;
+			magnitudeSpline.set_points(Xs,magnitudeYs);
+			frequencySpline.set_points(Xs,frequencyYs);
+
+			//Evaluate splines into out
+			for( size_t frame = 0; frame < getNumFrames(); ++frame )
+				{
+				out.setBin( channel, frame, bin, 
+					{ 
+					magnitudeSpline(frame),
+					frequencySpline(frame)
+					} );
+				}
+			}
+		}
+			
+
+
+
+	std::cout << "Done\n";
+	return out;
+	}
+
 
 PVOC PVOC::repitch( double factor ) const
 	{
@@ -320,12 +370,20 @@ const PVOC & PVOC::getSpectrograph( const std::string & fileName ) const
 	for( size_t bin = 0; bin < getNumBins(); ++bin )
 		for( size_t frame = 0; frame < numFrames; ++frame )	
 			{
+			/* The choice of value and hue here is an aesthetic one
+			 * I've tried to make both low and high frequency information relatively visible
+			 * without oversaturating the highs
+			 * Feel free to change the initial hue below if you don't like matrix green
+			*/
+
+			const double initialHueAngle = 110;
+
 			const double normMag = getBin( 0, frame, bin ).magnitude / maxMag;
-			const double value = std::pow( std::clamp( log( double(bin) + 3.0 )*normMag, 0.0, 1.0 ), 0.4 );
+			const double value = std::pow( std::clamp( log2( double(bin) + 3.0 )*normMag, 0.0, 1.0 ), 0.4 );
 
 			//bin deviation from bin center on range [-.5,.5]
 			const double deviation = ( getBin(0, frame, bin).frequency / double(getBinWidth()) - double(bin)) / double( getOverlaps() );
-			const int hueAngle = int( deviation * 3000.0 + 110.0 );
+			const int hueAngle = int( deviation * 1800.0 + initialHueAngle );
 			const int wrappedHueAngle = hueAngle - int(360.0*floor( double(hueAngle) / 360.0 ));
 
 			const std::array<char,3> rgb = HSVtoRGB( wrappedHueAngle, 1.0, value );
@@ -333,8 +391,6 @@ const PVOC & PVOC::getSpectrograph( const std::string & fileName ) const
 			}
 
 	file.close();
-
-	system( (std::string("start \"C:\\Program Files (x86)\\FastStone Image Viewer\\FSViewer.exe\" ") + fileName).c_str() );
 
 	std::cout << "Done\n";
 	return *this;
