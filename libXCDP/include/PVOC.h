@@ -1,15 +1,19 @@
 #pragma once
 
-#include "Types.h"
+#include <string>
+
 #include "PVOCBuffer.h"
 
 namespace xcdp {
 
 class Audio;
+struct RealFunc;
 
 class PVOC : public PVOCBuffer
 {
 public:
+
+	typedef const std::vector<const PVOC  &> & PVOCVec ;
 
 	PVOC( const PVOCBuffer::Format & other ) : PVOCBuffer( other ) {}
 

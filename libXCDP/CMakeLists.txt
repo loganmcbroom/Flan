@@ -8,6 +8,7 @@ add_library( libXCDP
 	src/PVOC.cpp 
 	src/PVOCBuffer.cpp 
 	src/WindowFunctions.cpp 
+	src/RealFunc.cpp
 	)
 
 #target_compile_options( libXCDP

@@ -2,76 +2,63 @@
 
 #include <vector>
 #include <string>
+#include <functional>
 
-#include "Types.h"
 #include "AudioBuffer.h"
 
 namespace xcdp {
 
 class PVOC;
+struct RealFunc;
 
 class Audio : public AudioBuffer
 {
 public:
+	typedef const std::vector<Audio> & Vec;
+	typedef std::function< Audio ( const Audio &, size_t ) > Mod;
 	
-	Audio() : AudioBuffer() {} //Only called when erroring out
-	Audio( const std::string & filePath ) : AudioBuffer( filePath ) {}
+	Audio() : AudioBuffer() {} //Only called to error out
 	Audio( const AudioBuffer::Format & other ) : AudioBuffer( other ) {}
+	Audio( const std::string & filename ) : AudioBuffer( filename ) {}
 
 	//======================================================
 	//	Conversions
 	//======================================================
 
-	// Main PVOC analysis function
 	PVOC convertToPVOC( const size_t frameSize = 2048, const size_t overlaps = 16 ) const;
+
+	Audio convertToMidSide() const;
+	Audio convertToLeftRight() const;
 
 	//===========================================================================================
 	//	Procs
 	//===========================================================================================
 
-	Audio monoToStereo( ) const;
-
-	//Multiply input signal by volumeLevel
+	Audio monoToStereo() const;
 	Audio modifyVolume( RealFunc volumeLevel ) const;
-
-	//Normalize input to level
-	Audio setVolume( double level = 1.0 ) const;
-
-	//Apply a shaper function to the input samples
+	Audio setVolume( RealFunc level = 1.0 ) const;
 	Audio waveshape( RealFunc shaper ) const;
-
-	/** Pan input by panAmount
-	 * A panAmount of -1 and 1 correspond to hard left and hard right
-	 * This uses sin panning with gain, so a 0 pan won't alter the signal but a non-zero pan can induce clipping
-	 */
 	Audio pan( RealFunc panAmount ) const;
-
-	/*==============================================================
-	 *		Editing
-	 *	These processes manipulate discrete pieces of audio in time
-	*///============================================================
-
-	//Loops the input n times, applying mod to each loop
-	Audio iterate( size_t n, std::function< Audio (const Audio &, size_t n) > mod = 0 ) const;
-
-	// extend freeze
-	// drunk walk / scramble
-	// reverse
-	// extend loop
-	// extend repittions? Iterate could call it
-
+	Audio widen( RealFunc widenAmount ) const;
+	Audio iterate( size_t n, Audio::Mod mod = nullptr, bool fbIterate = false ) const;
+	Audio reverse() const;
 	Audio cut( double startTime, double endTime ) const;
-
-	static Audio mix( AudioVec ins, std::vector< RealFunc > balances = std::vector< RealFunc >() );
-
-	//==============================================================
-
-	//==============================================================
-
-	//Scale pitch by factor
 	Audio repitch( RealFunc factor ) const;
-
 	Audio convolve( const std::vector<double> & ) const;
+	Audio delay( double delayTime, size_t numDelays, double decayAmount = .5, Audio::Mod mod = nullptr, bool fbIterate = true ) const;
+	Audio fades( double fadeTime = .05 ) const;
+	//Audio freeze( double freezeTime, double freezeLength, double delay, double rand = 0, Audio::Mod mod = nullptr ) const;
+	// drunk walk / scramble
+	// extend loop
+	// extend repititions?
+
+	//========================================================
+	// Multi-In Procs
+	//========================================================
+	static Audio mix( Audio::Vec ins, 
+		std::vector< RealFunc > balances = std::vector< RealFunc >(),
+		std::vector< double > startTimes = std::vector<double>() );
+	static Audio join( Audio::Vec ins );
 };
 
 } // End namespace xcdp

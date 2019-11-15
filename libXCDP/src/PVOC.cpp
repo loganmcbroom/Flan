@@ -7,9 +7,13 @@
 #include <fstream>
 
 #include <fftw3.h>
+#include "spline.h"
 
+#include "RealFunc.h"
 #include "WindowFunctions.h"
 #include "Audio.h"
+
+const double pi = std::acos( -1.0 );
 
 /** TODO:
 	blur chorus
@@ -209,7 +213,6 @@ PVOC PVOC::timeInterpolate_Linear( size_t decimation ) const
 	return out;
 	}
 
-#include "spline.h"
 PVOC PVOC::timeInterpolate_Spline( size_t decimation ) const
 	{
 	std::cout << "Spline Time Interpolation ... ";

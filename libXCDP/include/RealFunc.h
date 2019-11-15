@@ -17,12 +17,15 @@ struct RealFunc
 		: f( [t0]( double t ){ return t0; } ) 
 		{}
 	double operator()( double t ) const { return f(t); }
+
+	void graph( const std::string & filename = std::string("tempRealFuncGraph.tga"),
+		double left = -1, double right = 10, double bottom = -1, double top = 3.0, size_t resolution = 128 ) const;
+
+private:
 	std::function< double ( double ) > f;
 };
 
-class Audio;
-class PVOC;
-typedef const std::vector<const Audio &> & AudioVec;
-typedef const std::vector<const PVOC  &> & PVOCVec ;
+RealFunc ADSR( double a, double d, double s, double r, double sLvl,
+		double aExp = 1, double dExp = 1, double rExp = 1 );
 
 } // End namespace xcdp

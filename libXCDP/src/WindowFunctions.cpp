@@ -1,4 +1,7 @@
 #include "WindowFunctions.h"
+#include <cmath>
+
+const double pi = std::acos( -1.0 );
 
 namespace xcdp::window {
 
@@ -10,4 +13,4 @@ const std::vector<double> Hann( size_t frameSize )
 	return out;
 	}
 
-} // End namespace xcdp::window
+}

@@ -11,22 +11,21 @@ AudioBuffer::AudioBuffer()
 	: format()
 	, buffer()
 	{}
-AudioBuffer::AudioBuffer( const std::string & filePath ) 
+AudioBuffer::AudioBuffer( const Format & other )
+	: format( other )
+	, buffer( getNumChannels() * getNumSamples() )
+	{}
+AudioBuffer::AudioBuffer( const std::string & filename )
 	: format()
 	, buffer()
 	{
-	load( filePath );
-	}
-xcdp::AudioBuffer::AudioBuffer( const Format & other )
-	: format( other )
-	, buffer( getNumChannels() * getNumSamples() )
-	{
+	load( filename );
 	}
 
 //======================================================
 //	I/O
 //======================================================
-bool AudioBuffer::load( const std::string & filePath ) 
+void AudioBuffer::load( const std::string & filePath ) 
 	{
 	//Open file and check validity, save the sample rate
 	SF_INFO info;
@@ -34,35 +33,28 @@ bool AudioBuffer::load( const std::string & filePath )
 	if( file == nullptr )
 		{
 		std::cout << filePath << " could not be opened.\n";
-		return false;
+		return;
 		}
 
 	//Copy file info into format
 	format.sampleRate = info.samplerate;
 	format.numChannels = info.channels;
 	format.numSamples = info.frames;
+	*this = AudioBuffer( format );
 
-	//Create temporary buffer for interleaved data in file
+	//Create temporary buffer for interleaved data in file, read data in, close the file
 	std::vector< double > interleavedBuffer( info.frames * info.channels );
-
-	//Read the entire file into that buffer, then close the file
 	sf_readf_double( file, interleavedBuffer.data(), info.frames );
 	if( sf_close( file ) != 0 )
 		{
 		std::cout << "Error closing " << filePath << ".\n";
-		return false;
+		return;
 		}
 
-	//Convert interleaved data into the buffer
-
-	buffer.resize( info.channels * info.frames );
+	//Convert interleaved data in
 	for( size_t channel = 0; channel < info.channels; ++channel )
-		{
-		for( size_t frame = 0; frame < size_t(info.frames); ++frame )
-			setSample( channel, frame, interleavedBuffer[ frame * info.channels + channel ] );
-		}
-	
-	return true;
+		for( size_t sample = 0; sample < size_t(info.frames); ++sample )
+			setSample( channel, sample, interleavedBuffer[ sample * info.channels + channel ] );
 	}
 
 bool AudioBuffer::save( const std::string & filePath ) const 
@@ -145,9 +137,19 @@ size_t AudioBuffer::getSampleRate() const
 	return format.sampleRate;
 	}
 
-double AudioBuffer::getTimeOfFrame( size_t sample ) const
+double AudioBuffer::sampleToTime( size_t sample ) const
 	{
 	return double( sample ) / double( getSampleRate() );
+	}
+
+size_t AudioBuffer::timeToSample( double time ) const
+	{
+	return size_t( time  * double( getSampleRate() ) );
+	}
+
+double AudioBuffer::getLength() const
+	{
+	return sampleToTime( getNumSamples() );
 	}
 
 double AudioBuffer::getMaxSampleMagnitude() const
@@ -176,7 +178,7 @@ void xcdp::AudioBuffer::clearBuffer()
 	std::fill( buffer.begin(), buffer.end(), 0 );
 	}
 
-size_t xcdp::AudioBuffer::getPos( size_t c, size_t f ) const
+size_t xcdp::AudioBuffer::getPos( size_t channel, size_t sample ) const
 	{
-	return c * getNumSamples() + f;
+	return channel * getNumSamples() + sample;
 	}

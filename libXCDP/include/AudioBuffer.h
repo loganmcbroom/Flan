@@ -15,14 +15,14 @@ public:
 		};
 	
 	AudioBuffer();
-	AudioBuffer( const std::string & filePath );
 	AudioBuffer( const Format & ); 
+	AudioBuffer( const std::string & filename );
 
 	//======================================================
 	//	I/O
 	//======================================================
 
-	bool load( const std::string & filePath );
+	void load( const std::string & filePath );
 	bool save( const std::string & filePath ) const;
 	void printSummary() const;
 
@@ -36,7 +36,10 @@ public:
 	size_t getNumChannels() const;
 	size_t getNumSamples() const;
 	size_t getSampleRate() const;
-	double getTimeOfFrame( size_t frame ) const;
+
+	double sampleToTime( size_t sample ) const;
+	size_t timeToSample( double time ) const;
+	double getLength() const;
 
 	double getMaxSampleMagnitude() const;
 
