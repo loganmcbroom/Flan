@@ -21,6 +21,7 @@ find_path( SNDFILE_INCLUDE_DIR
 find_library( SNDFILE_LIBRARY_DIR
     NAME
 		sndfile
+		libsndfile-1
     PATHS
 		"C:/Program Files (x86)/sndfile/lib"
 	PATH_SUFFIXES

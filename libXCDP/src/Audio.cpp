@@ -1,9 +1,7 @@
 #include "Audio.h"
 
-#include <string>
 #include <iostream>
 #include <algorithm>
-#include <cmath>
 #include <complex>
 
 #include <samplerate.h>
@@ -73,7 +71,7 @@ size_t getMaxNumSamples( Audio::Vec ins )
 
 PVOC Audio::convertToPVOC( const size_t frameSize, const size_t overlaps ) const
 	{
-	std::cout << "Getting PVOC ... ";
+	std::cout << "Getting PVOC ... \n";
 	//Figure out some helpfull quantities
 	const size_t numBins = frameSize / 2 + 1;
 	const size_t hopSize = frameSize / overlaps;
@@ -168,7 +166,6 @@ PVOC Audio::convertToPVOC( const size_t frameSize, const size_t overlaps ) const
 	fftw_free( fftOut );
 	fftw_free( fftIn );
 
-	std::cout << "Done\n";
 	return out;
 	}
 
@@ -216,7 +213,7 @@ Audio Audio::monoToStereo( ) const
 
 Audio Audio::modifyVolume( RealFunc volumeLevel ) const
 	{
-	std::cout << "Modifying volume ... ";
+	std::cout << "Modifying volume ... \n";
 
 	Audio out( getFormat() );
 
@@ -227,7 +224,6 @@ Audio Audio::modifyVolume( RealFunc volumeLevel ) const
 			out.setSample( channel, frame, calculatedSample );
 			}
 
-	std::cout << "Done\n";
 	return out;
 	}
 
@@ -240,7 +236,7 @@ Audio Audio::setVolume( RealFunc level ) const
 
 Audio Audio::waveshape( RealFunc shaper ) const
 	{
-	std::cout << "Waveshaping ... ";
+	std::cout << "Waveshaping ... \n";
 
 	Audio out( getFormat() );
 
@@ -250,13 +246,12 @@ Audio Audio::waveshape( RealFunc shaper ) const
 			out.setSample( channel, sample, shaper( getSample( channel, sample ) ) );
 			}
 
-	std::cout << "Done\n";
 	return out;
 	}
 
 Audio Audio::pan( RealFunc panAmount ) const
 	{
-	std::cout << "Panning ... ";
+	std::cout << "Panning ... \n";
 
 	//Stereo panning algorithm
 	auto stereoPan = [this]( RealFunc panAmount )
@@ -271,7 +266,6 @@ Audio Audio::pan( RealFunc panAmount ) const
 					* sqrt( 2.0 );
 				out.setSample( channel, frame, sample );
 				}
-		std::cout << "Done\n";
 		return out;
 		};
 	
@@ -316,7 +310,6 @@ Audio Audio::iterate( size_t n, Audio::Mod mod, bool fbIterate ) const
 					}
 				}
 			}
-		std::cout << "Done\n";
 		return out;
 		}
 	else
@@ -349,14 +342,13 @@ Audio Audio::iterate( size_t n, Audio::Mod mod, bool fbIterate ) const
 					}
 				}
 			}
-		std::cout << "Done\n";
 		return out;
 		}
 	}
 
 Audio Audio::reverse() const
 	{
-	std::cout << "Reversing ... ";
+	std::cout << "Reversing ... \n";
 
 	Audio out( getFormat() );
 
@@ -366,13 +358,12 @@ Audio Audio::reverse() const
 			out.setSample( channel, sample, getSample( channel, getNumSamples() - 1 - sample ) );
 			}
 
-	std::cout << "Done\n";
 	return out;
 	}
 
 Audio Audio::cut( double startTime, double endTime ) const
 	{
-	std::cout << "Cutting ... ";
+	std::cout << "Cutting ... \n";
 	//input validity checking
 	if( endTime < startTime ) endTime = startTime;
 	const size_t startSample = std::max( size_t(0),       timeToSample( startTime ) );
@@ -386,13 +377,12 @@ Audio Audio::cut( double startTime, double endTime ) const
 		for( size_t sample = 0; sample < out.getNumSamples(); ++sample )
 			out.setSample( channel, sample, getSample( channel, startSample + sample ) );
 
-	std::cout << "Done\n";
 	return out;
 	}
 
 Audio Audio::repitch( RealFunc factor ) const
 	{
-	std::cout << "Repitching ... ";
+	std::cout << "Repitching ... \n";
 	//We can't have true continuous pitch shifting, so we approximate the scaling factor
 	// piecewise linearly. Blocksize decides how often the continuous factor is sampled
 	const size_t blockSize = getSampleRate() / 100; //100 times per second
@@ -483,13 +473,12 @@ Audio Audio::repitch( RealFunc factor ) const
 			out.setSample( channel, frame, (double) outF[getNumChannels()*frame+channel] );
 			}
 
-	std::cout << "Done\n";
 	return out;                   
 	}
 
 Audio Audio::convolve( const std::vector<double> & ir ) const
 	{
-	std::cout << "Convolving ... ";
+	std::cout << "Convolving ... \n";
 	auto format = getFormat();
 	format.numSamples = getNumSamples() + ir.size();
 	Audio out( format );
@@ -509,13 +498,13 @@ Audio Audio::convolve( const std::vector<double> & ir ) const
 			out.setSample( channel, sample, convolutionSum );
 			}
 
-	std::cout << "Done\n";
 	return out;
 	}
 
 Audio Audio::delay( double delayTime, size_t numDelays, double decay, Audio::Mod mod, bool fbIterate ) const
 	{
-	std::cout << "Delaying ... ";
+	std::cout << "Delaying ... \n";
+
 	if( mod == nullptr )
 		{
 		auto format = getFormat();
@@ -535,7 +524,6 @@ Audio Audio::delay( double delayTime, size_t numDelays, double decay, Audio::Mod
 				}
 			}
 
-		std::cout << "Done\n";
 		return out;
 		}
 	else
@@ -553,7 +541,6 @@ Audio Audio::delay( double delayTime, size_t numDelays, double decay, Audio::Mod
 		for( size_t delay = 0; delay < delayTimes.size(); ++delay )
 			delayTimes[delay] = double( delay + 1 ) * delayTime;
 
-		std::cout << "Done\n";
 		return mix( streams, {}, delayTimes);
 		}
 	}

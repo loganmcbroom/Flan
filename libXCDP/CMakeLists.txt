@@ -9,13 +9,9 @@ add_library( libXCDP
 	src/PVOCBuffer.cpp 
 	src/WindowFunctions.cpp 
 	src/RealFunc.cpp
-	)
 
-#target_compile_options( libXCDP
-#	PRIVATE
-#		/Za
-#		-Wall
-#	)
+	src/CDPMapPVOC.cpp
+	)
 
 target_include_directories( libXCDP 
 	PUBLIC 

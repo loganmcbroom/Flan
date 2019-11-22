@@ -57,12 +57,15 @@ double PVOCBuffer::getMaxPartialMagnitude() const
 	{
 	double maxMagnitude = 0;
 	for( auto i : buffer )
-		if( i.magnitude > maxMagnitude )
-			maxMagnitude = i.magnitude;
+		{
+		const double trueMag = std::abs( i.magnitude );
+		if( trueMag > maxMagnitude )
+			maxMagnitude = trueMag;
+		}
 	return maxMagnitude;
 	}
 
-long long PVOCBuffer::timeToFrame( double t ) const
+size_t PVOCBuffer::timeToFrame( double t ) const
 	{
 	return size_t( t * double(getSampleRate()) * double(getOverlaps()) / double(getFrameSize()) );
 	}

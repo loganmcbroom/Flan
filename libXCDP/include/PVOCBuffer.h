@@ -39,7 +39,7 @@ public:
 	size_t getFrameSize() const;
 	double getBinWidth() const;
 	double getMaxPartialMagnitude() const;
-	long long timeToFrame( double t ) const;
+	size_t timeToFrame( double t ) const;
 	double frameToTime( size_t frame ) const;
 
 	//======================================================

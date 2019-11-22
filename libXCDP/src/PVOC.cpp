@@ -5,6 +5,7 @@
 #include <complex>
 #include <array>
 #include <fstream>
+#include <random>
 
 #include <fftw3.h>
 #include "spline.h"
@@ -16,7 +17,6 @@
 const double pi = std::acos( -1.0 );
 
 /** TODO:
-	blur chorus
 	blur scatter
 	stretch time
 	formants get
@@ -26,16 +26,22 @@ const double pi = std::acos( -1.0 );
 	superaccu
 	focus exag
 	combine diff
-
-	should interpolators be generalized?
 */
 
+//	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
+//		for( size_t frame = 0; frame < out.getNumFrames(); ++frame )
+//			for( size_t bin = 0; bin < out.getNumBins(); ++bin )
+
 namespace xcdp {
+
+//========================================================================
+//	Conversions
+//========================================================================
 
 //Phase Vocoder resynthesis. Comments are light, Audio::getPVOC has most of the info.
 Audio PVOC::convertToAudio() const
 	{
-	std::cout << "Getting audio ... ";
+	std::cout << "Getting audio ... \n";
 	const size_t numBins = getNumBins();
 	const size_t frameSize = getFrameSize();
 	const size_t hopSize = frameSize / getOverlaps();
@@ -100,236 +106,14 @@ Audio PVOC::convertToAudio() const
 	fftw_free( fftIn );
 	fftw_free( fftOut );
 
-	std::cout << "Done\n";
 	return out;
 	}
 
-PVOC PVOC::timeSelect( double length, RealFunc selector ) const
-	{
-	std::cout << "Time Select ... ";
-	auto format = getFormat();
-	format.numFrames = timeToFrame( length );
-	PVOC out( format );
-
-	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
-		for( size_t frame = 0; frame < out.getNumFrames(); ++frame )
-			{
-			const size_t selectedFrame = std::clamp( timeToFrame( selector( frameToTime( frame ) ) ), 0ll, long long(getNumFrames()-1) );
-			for( size_t bin = 0; bin < getNumBins(); ++bin )
-				{
-				out.setBin( channel, frame, bin,  
-					getBin( channel, selectedFrame, bin ) );
-				}
-			}
-
-	std::cout << "Done\n";
-	return out;
-	}
-
-PVOC PVOC::holdAtTimes( const std::vector<double> & timesToHold  ) const
-	{
-	std::cout << "Hold Frames ... ";
-	PVOC out( getFormat() );
-
-	std::vector<size_t> framesToHold( timesToHold.size() );
-
-	std::transform( timesToHold.begin(), timesToHold.end(), framesToHold.begin(), [this]( double t ){ return timeToFrame( t ); } );
-
-	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		{
-		bool holding = false;
-		size_t currentFrameVecTestingPosition = 0;
-		for( size_t frame = 0; frame < getNumFrames(); ++frame )
-			{
-			if( frame == framesToHold[currentFrameVecTestingPosition] )
-				{
-				holding = true;
-				++currentFrameVecTestingPosition;
-				}
-
-			for( size_t bin = 0; bin < getNumBins(); ++bin )
-				{
-				if( holding )
-					out.setBin( channel, frame, bin,  
-						getBin( channel, framesToHold[currentFrameVecTestingPosition-1], bin ) );
-				else
-					out.setBin( channel, frame, bin, 
-						getBin( channel, frame, bin ) );
-				}
-			}
-		}
-
-	std::cout << "Done\n";
-	return out;
-	}
-
-PVOC PVOC::timeInterpolate_Constant( size_t decimation ) const
-	{
-	std::cout << "Constant Time Interpolation ... ";
-	PVOC out( getFormat() );
-
-	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t frame = 0; frame < getNumFrames(); ++frame )
-			{
-			const size_t startFrame = size_t(floor( frame / decimation )) * decimation;
-
-			for( size_t bin = 0; bin < getNumBins(); ++bin )
-				{
-				out.setBin( channel, frame, bin,  
-					getBin( channel, startFrame, bin ) );
-				}
-			}
-
-	std::cout << "Done\n";
-	return out;
-	}
-
-PVOC PVOC::timeInterpolate_Linear( size_t decimation ) const
-	{
-	std::cout << "Linear Time Interpolation ... ";
-	PVOC out( getFormat() );
-
-	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t frame = 0; frame < getNumFrames(); ++frame )
-			{
-			const size_t startFrame = size_t(floor( frame / decimation )) * decimation;
-			const size_t endFrame	  = std::min( getNumFrames()-1, startFrame + decimation );
-			const size_t clampedFactor = endFrame-startFrame;
-			const double interpolation = double(frame % decimation) / double(clampedFactor);
-
-			for( size_t bin = 0; bin < getNumBins(); ++bin )
-				{
-				out.setBin( channel, frame, bin, 
-					{ 
-					  getBin( channel, startFrame, bin ).magnitude*(1.0-interpolation) 
-					+ getBin( channel, endFrame  , bin ).magnitude*interpolation,
-					  getBin( channel, startFrame, bin ).frequency*(1.0-interpolation) 
-					+ getBin( channel, endFrame  , bin ).frequency*interpolation
-					} );
-				}
-			}
-
-	std::cout << "Done\n";
-	return out;
-	}
-
-PVOC PVOC::timeInterpolate_Spline( size_t decimation ) const
-	{
-	std::cout << "Spline Time Interpolation ... ";
-	PVOC out( getFormat() );
-
-	//Set up spline x coordinates
-	std::vector<double> Xs( ceil(getNumFrames() / decimation) );
-	for( size_t n = 0; n < Xs.size() - 1; ++n )
-		Xs[n] = n * decimation;
-	Xs[Xs.size()-1] = getNumFrames() - 1;
-
-	//Allocate Y coordinate vectors
-	std::vector<double> magnitudeYs( Xs.size() );
-	std::vector<double> frequencyYs( Xs.size() );
-
-	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		{
-		//Channel -> bin is correct here, despite it being non-sequential access to pvoc buffer
-		for( size_t bin = 0; bin < getNumBins(); ++bin )
-			{
-			//For each x coordinate get corresponding frequency and magnitude
-			for( size_t splineFrameIndex = 0; splineFrameIndex < Xs.size(); ++splineFrameIndex )
-				{
-				magnitudeYs[splineFrameIndex] = getBin( channel, Xs[splineFrameIndex], bin ).magnitude;
-				frequencyYs[splineFrameIndex] = getBin( channel, Xs[splineFrameIndex], bin ).frequency;
-				}
-
-			//Do the splines
-			tk::spline magnitudeSpline, frequencySpline;
-			magnitudeSpline.set_points(Xs,magnitudeYs);
-			frequencySpline.set_points(Xs,frequencyYs);
-
-			//Evaluate splines into out
-			for( size_t frame = 0; frame < getNumFrames(); ++frame )
-				{
-				out.setBin( channel, frame, bin, 
-					{ 
-					magnitudeSpline(frame),
-					frequencySpline(frame)
-					} );
-				}
-			}
-		}
-			
-
-
-
-	std::cout << "Done\n";
-	return out;
-	}
-
-
-PVOC PVOC::repitch( double factor ) const
-	{
-	std::cout << "Repitching ... ";
-	PVOC out( getFormat() );
-	out.clearBuffer();
-
-	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t frame = 0; frame < getNumFrames(); ++frame )
-			for( size_t bin = 0; bin < getNumBins(); ++bin )
-				{
-				size_t index = size_t( bin * factor );
-				if( index < getNumBins() )
-					{
-					auto & outMF = out.getBin( channel, frame, index );
-					auto & inMF  =     getBin( channel, frame, bin   );
-					outMF.magnitude += inMF.magnitude;
-					outMF.frequency =  inMF.frequency * factor;
-					}
-				}
-
-	std::cout << "Done\n";
-	return out;
-	}
-
-//PVOC PVOC::gate( RealFunc cutoff ) const
-//	{
-//	SpectralBuffer out;
-//	out.copyFormat( in );
-//	out.setBufferSize( in );
-//
-//	for( int channel = 0; channel < in.getNumChannels(); ++channel )
-//		for( int bin = 0; bin < out.getNumBins(); ++bin )
-//			out[channel][bin] = abs(in[channel][bin]) > cutoff( in.getBinFreq( bin ) ) ? in[channel][bin] : 0;
-//	
-//
-//	return out;
-//	}
-//PVOC PVOC::gate( double cutoff ) const
-//	{
-//	return gate( in, [cutoff]( double f ){ return cutoff; } );
-//	}
-//
-//PVOC PVOC::invert( int lowerBound, int upperBound  ) const
-//	{
-//	lowerBound = std::clamp( lowerBound, 0, int( getNumBins() - 1 ) );
-//	upperBound = std::clamp( upperBound, 0, int( getNumBins() - 1 ) );
-//	upperBound = std::max( lowerBound, upperBound );
-//
-//	PVOC out( in );
-//	for( int channel = 0; channel < out.getNumChannels(); ++channel )
-//		std::reverse( out.buffer[channel].begin() + lowerBound, out.buffer[channel].begin() + upperBound );
-//
-//	return out;
-//	}
-
-/*
- * H(Hue): 0 - 360 degree (integer)
- * S(Saturation): 0 - 1.00 (double)
- * V(Value): 0 - 1.00 (double)
- */
 std::array<char,3> HSVtoRGB( int H, double S, double V ) 
 	{
-	double C = S * V;
-	double X = C * (1 - abs(fmod(H / 60.0, 2) - 1));
-	double m = V - C;
+	const double C = S * V;
+	const double X = C * (1 - abs(fmod(H / 60.0, 2) - 1));
+	const double m = V - C;
 	double Rs, Gs, Bs;
 
 		 if( H >= 0   && H < 60  ) { Rs = C; Gs = X; Bs = 0; }
@@ -344,7 +128,7 @@ std::array<char,3> HSVtoRGB( int H, double S, double V )
 
 const PVOC & PVOC::getSpectrograph( const std::string & fileName ) const
 	{
-	std::cout << "Getting Spectrograph ... ";
+	std::cout << "Getting Spectrograph ... \n";
 	std::ofstream file( fileName, std::ios::binary );
 	if( !file )
 		{
@@ -378,7 +162,7 @@ const PVOC & PVOC::getSpectrograph( const std::string & fileName ) const
 
 			const double initialHueAngle = 110;
 
-			const double normMag = getBin( 0, frame, bin ).magnitude / maxMag;
+			const double normMag = std::abs(getBin( 0, frame, bin ).magnitude) / maxMag;
 			const double value = std::pow( std::clamp( log2( double(bin) + 3.0 )*normMag, 0.0, 1.0 ), 0.4 );
 
 			//bin deviation from bin center on range [-.5,.5]
@@ -391,9 +175,372 @@ const PVOC & PVOC::getSpectrograph( const std::string & fileName ) const
 			}
 
 	file.close();
-
-	std::cout << "Done\n";
 	return *this;
 	}
+
+//========================================================================
+//	Selection
+//========================================================================
+
+PVOC PVOC::timeSelect( double length, RealFunc selector ) const
+	{
+	std::cout << "Time Select ... \n";
+	auto format = getFormat();
+	format.numFrames = timeToFrame( length );
+	PVOC out( format );
+
+	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
+		for( size_t frame = 0; frame < out.getNumFrames(); ++frame )
+			{
+			const size_t selectedFrame = std::clamp( timeToFrame( selector( frameToTime( frame ) ) ), 0ull, getNumFrames()-1 );
+			for( size_t bin = 0; bin < getNumBins(); ++bin )
+				{
+				out.setBin( channel, frame, bin,  
+					getBin( channel, selectedFrame, bin ) );
+				}
+			}
+
+	return out;
+	}
+
+PVOC PVOC::holdAtTimes( const std::vector<double> & timesToHold  ) const
+	{
+	std::cout << "Hold Frames ... \n";
+	PVOC out( getFormat() );
+
+	std::vector<size_t> framesToHold( timesToHold.size() );
+
+	std::transform( timesToHold.begin(), timesToHold.end(), framesToHold.begin(), [this]( double t ){ return timeToFrame( t ); } );
+
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		{
+		bool holding = false;
+		size_t currentFrameVecTestingPosition = 0;
+		for( size_t frame = 0; frame < getNumFrames(); ++frame )
+			{
+			if( frame == framesToHold[currentFrameVecTestingPosition] )
+				{
+				holding = true;
+				++currentFrameVecTestingPosition;
+				}
+
+			for( size_t bin = 0; bin < getNumBins(); ++bin )
+				{
+				if( holding )
+					out.setBin( channel, frame, bin,  
+						getBin( channel, framesToHold[currentFrameVecTestingPosition-1], bin ) );
+				else
+					out.setBin( channel, frame, bin, 
+						getBin( channel, frame, bin ) );
+				}
+			}
+		}
+
+	return out;
+	}
+
+//========================================================================
+//	Resampling
+//========================================================================
+
+const PVOC::Interpolator PVOC::constantInterpolator = []( double mix, double a, double b ) 
+	{ 
+	return a;
+	};
+
+const PVOC::Interpolator PVOC::linearInterpolator = []( double mix, double a, double b ) 
+	{ 
+	return ( 1.0 - mix ) * a + mix * b;
+	};
+
+const PVOC::Interpolator PVOC::sineInterpolator = []( double mix, double a, double b ) 
+	{ 
+	return ( 1.0 - cos( pi * mix ) ) / 2.0 * ( b - a ) + a; 
+	};
+
+PVOC PVOC::decimate( RealFunc decimation ) const
+	{
+	std::cout << "Decimatate ... \n";
+	auto safeDecimation = [&decimation, this]( size_t f )
+		{
+		return std::max( timeToFrame( decimation( frameToTime( f ) ) ), 1ull );
+		};
+
+	auto format = getFormat();
+	format.numFrames = 0;
+	for( size_t inFrame = 0; inFrame < getNumFrames(); inFrame += safeDecimation( inFrame ) )
+		++format.numFrames;
+	PVOC out( format );
+
+	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
+		{
+		size_t inFrame = 0;
+		for( size_t outFrame = 0; outFrame < out.getNumFrames(); ++outFrame )
+			{
+			for( size_t bin = 0; bin < out.getNumBins(); ++bin )
+				out.setBin( channel, outFrame, bin, getBin( channel, inFrame, bin ) );
+			inFrame += safeDecimation( inFrame );
+			}
+		}
+	return out;
+	}
+
+PVOC PVOC::interpolate( RealFunc interpolation, PVOC::Interpolator interpolator ) const
+	{
+	std::cout << "Interpolate ... \n";
+	const auto safeInterpolation = [&interpolation, this]( size_t f )
+		{
+		return std::max( size_t(interpolation( frameToTime( f ) ) ), 1ull );
+		};
+
+	auto format = getFormat();
+	format.numFrames = 0;
+	for( size_t frame = 0; frame < getNumFrames(); ++frame )
+		format.numFrames += safeInterpolation( frame );
+	PVOC out( format );
+
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		{
+		//Copy frames into output framed spaced interpolation apart
+		size_t outFrame = 0;
+		for( size_t inFrame = 0; inFrame < getNumFrames(); ++inFrame )
+			{
+			for( size_t bin = 0; bin < getNumBins(); ++bin )
+				out.setBin( channel, outFrame, bin, getBin( channel, inFrame, bin ) );
+			outFrame += safeInterpolation(inFrame);
+			}
+
+		//For remaining out frames, interpolate
+		size_t startFrame = 0, endFrame = 0;
+		for( size_t frame = 0; frame < out.getNumFrames(); ++frame )
+			{
+			if( frame == endFrame ) 
+				{
+				startFrame = endFrame;
+				endFrame   = std::min( out.getNumFrames()-1,  endFrame + safeInterpolation( endFrame ) );
+				continue;
+				}
+
+			const double currentInterpPos = double( frame - startFrame ) / double( endFrame - startFrame );
+
+			for( size_t bin = 0; bin < getNumBins(); ++bin )
+				{
+				const auto leftBin  = out.getBin( channel, startFrame, bin );
+				const auto rightBin = out.getBin( channel, endFrame,   bin );
+
+				out.setBin( channel, frame, bin, 
+					{ 
+					interpolator( currentInterpPos, leftBin.magnitude, rightBin.magnitude ), 
+					interpolator( currentInterpPos, leftBin.frequency, rightBin.frequency ) 
+					} );
+				}
+			}
+		}
+
+	return out;
+	}
+
+PVOC PVOC::interpolate_spline( RealFunc interpolation ) const
+	{
+	std::cout << "Interpolate_spline ... \n";
+	const auto safeInterpolation = [&interpolation, this]( size_t f )
+		{
+		return std::max( size_t(interpolation( frameToTime( f ) ) ), 1ull );
+		};
+	
+	//Set up output and spline x coordinates
+	auto format = getFormat();
+	format.numFrames = 0;
+	std::vector<double> Xs( getNumFrames() );
+	for( size_t frame = 0; frame < getNumFrames()-1; ++frame )
+		{
+		Xs[frame] = format.numFrames;
+		format.numFrames += safeInterpolation( frame );
+		}
+	Xs[getNumFrames()-1] = format.numFrames;
+	PVOC out( format );
+
+	//Allocate Y coordinate vectors
+	std::vector<double> magnitudeYs( Xs.size() );
+	std::vector<double> frequencyYs( Xs.size() );
+
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		{
+		//Channel -> bin is correct here, despite non-sequential access to pvoc buffer
+		for( size_t bin = 0; bin < getNumBins(); ++bin )
+			{
+			//For each x coordinate get corresponding frequency and magnitude
+			for( size_t frame = 0; frame < getNumFrames(); ++frame )
+				{
+				magnitudeYs[frame] = getBin( channel, frame, bin ).magnitude;
+				frequencyYs[frame] = getBin( channel, frame, bin ).frequency;
+				}
+
+			//Do the splines
+			tk::spline magnitudeSpline, frequencySpline;
+			magnitudeSpline.set_points(Xs,magnitudeYs);
+			frequencySpline.set_points(Xs,frequencyYs);
+
+			//Evaluate splines into out
+			for( size_t frame = 0; frame < out.getNumFrames(); ++frame )
+				{
+				out.setBin( channel, frame, bin, 
+					{ 
+					magnitudeSpline(frame),
+					frequencySpline(frame)
+					} );
+				}
+			}
+		}
+			
+	return out;
+	}
+
+PVOC PVOC::resample( RealFunc decimation, RealFunc interpolation, PVOC::Interpolator interpolator ) const
+	{
+	return interpolate( interpolation, interpolator ).decimate( decimation );
+	}
+
+PVOC PVOC::desample( RealFunc decimation, RealFunc interpolation, PVOC::Interpolator interpolator ) const
+	{
+	return decimate( decimation ).interpolate( interpolation, interpolator );
+	}
+
+PVOC PVOC::timeExtrapolate( double startTime, double endTime, double extrapolationTime, PVOC::Interpolator interpolator ) const
+	{
+	//Linear extrapolation via lines matching original PVOC at x_1 and x_2
+	const size_t startFrame = timeToFrame( startTime		 ); //x_1
+	const size_t endFrame	= timeToFrame( endTime			 ); //x_2
+	const size_t extFrames	= timeToFrame( extrapolationTime ); //Extrapolated frames to generate
+
+	auto format = getFormat();
+	format.numFrames = endFrame + extFrames;
+	PVOC out( format );
+
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		{
+		//Copy up to start frame
+		for( size_t frame = 0; frame < startFrame; ++frame )
+			for( size_t bin = 0; bin < getNumBins(); ++bin )
+				out.setBin( channel, frame, bin, getBin( channel, frame, bin ) );
+			
+		//Interpolate and continue beyond endFrame to extrapolate
+		for( size_t frame = startFrame; frame < out.getNumFrames(); ++frame )
+			{
+			const double interpolation = double( frame - startFrame ) / double( endFrame - startFrame ); 
+
+			for( size_t bin = 0; bin < getNumBins(); ++bin )
+				{
+				const auto leftBin  =  getBin( channel, startFrame, bin );
+				const auto rightBin =  getBin( channel, endFrame, bin );
+
+				out.setBin( channel, frame, bin, 
+					{ 
+					interpolator( interpolation, leftBin.magnitude, rightBin.magnitude ), 
+					interpolator( interpolation, leftBin.frequency, rightBin.frequency ) 
+					} );
+				}
+			}
+		}
+	return out;
+	}
+
+//========================================================================
+// Combinations
+//========================================================================
+
+PVOC PVOC::replaceAmplitudes( const PVOC & ampSource, RealFunc amount ) const
+	{
+	PVOC out( getFormat() );
+
+	if( ampSource.getNumChannels() < getNumChannels()
+	 || ampSource.getNumFrames()   < getNumFrames() 
+	 || ampSource.getNumBins()	   < getNumBins() )
+		out.clearBuffer();
+
+	const size_t numChannels = std::min( ampSource.getNumChannels(), getNumChannels() );
+	const size_t numFrames	 = std::min( ampSource.getNumFrames(),   getNumFrames()   );
+	const size_t numBins     = std::min( ampSource.getNumBins(),     getNumBins()     );
+
+	for( size_t channel = 0; channel < numChannels; ++channel )
+		for( size_t frame = 0; frame < numFrames; ++frame )
+			{
+			const double currentAmount = amount( frameToTime( frame ) );
+			for( size_t bin = 0; bin < numBins; ++bin )
+				{
+				const auto currentBin = getBin( channel, frame, bin );
+				out.setBin( channel, frame, bin,
+					{
+					ampSource.getBin( channel, frame, bin ).magnitude * currentAmount + currentBin.magnitude * ( 1.0 - currentAmount ),
+					currentBin.frequency
+					} );
+				}
+			}
+
+	return out;
+	}
+
+//========================================================================
+// Uncategorized
+//========================================================================
+
+PVOC PVOC::repitch( double factor ) const
+	{
+	std::cout << "Repitching ... \n";
+	PVOC out( getFormat() );
+	out.clearBuffer();
+
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		for( size_t frame = 0; frame < getNumFrames(); ++frame )
+			for( size_t bin = 0; bin < getNumBins(); ++bin )
+				{
+				size_t index = size_t( bin * factor );
+				if( index < getNumBins() )
+					{
+					auto & outMF = out.getBin( channel, frame, index );
+					auto & inMF  =     getBin( channel, frame, bin   );
+					outMF.magnitude += inMF.magnitude;
+					outMF.frequency =  inMF.frequency * factor;
+					}
+				}
+	return out;
+	}
+
+const PVOC::Perturber PVOC::normalDistPerturber = []( double x, double amount )
+	{
+	///Seeding?
+	static std::default_random_engine rng;
+	static std::normal_distribution<double> dist( 0, 1.0 );
+
+	return dist(rng) * amount + x;
+	};
+
+const PVOC::Perturber PVOC::identityPerturber = []( double x, double amount ){ return x; };
+
+PVOC PVOC::perturb( RealFunc magAmount, RealFunc frqAmount, 
+					PVOC::Perturber magPerturber, PVOC::Perturber frqPerturber ) const
+	{
+	PVOC out( getFormat() );
+
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		for( size_t frame = 0; frame < getNumFrames(); ++frame )
+			{
+			const double currentMagAmount = magAmount( frameToTime( frame ) );
+			const double currentFrqAmount = frqAmount( frameToTime( frame ) );
+
+			for( size_t bin = 0; bin < getNumBins(); ++bin )
+				{
+				const auto currentBin = getBin( channel, frame, bin );
+				out.setBin( channel, frame, bin,
+					{
+					magPerturber( currentBin.magnitude, currentMagAmount / log2( 1 + bin ) ),
+					frqPerturber( currentBin.frequency, currentFrqAmount )
+					} );
+				}
+			}
+
+	return out;
+	}
+
 
 } //End namespace xcdp

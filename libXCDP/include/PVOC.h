@@ -1,8 +1,10 @@
 #pragma once
 
 #include <string>
+#include <functional>
 
 #include "PVOCBuffer.h"
+#include "RealFunc.h"
 
 namespace xcdp {
 
@@ -13,57 +15,68 @@ class PVOC : public PVOCBuffer
 {
 public:
 
-	typedef const std::vector<const PVOC  &> & PVOCVec ;
+	typedef const std::vector<const PVOC &> & Vec;
 
 	PVOC( const PVOCBuffer::Format & other ) : PVOCBuffer( other ) {}
 
-	//======================================================
+	//========================================================================
 	//	Conversions
-	//======================================================
+	//========================================================================
 
 	Audio convertToAudio() const;
 
 	//Note this is currently saving to tga, not the easiest to open image format, just easy to make
 	const PVOC & getSpectrograph( const std::string & fileName ) const;
 
-	//======================================================
-	//	Procs
-	//======================================================
+	//========================================================================
+	// Selection
+	//========================================================================
 
-	/* 
-	 * Frame Selectors
-	 * These choose some frame from the input at given times in the output
-	*/
 	PVOC timeSelect( double length, RealFunc selector ) const;
 	PVOC holdAtTimes( const std::vector<double> & timesToHold  ) const;
 
-	/* 
-	 * Time Interpolators
-	 * These functions choose every (decimation) frames and discards the rest, filling the space with 
-	 * interpolated data
-	*/
-	PVOC timeInterpolate_Constant( size_t decimation ) const;
-	PVOC timeInterpolate_Linear( size_t decimation ) const;
-	PVOC timeInterpolate_Spline( size_t decimation ) const;
+	//========================================================================
+	//	Resampling
+	//========================================================================
 
-	/* 
-	 * Time Extrapolators
-	 * These functions attempt to extend the spectral content of a PVOC beyond its
-	 * normal domain.
-	*/
-	PVOC timeExtrapolate_Linear( int factor ) const;
+	typedef std::function< double ( double mix, double a, double b ) > Interpolator;
+	static const Interpolator constantInterpolator, linearInterpolator, sineInterpolator;
 
-	/* 
-	 * Spectral Repitch
-	 * This multiplies all frequencies by factor
-	 * A lot of people seem to think this algorithm is the big reason to use a phase vocoder
-	 * but I just don't think it sounds that good
-	*/
+	PVOC decimate( RealFunc decimation ) const;
+	PVOC interpolate( RealFunc interpolation, Interpolator interpolator = linearInterpolator ) const;
+	PVOC interpolate_spline( RealFunc interpolation ) const; //Spline interpolation requires custom handling
+	PVOC resample( RealFunc decimation, RealFunc interpolation, Interpolator interpolator = linearInterpolator ) const;
+	PVOC desample( RealFunc decimation, RealFunc interpolation, Interpolator interpolator = linearInterpolator ) const;
+	PVOC timeExtrapolate( double startTime, double endTime, double extrapTime, Interpolator interpolator = linearInterpolator ) const;
+
+	//========================================================================
+	// Combinations
+	//========================================================================
+
+	PVOC replaceAmplitudes( const PVOC & ampSource, RealFunc amount = 1 ) const;
+
+	//========================================================================
+	// Uncategorized
+	//========================================================================
+
 	PVOC repitch( double factor ) const;
 
-	//PVOC gate( RealFunc cutoff ) const;
-	//PVOC gate( double cutoff ) const;
-	//PVOC invert( int lowerBound, int upperBound ) const;
+	typedef std::function< double ( double, double ) > Perturber;
+	static const Perturber normalDistPerturber, identityPerturber;
+	PVOC perturb( RealFunc magAmount, RealFunc frqAmount, 
+		Perturber magPerturber = identityPerturber, Perturber frqPerturber = normalDistPerturber ) const;
+
+	//========================================================================
+	// CDP Map
+	//========================================================================
+
+	// Blur
+	PVOC blur_blur( RealFunc blurring ) const;
+	PVOC blur_chorus( RealFunc fspread ) const; //mode 2
+
+	// Combine
+	PVOC combine_cross( const PVOC & infile2, RealFunc interp = 1 ) const;
+
 };
 
 } // End namespace xcdp

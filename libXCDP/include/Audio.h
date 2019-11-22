@@ -36,7 +36,7 @@ public:
 
 	Audio monoToStereo() const;
 	Audio modifyVolume( RealFunc volumeLevel ) const;
-	Audio setVolume( RealFunc level = 1.0 ) const;
+	Audio setVolume( RealFunc level ) const;
 	Audio waveshape( RealFunc shaper ) const;
 	Audio pan( RealFunc panAmount ) const;
 	Audio widen( RealFunc widenAmount ) const;
@@ -55,6 +55,7 @@ public:
 	//========================================================
 	// Multi-In Procs
 	//========================================================
+
 	static Audio mix( Audio::Vec ins, 
 		std::vector< RealFunc > balances = std::vector< RealFunc >(),
 		std::vector< double > startTimes = std::vector<double>() );

@@ -16,6 +16,9 @@ struct RealFunc
 	RealFunc( double t0 ) 
 		: f( [t0]( double t ){ return t0; } ) 
 		{}
+	RealFunc( int t0 ) 
+		: f( [t0]( double t ){ return double(t0); } ) 
+		{}
 	double operator()( double t ) const { return f(t); }
 
 	void graph( const std::string & filename = std::string("tempRealFuncGraph.tga"),
