@@ -574,38 +574,67 @@ PVOC PVOC::perturb( RealFunc magAmount, RealFunc frqAmount,
 	return out;
 	}
 
-PVOC PVOC::retainLoudestPartials( RealFunc numBins ) const
+PVOC PVOC::predicateAmplitudes( std::function< bool ( size_t frame, size_t bin ) > predicate ) const
 	{
 	PVOC out( getFormat() );
-
-	auto safeNumBins = [&numBins, this]( size_t frame )
-		{
-		return size_t( std::clamp( numBins( frameToTime( frame ) ), 0.0, double( getNumBins() ) ) );
-		};
-
-	typedef std::pair<size_t, double> indexVolume;
-	std::vector<indexVolume> indexAndVolumes( getNumBins() );
 
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
 		for( size_t frame = 0; frame < getNumFrames(); ++frame )
 			{
 			for( size_t bin = 0; bin < getNumBins(); ++bin )
 				{
-				indexAndVolumes[bin].first = bin;
-				indexAndVolumes[bin].second = getBin( channel, frame, bin ).magnitude;
-				}
-			std::sort( indexAndVolumes.begin(), indexAndVolumes.end(), []( indexVolume& a, indexVolume& b ){ return abs(a.second) > abs(b.second); } );
-			for( size_t bin = 0; bin < getNumBins(); ++bin )
-				{
-				const size_t actualBin = indexAndVolumes[bin].first;
-				if( bin < safeNumBins( frame ) )
-					out.setBin( channel, frame, actualBin, getBin( channel, frame, actualBin ) );
+				if( predicate( bin, frame ) )
+					out.setBin( channel, frame, bin, getBin( channel, frame, bin ) );
 				else
-					out.setBin( channel, frame, actualBin, { 0.0, getBin( channel, frame, actualBin ).frequency } );
+					out.setBin( channel, frame, bin, { 0.0, getBin( channel, frame, bin ).frequency } );
 				}
 			}
 
 	return out;
+	}
+
+PVOC predicateNLoudestPartials( const PVOC & me, RealFunc numBins, std::function< bool (size_t, size_t) > predicate )
+	{
+	PVOC out( me.getFormat() );
+
+	auto safeNumBins = [&numBins, me]( size_t frame )
+		{
+		return size_t( std::clamp( numBins( me.frameToTime( frame ) ), 0.0, double( me.getNumBins() ) ) );
+		};
+
+	typedef std::pair<size_t, double> indexVolume;
+	std::vector<indexVolume> indexAndVolumes( me.getNumBins() );
+
+	for( size_t channel = 0; channel < me.getNumChannels(); ++channel )
+		for( size_t frame = 0; frame < me.getNumFrames(); ++frame )
+			{
+			for( size_t bin = 0; bin < me.getNumBins(); ++bin )
+				{
+				indexAndVolumes[bin].first = bin;
+				indexAndVolumes[bin].second = me.getBin( channel, frame, bin ).magnitude;
+				}
+			std::sort( indexAndVolumes.begin(), indexAndVolumes.end(), []( indexVolume& a, indexVolume& b ){ return abs(a.second) > abs(b.second); } );
+			for( size_t bin = 0; bin < me.getNumBins(); ++bin )
+				{
+				const size_t actualBin = indexAndVolumes[bin].first;
+				if( predicate( bin, safeNumBins( frame ) ) )
+					out.setBin( channel, frame, actualBin, me.getBin( channel, frame, actualBin ) );
+				else
+					out.setBin( channel, frame, actualBin, { 0.0, me.getBin( channel, frame, actualBin ).frequency } );
+				}
+			}
+
+	return out;
+	}
+
+PVOC PVOC::retainNLoudestPartials( RealFunc numBins ) const
+	{
+	return predicateNLoudestPartials( *this, numBins, []( size_t a, size_t b ){ return a < b; } );
+	}
+
+PVOC PVOC::removeNLoudestPartials( RealFunc numBins ) const
+	{
+	return predicateNLoudestPartials( *this, numBins, []( size_t a, size_t b ){ return a >= b; } );
 	}
 
 

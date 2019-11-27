@@ -68,7 +68,10 @@ public:
 	PVOC perturb( RealFunc magAmount, RealFunc frqAmount, 
 		Perturber magPerturber = identityPerturber, Perturber frqPerturber = normalDistPerturber ) const;
 
-	PVOC retainLoudestPartials( RealFunc numBins ) const;
+	PVOC predicateAmplitudes( std::function< bool ( size_t frame, size_t bin ) > predicate ) const;
+
+	PVOC retainNLoudestPartials( RealFunc numPartials ) const;
+	PVOC removeNLoudestPartials( RealFunc numPartials ) const;
 
 	//========================================================================
 	// CDP Map
