@@ -62,9 +62,12 @@ public:
 	PVOC repitch( double factor ) const;
 
 	typedef std::function< double ( double, double ) > Perturber;
-	static const Perturber normalDistPerturber, identityPerturber;
+	static const Perturber identityPerturber, normalDistPerturber, normalDistUpPerturber, 
+		normalDistDownPerturber;
 	PVOC perturb( RealFunc magAmount, RealFunc frqAmount, 
 		Perturber magPerturber = identityPerturber, Perturber frqPerturber = normalDistPerturber ) const;
+
+	PVOC retainLoudestPartials( RealFunc numBins ) const;
 
 	//========================================================================
 	// CDP Map

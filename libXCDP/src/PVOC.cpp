@@ -511,8 +511,21 @@ const PVOC::Perturber PVOC::normalDistPerturber = []( double x, double amount )
 	///Seeding?
 	static std::default_random_engine rng;
 	static std::normal_distribution<double> dist( 0, 1.0 );
+	return x + dist(rng) * amount;
+	};
 
-	return dist(rng) * amount + x;
+const PVOC::Perturber PVOC::normalDistUpPerturber = []( double x, double amount )
+	{
+	static std::default_random_engine rng;
+	static std::normal_distribution<double> dist( 0, 1.0 );
+	return x + abs(dist(rng) * amount);
+	};
+
+const PVOC::Perturber PVOC::normalDistDownPerturber = []( double x, double amount )
+	{
+	static std::default_random_engine rng;
+	static std::normal_distribution<double> dist( 0, 1.0 );
+	return x - abs(dist(rng) * amount);
 	};
 
 const PVOC::Perturber PVOC::identityPerturber = []( double x, double amount ){ return x; };
@@ -536,6 +549,40 @@ PVOC PVOC::perturb( RealFunc magAmount, RealFunc frqAmount,
 					magPerturber( currentBin.magnitude, currentMagAmount / log2( 1 + bin ) ),
 					frqPerturber( currentBin.frequency, currentFrqAmount )
 					} );
+				}
+			}
+
+	return out;
+	}
+
+PVOC PVOC::retainLoudestPartials( RealFunc numBins ) const
+	{
+	PVOC out( getFormat() );
+
+	auto safeNumBins = [&numBins, this]( size_t frame )
+		{
+		return size_t( std::clamp( numBins( frameToTime( frame ) ), 0.0, double( getNumBins() ) ) );
+		};
+
+	typedef std::pair<size_t, double> indexVolume;
+	std::vector<indexVolume> indexAndVolumes( getNumBins() );
+
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		for( size_t frame = 0; frame < getNumFrames(); ++frame )
+			{
+			for( size_t bin = 0; bin < getNumBins(); ++bin )
+				{
+				indexAndVolumes[bin].first = bin;
+				indexAndVolumes[bin].second = getBin( channel, frame, bin ).magnitude;
+				}
+			std::sort( indexAndVolumes.begin(), indexAndVolumes.end(), []( indexVolume& a, indexVolume& b ){ return a.second > b.second; } );
+			for( size_t bin = 0; bin < getNumBins(); ++bin )
+				{
+				const size_t actualBin = indexAndVolumes[bin].first;
+				if( bin < safeNumBins( frame ) )
+					out.setBin( channel, frame, actualBin, getBin( channel, frame, actualBin ) );
+				else
+					out.setBin( channel, frame, actualBin, { 0.0, getBin( channel, frame, actualBin ).frequency } );
 				}
 			}
 
