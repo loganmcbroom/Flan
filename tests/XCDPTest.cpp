@@ -19,11 +19,10 @@ void play( const Audio & toPlay )
 
 void main()
 	{
-	PVOC meowPVOC = Audio( "Audio/meow.wav" ).convertToPVOC();
 	Audio bah = Audio( "Audio/bah.wav" )
 	.convertToPVOC()
-	.replaceAmplitudes( meowPVOC )
-	.getSpectrograph( "temp.tga" )
+	.blur_blur( .05 )
+	//.getSpectrograph( "temp.tga" )
 	.convertToAudio()
 	.setVolume( 0.8 );
 
@@ -32,6 +31,6 @@ void main()
 	//	.5, 2, 2 );
 	//f.graph( "temp.tga" );
 
-	system( "start \"C:\\Program Files (x86)\\FastStone Image Viewer\\FSViewer.exe\" temp.tga " );
+	//system( "start \"C:\\Program Files (x86)\\FastStone Image Viewer\\FSViewer.exe\" temp.tga " );
 	play( bah );
 	}
