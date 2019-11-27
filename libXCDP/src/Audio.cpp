@@ -100,20 +100,9 @@ PVOC Audio::convertToPVOC( const size_t frameSize, const size_t overlaps ) const
 	//For each channel, do the whole thing
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
 		{
-		
-		for( size_t relativeSample = 0; relativeSample < frameSize; ++relativeSample )
-			{
-			// - overlaps/2 to center window around analysis point
-			const int actualSample = int(relativeSample) + int(hopSize) * (-1 - int(overlaps/2));
-			if( 0 <= actualSample && actualSample < numFrames )
-				fftIn[relativeSample] = getSample( channel, actualSample ) * window[relativeSample];
-			else
-				fftIn[relativeSample] = 0;
-			}
-
-		fftw_execute( plan );
+		//Set initial phase to 0
 		for( size_t bin = 0; bin < numBins; ++bin )
-			phaseBuffer[bin] = arg( fftOut[bin] );
+			phaseBuffer[bin] = 0;
 
 		//For each hop, fft and save into buffer
 		for( size_t hop = 0; hop < numHops; ++hop )
