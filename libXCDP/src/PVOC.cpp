@@ -288,9 +288,9 @@ PVOC PVOC::decimate( RealFunc decimation ) const
 PVOC PVOC::interpolate( RealFunc interpolation, PVOC::Interpolator interpolator ) const
 	{
 	std::cout << "Interpolate ... \n";
-	const auto safeInterpolation = [&interpolation, this]( size_t f )
+	const auto safeInterpolation = [&interpolation, this]( size_t frame )
 		{
-		return std::max( size_t(interpolation( frameToTime( f ) ) ), 1ull );
+		return std::max( timeToFrame( interpolation( frameToTime( frame ) ) ), 1ull );
 		};
 
 	auto format = getFormat();
