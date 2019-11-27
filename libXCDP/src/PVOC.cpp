@@ -480,6 +480,25 @@ PVOC PVOC::replaceAmplitudes( const PVOC & ampSource, RealFunc amount ) const
 	return out;
 	}
 
+PVOC PVOC::subtractAmplitudes( const PVOC & other, RealFunc amount ) const
+	{
+	PVOC out( *this );
+
+	const size_t numChannels = std::min( other.getNumChannels(), getNumChannels() );
+	const size_t numFrames	 = std::min( other.getNumFrames(),   getNumFrames()   );
+	const size_t numBins     = std::min( other.getNumBins(),     getNumBins()     );
+
+	for( size_t channel = 0; channel < numChannels; ++channel )
+		for( size_t frame = 0; frame < numFrames; ++frame )
+			{
+			const double currentAmount = amount( frameToTime( frame ) );
+			for( size_t bin = 0; bin < numBins; ++bin )
+				out.getBin( channel, frame, bin ).magnitude -= other.getBin( channel, frame, bin ).magnitude * currentAmount;
+			}
+
+	return out;
+	}
+
 //========================================================================
 // Uncategorized
 //========================================================================
@@ -575,7 +594,7 @@ PVOC PVOC::retainLoudestPartials( RealFunc numBins ) const
 				indexAndVolumes[bin].first = bin;
 				indexAndVolumes[bin].second = getBin( channel, frame, bin ).magnitude;
 				}
-			std::sort( indexAndVolumes.begin(), indexAndVolumes.end(), []( indexVolume& a, indexVolume& b ){ return a.second > b.second; } );
+			std::sort( indexAndVolumes.begin(), indexAndVolumes.end(), []( indexVolume& a, indexVolume& b ){ return abs(a.second) > abs(b.second); } );
 			for( size_t bin = 0; bin < getNumBins(); ++bin )
 				{
 				const size_t actualBin = indexAndVolumes[bin].first;

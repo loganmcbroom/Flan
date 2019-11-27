@@ -54,6 +54,7 @@ public:
 	//========================================================================
 
 	PVOC replaceAmplitudes( const PVOC & ampSource, RealFunc amount = 1 ) const;
+	PVOC subtractAmplitudes( const PVOC & other, RealFunc amount = 1 ) const;
 
 	//========================================================================
 	// Uncategorized
