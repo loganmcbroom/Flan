@@ -178,27 +178,55 @@ Audio Audio::convertToLeftRight() const
 	return convertToMidSide();
 	}
 
+Audio Audio::convertToStereo() const
+	{
+	auto format = getFormat();
+	format.numChannels = 2;
+	Audio out( format );
+
+	switch( getNumChannels() )
+		{
+		case 1:
+			{
+			for( size_t sample = 0; sample < out.getNumSamples(); ++sample )
+				{
+				out.setSample( 0, sample, getSample( 0, sample ) / sqrt(2) );
+				out.setSample( 1, sample, getSample( 0, sample ) / sqrt(2) );
+				}
+			break;
+			}
+		case 2:
+			{
+			out = *this;
+			break;
+			}
+		default:
+			{
+			printToLog( "I don't know how to convert that number of channels to stereo." );
+			}
+		}
+	return out;
+	}
+Audio Audio::convertToMono() const
+	{
+	auto format = getFormat();
+	format.numChannels = 1;
+	Audio out( format );
+
+	for( size_t sample = 0; sample < out.getNumSamples(); ++sample )
+		{
+		double sampleAccumulator = 0;
+		for( size_t channel = 0; channel < getNumChannels(); ++channel )
+			sampleAccumulator += getSample( channel, sample );
+		out.setSample( 0, sample, sampleAccumulator / sqrt( getNumChannels() ) );
+		}
+
+	return out;
+	}
+
 //========================================================
 // Procs
 //========================================================
-
-Audio Audio::monoToStereo( ) const
-	{
-	if( getNumChannels() != 1 )
-		printToLog( "That wasn't a mono file you tried to make stereo just now.\n" );
-
-	auto format = getFormat();
-	format.numChannels = 2;
-	Audio stereo( format );
-
-	for( size_t frame = 0; frame < stereo.getNumSamples(); ++frame )
-		{
-		stereo.setSample( 0, frame, getSample( 0, frame ) );
-		stereo.setSample( 1, frame, getSample( 0, frame ) );
-		}
-
-		return stereo;
-	}
 
 Audio Audio::modifyVolume( RealFunc volumeLevel ) const
 	{
@@ -414,7 +442,7 @@ Audio Audio::repitch( RealFunc factor ) const
 	//What the heck are these two? These, and the block+1 and numBlocks+1 later, are 
 	// there to correctly lerp between pitches. If we don't start at 0 and set the initial
 	// pitch, the first block will have constant pitch
-	data.input_frames  = 0; 
+	data.input_frames = 0; 
 	src_process( state, &data );
 
 	//Interleaved float buffers
@@ -480,9 +508,7 @@ Audio Audio::convolve( const std::vector<double> & ir ) const
 				{
 				const int inSample = sample + 1 - i;
 				if( 0 <= inSample && inSample < getNumSamples() )
-					{
 					convolutionSum += ir[i] * getSample( channel, inSample );
-					}
 				}
 			out.setSample( channel, sample, convolutionSum );
 			}
@@ -550,6 +576,7 @@ Audio Audio::fades( double fadeTime ) const
 
 	return out;
 	}
+	
 
 //========================================================
 // Multi-In Procs

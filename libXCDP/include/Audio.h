@@ -30,11 +30,13 @@ public:
 	Audio convertToMidSide() const;
 	Audio convertToLeftRight() const;
 
+	Audio convertToStereo() const;
+	Audio convertToMono() const;
+
 	//===========================================================================================
 	//	Procs
 	//===========================================================================================
 
-	Audio monoToStereo() const;
 	Audio modifyVolume( RealFunc volumeLevel ) const;
 	Audio setVolume( RealFunc level ) const;
 	Audio waveshape( RealFunc shaper ) const;

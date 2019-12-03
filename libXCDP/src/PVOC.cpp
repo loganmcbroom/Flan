@@ -6,6 +6,7 @@
 #include <array>
 #include <fstream>
 #include <random>
+#include <ctime>
 
 #include <fftw3.h>
 #include "spline.h"
@@ -21,11 +22,9 @@ const double pi = std::acos( -1.0 );
 	stretch time
 	formants get
 	formants put
-	hilite trace
 	morph morph
 	superaccu
 	focus exag
-	combine diff
 */
 
 //	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
@@ -310,6 +309,10 @@ PVOC PVOC::interpolate( RealFunc interpolation, PVOC::Interpolator interpolator 
 			outFrame += safeInterpolation(inFrame);
 			}
 
+		//Copy final input frame with zeroed amplitudes into final output frame for fading out of that frame
+		for( size_t bin = 0; bin < getNumBins(); ++bin )
+			out.setBin( channel, out.getNumFrames()-1, bin, { 0, getBin( channel, getNumFrames()-1, bin ).frequency } );
+
 		//For remaining out frames, interpolate
 		size_t startFrame = 0, endFrame = 0;
 		for( size_t frame = 0; frame < out.getNumFrames(); ++frame )
@@ -525,24 +528,24 @@ PVOC PVOC::repitch( double factor ) const
 	return out;
 	}
 
+///Code duplication?
 const PVOC::Perturber PVOC::normalDistPerturber = []( double x, double amount )
 	{
-	///Seeding?
-	static std::default_random_engine rng;
+	static std::default_random_engine rng( time(nullptr) );
 	static std::normal_distribution<double> dist( 0, 1.0 );
 	return x + dist(rng) * amount;
 	};
 
 const PVOC::Perturber PVOC::normalDistUpPerturber = []( double x, double amount )
 	{
-	static std::default_random_engine rng;
+	static std::default_random_engine rng( time(nullptr) );
 	static std::normal_distribution<double> dist( 0, 1.0 );
 	return x + abs(dist(rng) * amount);
 	};
 
 const PVOC::Perturber PVOC::normalDistDownPerturber = []( double x, double amount )
 	{
-	static std::default_random_engine rng;
+	static std::default_random_engine rng( time(nullptr) );
 	static std::normal_distribution<double> dist( 0, 1.0 );
 	return x - abs(dist(rng) * amount);
 	};
@@ -568,25 +571,6 @@ PVOC PVOC::perturb( RealFunc magAmount, RealFunc frqAmount,
 					magPerturber( currentBin.magnitude, currentMagAmount / log2( 1 + bin ) ),
 					frqPerturber( currentBin.frequency, currentFrqAmount )
 					} );
-				}
-			}
-
-	return out;
-	}
-
-PVOC PVOC::predicateAmplitudes( std::function< bool ( size_t frame, size_t bin ) > predicate ) const
-	{
-	PVOC out( getFormat() );
-
-	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t frame = 0; frame < getNumFrames(); ++frame )
-			{
-			for( size_t bin = 0; bin < getNumBins(); ++bin )
-				{
-				if( predicate( bin, frame ) )
-					out.setBin( channel, frame, bin, getBin( channel, frame, bin ) );
-				else
-					out.setBin( channel, frame, bin, { 0.0, getBin( channel, frame, bin ).frequency } );
 				}
 			}
 
