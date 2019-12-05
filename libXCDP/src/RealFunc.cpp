@@ -6,9 +6,9 @@
 #include <iostream>
 #include <string>
 
-using namespace xcdp;
+namespace xcdp {
 
-std::array<char,3> HSVtoRGB( int H, double S, double V ) 
+static std::array<char,3> HSVtoRGB( int H, double S, double V ) 
 	{
 	double C = S * V;
 	double X = C * (1 - abs(fmod(H / 60.0, 2) - 1));
@@ -76,7 +76,7 @@ void RealFunc::graph( const std::string & filename,
 	std::cout << "Done\n";
 	}
 
-RealFunc xcdp::ADSR( double a, double d, double s, double r, double sLvl, double aExp, double dExp, double rExp )
+RealFunc RealFunc::ADSR( double a, double d, double s, double r, double sLvl, double aExp, double dExp, double rExp )
 	{
 	return [a, d, s, r, sLvl, aExp, dExp, rExp]( double t )
 		{
@@ -87,3 +87,18 @@ RealFunc xcdp::ADSR( double a, double d, double s, double r, double sLvl, double
 		else if( t < a + d + s + r ) return std::pow( 1.0 - ( t - a - d - s ) / r, rExp ) * sLvl;
 		};
 	}
+
+RealFunc RealFunc::interpolatePoints( const std::vector< std::pair< double, double > > ps, Interpolator interp )
+	{
+	return [ps, interp]( double t )
+		{
+		if( ps.size() == 0 ) return 0.0;
+		if( t < ps[0].first || ps[ps.size()-1].first < t ) return 0.0;
+		for( size_t i = 1; i < ps.size(); ++i )
+			if( t < ps[i].first )
+				return interp( ( t - ps[i-1].first ) / ( ps[i].first - ps[i-1].first ), ps[i-1].second, ps[i].second );
+		};
+	}
+
+
+}

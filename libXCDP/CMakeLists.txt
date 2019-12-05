@@ -9,6 +9,7 @@ add_library( libXCDP
 	src/PVOCBuffer.cpp 
 	src/WindowFunctions.cpp 
 	src/RealFunc.cpp
+	src/Utility.cpp
 
 	src/CDPMapPVOC.cpp
 	)

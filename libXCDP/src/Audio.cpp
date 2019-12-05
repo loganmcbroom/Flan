@@ -66,6 +66,39 @@ size_t getMaxNumSamples( Audio::Vec ins )
 	}
 
 //========================================================
+// Overloads
+//========================================================
+
+Audio Audio::operator+( const Audio & other ) const
+	{
+	return mix( {*this, other} );
+	}
+
+Audio Audio::operator-() const	
+	{
+	return invertPhase();
+	}
+
+Audio Audio::operator-( const Audio other ) const	
+	{
+	return *this + -other;
+	}
+
+//========================================================
+// Information
+//========================================================
+
+double Audio::getTotalEnergy() const
+    {
+    double sum = 0;
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		for( size_t sample = 0; sample < getNumSamples(); ++sample )
+            sum += pow( getSample( channel, sample ), 2 );
+    
+    return sum;
+    }
+
+//========================================================
 // Conversions
 //========================================================
 
@@ -228,6 +261,17 @@ Audio Audio::convertToMono() const
 // Procs
 //========================================================
 
+Audio Audio::invertPhase() const
+	{
+	Audio out( getFormat() );
+
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		for( size_t sample = 0; sample < getNumSamples(); ++sample )
+			out.setSample( channel, sample, -getSample( channel, sample ) );
+
+	return out;
+	}
+
 Audio Audio::modifyVolume( RealFunc volumeLevel ) const
 	{
 	std::cout << "Modifying volume ... \n";
@@ -235,10 +279,10 @@ Audio Audio::modifyVolume( RealFunc volumeLevel ) const
 	Audio out( getFormat() );
 
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t frame = 0; frame < getNumSamples(); ++frame )
+		for( size_t sample = 0; sample < getNumSamples(); ++sample )
 			{
-			double calculatedSample = getSample( channel, frame )*volumeLevel(sampleToTime(frame));
-			out.setSample( channel, frame, calculatedSample );
+			double calculatedSample = getSample( channel, sample )*volumeLevel(sampleToTime(sample));
+			out.setSample( channel, sample, calculatedSample );
 			}
 
 	return out;
@@ -289,7 +333,7 @@ Audio Audio::pan( RealFunc panAmount ) const
 	switch( getNumChannels() )
 		{
 		case 1: //Panning mono: cast to stereo and do stereo pan
-			return monoToStereo().pan( panAmount );
+			return convertToStereo().pan( panAmount );
 			break;
 		case 2: //Panning stereo: Use stereo pan as defined above
 			return stereoPan( panAmount );

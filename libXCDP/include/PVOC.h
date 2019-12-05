@@ -5,11 +5,11 @@
 
 #include "PVOCBuffer.h"
 #include "RealFunc.h"
+#include "Utility.h"
 
 namespace xcdp {
 
 class Audio;
-struct RealFunc;
 
 class PVOC : public PVOCBuffer
 {
@@ -32,22 +32,22 @@ public:
 	// Selection
 	//========================================================================
 
-	PVOC timeSelect( double length, RealFunc selector ) const;
+	PVOC getFrame( double time ) const;
+	PVOC timeSelect( double length, Surface selector ) const;
 	PVOC holdAtTimes( const std::vector<double> & timesToHold  ) const;
 
 	//========================================================================
 	//	Resampling
 	//========================================================================
 
-	typedef std::function< double ( double mix, double a, double b ) > Interpolator;
-	static const Interpolator constantInterpolator, linearInterpolator, sineInterpolator;
-
 	PVOC decimate( RealFunc decimation ) const;
-	PVOC interpolate( RealFunc interpolation, Interpolator interpolator = linearInterpolator ) const;
+	PVOC interpolate( RealFunc interpolation, Interpolator = Interpolators::linear ) const;
 	PVOC interpolate_spline( RealFunc interpolation ) const; //Spline interpolation requires custom handling
-	PVOC resample( RealFunc decimation, RealFunc interpolation, Interpolator interpolator = linearInterpolator ) const;
-	PVOC desample( RealFunc decimation, RealFunc interpolation, Interpolator interpolator = linearInterpolator ) const;
-	PVOC timeExtrapolate( double startTime, double endTime, double extrapTime, Interpolator interpolator = linearInterpolator ) const;
+	MFPair getBinInterpolated( size_t channel, double frame, size_t bin, Interpolator = Interpolators::linear ) const;
+	MFPair getBinInterpolated( size_t channel, size_t frame, double bin, Interpolator = Interpolators::linear ) const;
+	PVOC resample( RealFunc decimation, RealFunc interpolation, Interpolator = Interpolators::linear ) const;
+	PVOC desample( RealFunc decimation, RealFunc interpolation, Interpolator = Interpolators::linear ) const;
+	PVOC timeExtrapolate( double startTime, double endTime, double extrapTime, Interpolator = Interpolators::linear ) const;
 
 	//========================================================================
 	// Combinations
@@ -57,19 +57,23 @@ public:
 	PVOC subtractAmplitudes( const PVOC & other, RealFunc amount = 1 ) const;
 
 	//========================================================================
-	// Uncategorized
+	// Uncategorized (aka new stuff)
 	//========================================================================
 
-	PVOC repitch( double factor ) const;
-
-	typedef std::function< double ( double, double ) > Perturber;
-	static const Perturber identityPerturber, normalDistPerturber, normalDistUpPerturber, 
-		normalDistDownPerturber;
 	PVOC perturb( RealFunc magAmount, RealFunc frqAmount, 
-		Perturber magPerturber = identityPerturber, Perturber frqPerturber = normalDistPerturber ) const;
+		Perturber magPerturber = Perturbers::identity, Perturber frqPerturber = Perturbers::normalDist ) const;
 
 	PVOC retainNLoudestPartials( RealFunc numPartials ) const;
 	PVOC removeNLoudestPartials( RealFunc numPartials ) const;
+
+	PVOC resonate( double length, Surface decay ) const;
+
+	PVOC repitch( Surface factor ) const;
+
+	//UNFINISHED
+	PVOC stretch( Surface factor ) const;
+	PVOC convolve( const PVOC & other ) const;
+	PVOC accumulate( double length, Surface decay ) const;
 
 	//========================================================================
 	// CDP Map

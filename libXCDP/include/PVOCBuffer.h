@@ -28,6 +28,7 @@ public:
 	//======================================================
 
 	MFPair getBin( size_t channel, size_t frame, size_t bin ) const;
+	PVOCBuffer getFrame( size_t frame ) const;
 
 	Format getFormat() const;
 	size_t getNumChannels() const;
@@ -38,8 +39,10 @@ public:
 
 	size_t getFrameSize() const;
 	double getBinWidth() const;
+	double getBinFrequency( size_t bin ) const;
 	double getMaxPartialMagnitude() const;
 	size_t timeToFrame( double t ) const;
+	double timeToFrame_d( double t ) const;
 	double frameToTime( size_t frame ) const;
 
 	//======================================================

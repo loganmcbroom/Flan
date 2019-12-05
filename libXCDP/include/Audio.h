@@ -22,6 +22,20 @@ public:
 	Audio( const std::string & filename ) : AudioBuffer( filename ) {}
 
 	//======================================================
+	//	Overloads
+	//======================================================
+
+	Audio operator+( const Audio & other ) const; //Mix
+	Audio operator-() const; //Invert phase
+	Audio operator-( const Audio other ) const; //Add negative
+
+	//========================================================
+	// Information
+	//========================================================
+
+	double Audio::getTotalEnergy() const;
+
+	//======================================================
 	//	Conversions
 	//======================================================
 
@@ -37,6 +51,7 @@ public:
 	//	Procs
 	//===========================================================================================
 
+	Audio invertPhase() const;
 	Audio modifyVolume( RealFunc volumeLevel ) const;
 	Audio setVolume( RealFunc level ) const;
 	Audio waveshape( RealFunc shaper ) const;

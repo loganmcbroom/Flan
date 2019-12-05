@@ -11,12 +11,12 @@ namespace xcdp {
 PVOC PVOC::blur_blur( RealFunc blur ) const
 	{ 
 	auto frameFixBlur = [&blur, this]( double t ){ return frameToTime( blur( t ) ); };
-	return desample( frameFixBlur, frameFixBlur, linearInterpolator ); 
+	return desample( frameFixBlur, frameFixBlur, Interpolators::linear ); 
 	}
 
 PVOC PVOC::blur_chorus( RealFunc fspread ) const
 	{
-	return perturb( 0, fspread, identityPerturber, normalDistPerturber );
+	return perturb( 0, fspread, Perturbers::identity,  Perturbers::normalDist );
 	}
 
 //========================================================================

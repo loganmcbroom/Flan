@@ -53,6 +53,10 @@ double PVOCBuffer::getBinWidth() const
 	{
 	return double( getSampleRate() ) / double( getFrameSize() );
 	}
+double PVOCBuffer::getBinFrequency( size_t bin ) const
+	{
+	return double( bin ) * getBinWidth();
+	}
 double PVOCBuffer::getMaxPartialMagnitude() const
 	{
 	double maxMagnitude = 0;
@@ -67,7 +71,12 @@ double PVOCBuffer::getMaxPartialMagnitude() const
 
 size_t PVOCBuffer::timeToFrame( double t ) const
 	{
-	return size_t( t * double(getSampleRate()) * double(getOverlaps()) / double(getFrameSize()) );
+	return (size_t) timeToFrame_d( t );
+	}
+
+double PVOCBuffer::timeToFrame_d( double t ) const
+	{
+	return t * double(getSampleRate()) * double(getOverlaps()) / double(getFrameSize());
 	}
 
 double PVOCBuffer::frameToTime( size_t frame ) const
