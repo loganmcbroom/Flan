@@ -10,6 +10,7 @@ add_library( libXCDP
 	src/WindowFunctions.cpp 
 	src/RealFunc.cpp
 	src/Utility.cpp
+	src/Synthesis.cpp
 
 	src/CDPMapPVOC.cpp
 	)

@@ -292,6 +292,7 @@ Audio Audio::setVolume( RealFunc level ) const
 	{
 	// Divide by getMaxSampleMagnitude to normalize, multiply by level to set
 	const double maxMag = getMaxSampleMagnitude();
+	if( maxMag == 0 ) return *this;
 	return modifyVolume( [ &level, maxMag ]( double t ){ return level(t) / maxMag; } );
 	}
 

@@ -213,7 +213,7 @@ PVOC PVOC::timeSelect( double length, Surface selector ) const
 			{
 			for( size_t bin = 0; bin < getNumBins(); ++bin )
 				{
-				const double currentTimeSelection = selector( frameToTime( frame ), getBinFrequency( bin ) );
+				const double currentTimeSelection = selector( frameToTime( frame ), binToFrequency( bin ) );
 				const double selectedFrame = std::clamp( timeToFrame_d( currentTimeSelection ), 0.0, double( getNumFrames() - 1 ) );
 				out.setBin( channel, frame, bin,  
 					getBinInterpolated( channel, selectedFrame, bin ) );
@@ -263,90 +263,125 @@ PVOC PVOC::holdAtTimes( const std::vector<double> & timesToHold  ) const
 //	Resampling
 //========================================================================
 
-PVOC PVOC::decimate( RealFunc decimation ) const
+PVOC PVOC::modifyFrequency( Surface outFreqFunc, Interpolator interp ) const
 	{
-	std::cout << "Decimatate ... \n";
-	auto safeDecimation = [&decimation, this]( size_t f )
-		{
-		return std::max( timeToFrame( decimation( frameToTime( f ) ) ), 1ull );
-		};
+	std::cout << "Modify Frequency ... \n";
+	PVOC out( getFormat() );
+	out.clearBuffer();
 
-	auto format = getFormat();
-	format.numFrames = 0;
-	for( size_t inFrame = 0; inFrame < getNumFrames(); inFrame += safeDecimation( inFrame ) )
-		++format.numFrames;
-	PVOC out( format );
-
-	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
-		{
-		size_t inFrame = 0;
-		for( size_t outFrame = 0; outFrame < out.getNumFrames(); ++outFrame )
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		for( size_t frame = 0; frame < getNumFrames(); ++frame )
 			{
-			for( size_t bin = 0; bin < out.getNumBins(); ++bin )
-				out.setBin( channel, outFrame, bin, getBin( channel, inFrame, bin ) );
-			inFrame += safeDecimation( inFrame );
+			double prevOutBin = frequencyToBin_d( outFreqFunc( frameToTime( frame ), 0.0 ) );
+			for( size_t bin = 1; bin < getNumBins(); ++bin )
+				{
+				const double outBin = frequencyToBin_d( outFreqFunc( frameToTime( frame ), binToFrequency( bin ) ) );
+				const bool forward = outBin > prevOutBin;
+
+				const long long prevOutBinRound = forward? std::ceil( prevOutBin ) : std::floor( prevOutBin );
+				const long long outBinRound     = forward? std::ceil( outBin     ) : std::floor( outBin     );
+
+				const size_t startBin = std::clamp( prevOutBinRound, 0ll, long long(out.getNumBins() - 1) );
+				const size_t endBin   = std::clamp( outBinRound    , 0ll, long long(out.getNumBins() - 1) );
+
+				for( size_t interpBin = startBin; interpBin != endBin; forward? ++interpBin : --interpBin )
+					{
+					if( interpBin < 0 || getNumBins() <= interpBin ) continue;
+
+					const double mix = ( double( interpBin ) - prevOutBin ) / ( outBin - prevOutBin );
+					const double interpMagnitude = interp( mix, getBin( channel, frame, bin-1 ).magnitude, getBin( channel, frame, bin ).magnitude );
+
+					auto & outMF = out.getBin( channel, frame, interpBin );
+
+					if( interpMagnitude > outMF.magnitude )
+						{
+						//Set frequency to whatever frequency is more dominant
+						const double pureInterp = interp( mix, 0.0, 1.0 );
+
+						if( getBin( channel, frame, bin-1 ).magnitude * ( 1.0 - pureInterp ) > 
+						    getBin( channel, frame, bin-0 ).magnitude * ( 0.0 + pureInterp ) )
+							outMF.frequency = outFreqFunc( frameToTime( frame ), getBin( channel, frame, bin-1 ).frequency );
+						else
+							outMF.frequency = outFreqFunc( frameToTime( frame ), getBin( channel, frame, bin-0 ).frequency );
+						}
+					outMF.magnitude += interpMagnitude;
+					}
+
+				prevOutBin = outBin;
+				}
 			}
-		}
+
 	return out;
 	}
 
-PVOC PVOC::interpolate( RealFunc interpolation, Interpolator interpolator ) const
+PVOC PVOC::modifyTime( Surface outPosFunc, Interpolator interp ) const
 	{
-	std::cout << "Interpolate ... \n";
-	const auto safeInterpolation = [&interpolation, this]( size_t frame )
-		{
-		return std::clamp( timeToFrame( interpolation( frameToTime( frame ) ) ), 1ull, 64ull );
-		};
+	std::cout << "Modify Time ... \n";
+
+	//Find farthest output frame
+	size_t lastOutputFrame = 0;
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		for( size_t frame = 0; frame < getNumFrames(); ++frame )
+			for( size_t bin = 0; bin < getNumBins(); ++bin )
+				{
+				const double outTime = outPosFunc( frameToTime( frame ), binToFrequency( bin ) );
+				if( outTime <= 0.0 ) continue;
+				lastOutputFrame = std::max( timeToFrame( outTime ), lastOutputFrame );
+				}
 
 	auto format = getFormat();
-	format.numFrames = 0;
-	for( size_t frame = 0; frame < getNumFrames(); ++frame )
-		format.numFrames += safeInterpolation( frame );
+	format.numFrames = lastOutputFrame;
 	PVOC out( format );
+	out.clearBuffer();
+
+	std::vector< double > prevOutPos( getNumBins() );
 
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
 		{
-		//Copy frames into output framed spaced interpolation apart
-		size_t outFrame = 0;
-		for( size_t inFrame = 0; inFrame < getNumFrames(); ++inFrame )
-			{
-			for( size_t bin = 0; bin < getNumBins(); ++bin )
-				out.setBin( channel, outFrame, bin, getBin( channel, inFrame, bin ) );
-			outFrame += safeInterpolation( inFrame );
-			}
-
-		//Copy final input frame with zeroed amplitudes into final output frame for fading out of that frame
+		//Compute initial frame output positions
 		for( size_t bin = 0; bin < getNumBins(); ++bin )
-			out.setBin( channel, out.getNumFrames()-1, bin, { 0, getBin( channel, getNumFrames()-1, bin ).frequency } );
+			prevOutPos[bin] = timeToFrame_d( outPosFunc( 0.0, binToFrequency( bin ) ) );
 
-		//For remaining out frames, interpolate
-		size_t startFrame = 0, endFrame = 0;
-		for( size_t frame = 0; frame < out.getNumFrames(); ++frame )
+		for( size_t frame = 1; frame < getNumFrames(); ++frame ) // Start at 1 because for each frame we will access previous frame
 			{
-			if( frame == endFrame ) 
-				{
-				startFrame = endFrame;
-				endFrame   = std::min( out.getNumFrames()-1,  endFrame + safeInterpolation( endFrame ) );
-				continue;
-				}
-
-			const double currentInterpPos = double( frame - startFrame ) / double( endFrame - startFrame );
-
 			for( size_t bin = 0; bin < getNumBins(); ++bin )
 				{
-				const auto leftBin  = out.getBin( channel, startFrame, bin );
-				const auto rightBin = out.getBin( channel, endFrame,   bin );
+				const double outPos = timeToFrame_d( outPosFunc( frameToTime( frame ), binToFrequency( bin ) ) );
+				const bool forward = outPos > prevOutPos[bin];
 
-				out.setBin( channel, frame, bin, 
-					{ 
-					interpolator( currentInterpPos, leftBin.magnitude, rightBin.magnitude ), 
-					interpolator( currentInterpPos, leftBin.frequency, rightBin.frequency ) 
-					} );
+				const long long prevOutPosRound = forward? std::ceil( prevOutPos[bin] ) : std::floor( prevOutPos[bin] );
+				const long long outPosRound     = forward? std::ceil( outPos          ) : std::floor( outPos          );
+
+				const size_t startFrame = std::clamp( prevOutPosRound, 0ll, long long(out.getNumFrames() - 1) );
+				const size_t endFrame   = std::clamp( outPosRound    , 0ll, long long(out.getNumFrames() - 1) );
+
+				for( size_t outFrame = startFrame; outFrame != endFrame; forward? ++outFrame : --outFrame )
+					{
+					const double mix = ( double( outFrame ) - prevOutPos[bin] ) / ( outPos - prevOutPos[bin] );
+					const double interpMagnitude = interp( mix, getBin( channel, frame - 1, bin ).magnitude, getBin( channel, frame, bin ).magnitude );
+
+					auto & outMF = out.getBin( channel, outFrame, bin );
+					if( interpMagnitude > outMF.magnitude )
+						outMF.frequency = interp( mix, getBin( channel, frame - 1, bin ).frequency, getBin( channel, frame, bin ).frequency );
+					outMF.magnitude += interpMagnitude;
+					}
+
+				prevOutPos[bin] = outPos;
 				}
 			}
 		}
 
 	return out;
+	}
+
+PVOC PVOC::repitch( RealFunc factor, Interpolator interp ) const
+	{
+	return modifyFrequency( [&factor]( double t, double f ){ return factor(t)*f; }, interp );
+	}
+
+PVOC PVOC::stretch( RealFunc factor, Interpolator interp ) const
+	{
+	return modifyTime( [&factor]( double t, double f ){ return factor(t)*t; }, interp );
 	}
 
 PVOC PVOC::interpolate_spline( RealFunc interpolation ) const
@@ -437,14 +472,10 @@ PVOC::MFPair PVOC::getBinInterpolated( size_t channel, size_t frame, double bin,
 			};
 	}
 
-PVOC PVOC::resample( RealFunc decimation, RealFunc interpolation, Interpolator interpolator ) const
+PVOC PVOC::desample( RealFunc factor, Interpolator interpolator ) const
 	{
-	return interpolate( interpolation, interpolator ).decimate( decimation );
-	}
-
-PVOC PVOC::desample( RealFunc decimation, RealFunc interpolation, Interpolator interpolator ) const
-	{
-	return decimate( decimation ).interpolate( interpolation, interpolator );
+	return stretch( [&factor]( double t ){ return 1.0 / factor(t); }, interpolator )
+		  .stretch( factor,                                           interpolator );
 	}
 
 PVOC PVOC::timeExtrapolate( double startTime, double endTime, double extrapolationTime, Interpolator interpolator ) const
@@ -544,89 +575,6 @@ PVOC PVOC::subtractAmplitudes( const PVOC & other, RealFunc amount ) const
 // Uncategorized
 //========================================================================
 
-PVOC PVOC::repitch( Surface factor ) const
-	{
-	std::cout << "Repitching ... \n";
-	PVOC out( getFormat() );
-	out.clearBuffer();
-
-	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t frame = 0; frame < getNumFrames(); ++frame )
-			for( size_t bin = 0; bin < getNumBins(); ++bin )
-				{
-				const double currentFactor = std::max( 0.0, factor( frameToTime( frame ), getBinFrequency( bin ) ) );
-
-				const double outBin_d = bin * currentFactor;
-				const size_t outBin_lo = floor( outBin_d );
-				const size_t outBin_hi = outBin_lo + 1;
-				const double interp = outBin_d - double( outBin_lo );
-
-				if( outBin_hi < out.getNumBins() )
-					{
-					const auto inMF = getBin( channel, frame, bin );
-					auto & outMF_lo = out.getBin( channel, frame, outBin_lo  );
-					auto & outMF_hi = out.getBin( channel, frame, outBin_hi );
-
-					const double energy_lo = inMF.magnitude * ( 1.0 - interp );
-					const double energy_hi = inMF.magnitude * ( 0.0 + interp );
-
-					if( energy_lo > outMF_lo.magnitude ) outMF_lo.frequency = inMF.frequency * currentFactor;
-					if( energy_hi > outMF_hi.magnitude ) outMF_hi.frequency = inMF.frequency * currentFactor;
-					outMF_lo.magnitude += energy_lo;
-					outMF_hi.magnitude += energy_hi;
-					}
-				}
-
-	return out;
-	}
-
-PVOC PVOC::stretch( Surface factor ) const
-	{
-	//Find farthest output frame
-	size_t lastOutputFrame = 0;
-	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t frame = 0; frame < getNumFrames(); ++frame )
-			for( size_t bin = 0; bin < getNumBins(); ++bin )
-				lastOutputFrame = std::max( size_t( frame * factor( frameToTime( frame ), getBinFrequency( bin ) ) ), lastOutputFrame );
-
-	auto format = getFormat();
-	format.numFrames = lastOutputFrame;
-	PVOC out( format );
-
-	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t frame = 0; frame < getNumFrames(); ++frame )
-			for( size_t bin = 0; bin < getNumBins(); ++bin )
-				{
-				const double currentFactor = factor( frameToTime( frame ), getBinFrequency( bin ) );
-
-				const double outFrame_d = frame * currentFactor;
-				const size_t outFrame_lo = floor( outFrame_d );
-				const size_t outFrame_hi = outFrame_lo + 1;
-				const double interp = outFrame_d - double( outFrame_lo );
-
-				if( outFrame_hi < out.getNumFrames() )
-					{
-					const auto inMF  = getBin( channel, frame, bin );
-					auto & outMF_lo = out.getBin( channel, outFrame_lo, bin );
-					auto & outMF_hi = out.getBin( channel, outFrame_hi, bin );
-
-					const double energy_lo = inMF.magnitude * ( 1.0 - interp );
-					const double energy_hi = inMF.magnitude * ( 0.0 + interp );
-				
-					outMF_lo.frequency = outMF_lo.frequency * outMF_lo.magnitude + inMF.frequency * energy_lo;
-					outMF_hi.frequency = outMF_hi.frequency * outMF_hi.magnitude + inMF.frequency * energy_hi;
-
-					outMF_lo.magnitude += energy_lo;
-					outMF_hi.magnitude += energy_hi;
-
-					if( outMF_lo.magnitude != 0.0 ) outMF_lo.frequency /= outMF_lo.magnitude;
-					if( outMF_hi.magnitude != 0.0 ) outMF_hi.frequency /= outMF_hi.magnitude;
-					}
-				}
-
-	return out;
-	}
-
 PVOC PVOC::perturb( RealFunc magAmount, RealFunc frqAmount, 
 					Perturber magPerturber, Perturber frqPerturber ) const
 	{
@@ -696,37 +644,6 @@ PVOC PVOC::removeNLoudestPartials( RealFunc numBins ) const
 	return predicateNLoudestPartials( *this, numBins, []( size_t a, size_t b ){ return a >= b; } );
 	}
 
-PVOC PVOC::convolve( const PVOC & other ) const
-	{
-	auto format = getFormat();
-	format.numChannels = std::min( getNumChannels(), other.getNumChannels() );
-	format.numFrames = getNumFrames() + other.getNumFrames();
-	format.numBins = std::min( getNumBins(), other.getNumBins() );
-	PVOC out( format );
-
-	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
-		for( size_t frame = 0; frame < out.getNumFrames(); ++frame )
-			{
-			for( size_t bin = 0; bin < out.getNumBins(); ++bin )
-				{
-				MFPair convolutionAccumulator = {0,0};
-				for( size_t i = 0; i < other.getNumFrames(); ++i )
-					{
-					if( frame - i < 0 || getNumFrames() <= frame - i ) continue;
-
-					const auto thisBin  = getBin( channel, frame - i, bin );
-					const auto otherBin = getBin( channel,	       i, bin );
-
-					convolutionAccumulator.magnitude += thisBin.magnitude * otherBin.magnitude;
-					convolutionAccumulator.frequency += thisBin.frequency * otherBin.frequency;
-					}
-				out.setBin( channel, frame, bin, convolutionAccumulator );
-				}
-			}
-
-	return out;
-	}
-
 PVOC PVOC::resonate( double length, Surface decay ) const
 	{
 	length = std::max( length, 0.0 );
@@ -745,7 +662,7 @@ PVOC PVOC::resonate( double length, Surface decay ) const
 		for( size_t frame = 1; frame < out.getNumFrames(); ++frame )
 			for( size_t bin = 0; bin < out.getNumBins(); ++bin )
 				{
-				const double currentDecay = pow( decay( frameToTime( frame ), getBinFrequency( bin ) ), secondsPerFrame );
+				const double currentDecay = pow( decay( frameToTime( frame ), binToFrequency( bin ) ), secondsPerFrame );
 				const double decayedAmp = out.getBin( channel, frame - 1, bin ).magnitude * currentDecay;
 				if( frame < getNumFrames() && getBin( channel, frame, bin ).magnitude > decayedAmp )
 					out.setBin( channel, frame, bin, getBin( channel, frame, bin ) );

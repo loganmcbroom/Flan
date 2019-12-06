@@ -40,13 +40,14 @@ public:
 	//	Resampling
 	//========================================================================
 
-	PVOC decimate( RealFunc decimation ) const;
-	PVOC interpolate( RealFunc interpolation, Interpolator = Interpolators::linear ) const;
+	PVOC modifyFrequency( Surface mod, Interpolator = Interpolators::linear ) const;
+	PVOC modifyTime( Surface mod, Interpolator = Interpolators::linear ) const;
+	PVOC repitch( RealFunc factor, Interpolator = Interpolators::linear ) const;
+	PVOC stretch( RealFunc factor, Interpolator = Interpolators::linear ) const;
 	PVOC interpolate_spline( RealFunc interpolation ) const; //Spline interpolation requires custom handling
 	MFPair getBinInterpolated( size_t channel, double frame, size_t bin, Interpolator = Interpolators::linear ) const;
 	MFPair getBinInterpolated( size_t channel, size_t frame, double bin, Interpolator = Interpolators::linear ) const;
-	PVOC resample( RealFunc decimation, RealFunc interpolation, Interpolator = Interpolators::linear ) const;
-	PVOC desample( RealFunc decimation, RealFunc interpolation, Interpolator = Interpolators::linear ) const;
+	PVOC desample( RealFunc factor, Interpolator = Interpolators::linear ) const;
 	PVOC timeExtrapolate( double startTime, double endTime, double extrapTime, Interpolator = Interpolators::linear ) const;
 
 	//========================================================================
@@ -62,18 +63,9 @@ public:
 
 	PVOC perturb( RealFunc magAmount, RealFunc frqAmount, 
 		Perturber magPerturber = Perturbers::identity, Perturber frqPerturber = Perturbers::normalDist ) const;
-
 	PVOC retainNLoudestPartials( RealFunc numPartials ) const;
 	PVOC removeNLoudestPartials( RealFunc numPartials ) const;
-
 	PVOC resonate( double length, Surface decay ) const;
-
-	PVOC repitch( Surface factor ) const;
-
-	//UNFINISHED
-	PVOC stretch( Surface factor ) const;
-	PVOC convolve( const PVOC & other ) const;
-	PVOC accumulate( double length, Surface decay ) const;
 
 	//========================================================================
 	// CDP Map

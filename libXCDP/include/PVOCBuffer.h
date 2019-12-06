@@ -39,11 +39,15 @@ public:
 
 	size_t getFrameSize() const;
 	double getBinWidth() const;
-	double getBinFrequency( size_t bin ) const;
 	double getMaxPartialMagnitude() const;
-	size_t timeToFrame( double t ) const;
-	double timeToFrame_d( double t ) const;
+
+	size_t timeToFrame( double time ) const;
+	double timeToFrame_d( double time ) const;
 	double frameToTime( size_t frame ) const;
+
+	size_t frequencyToBin( double freq ) const;
+	double frequencyToBin_d( double freq ) const;
+	double binToFrequency( size_t bin ) const;
 
 	//======================================================
 	//	Setters
