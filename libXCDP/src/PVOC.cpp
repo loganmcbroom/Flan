@@ -113,48 +113,15 @@ Audio PVOC::convertToAudio() const
 	return out;
 	}
 
-std::array<char,3> HSVtoRGB( int H, double S, double V ) 
-	{
-	const double C = S * V;
-	const double X = C * (1 - abs(fmod(H / 60.0, 2) - 1));
-	const double m = V - C;
-	double Rs, Gs, Bs;
-
-		 if( H >= 0   && H < 60  ) { Rs = C; Gs = X; Bs = 0; }
-	else if( H >= 60  && H < 120 ) { Rs = X; Gs = C; Bs = 0; }
-	else if( H >= 120 && H < 180 ) { Rs = 0; Gs = C; Bs = X; }
-	else if( H >= 180 && H < 240 ) { Rs = 0; Gs = X; Bs = C; }
-	else if( H >= 240 && H < 300 ) { Rs = X; Gs = 0; Bs = C; }
-	else						   { Rs = C; Gs = 0; Bs = X; }
-
-	return std::array<char,3>({ char((Rs + m) * 255),  char((Gs + m) * 255),  char((Bs + m) * 255) });
-	}
-
 const PVOC & PVOC::getSpectrograph( const std::string & fileName ) const
 	{
 	std::cout << "Getting Spectrograph ... \n";
-	std::ofstream file( fileName, std::ios::binary );
-	if( !file )
-		{
-		std::cout << "Error opening " << fileName << " to save spectrograph.\n";
-		return *this;
-		}
-
-	//The image header
-	unsigned char header[ 18 ] = { 0 };
-	header[  2 ] = 1;  //Plain rgb
-	header[ 12 ] = ( getNumFrames()		     )	& 0xFF;
-	header[ 13 ] = ( getNumFrames()     >> 8 )	& 0xFF;
-	header[ 14 ] = ( getFrameSize()/2		 )	& 0xFF;
-	header[ 15 ] = ( getFrameSize()/2	>> 8 )	& 0xFF;
-	header[ 16 ] = 24;  //Bits per pixel
-
-	file.write( (const char *) header, 18 );
 
 	size_t numFrames = getNumFrames();
 	double maxMag = getMaxPartialMagnitude();
 
-	//bin -> frame to match tga write order
+	//bin -> frame to match write order
+	std::vector<std::vector<std::array<char,3>>> data( getNumFrames(), std::vector( getNumBins(), std::array<char,3>( {0,0,0} ) ) );
 	for( size_t bin = 0; bin < getNumBins(); ++bin )
 		for( size_t frame = 0; frame < numFrames; ++frame )	
 			{
@@ -174,11 +141,10 @@ const PVOC & PVOC::getSpectrograph( const std::string & fileName ) const
 			const int hueAngle = int( deviation * 1800.0 + initialHueAngle );
 			const int wrappedHueAngle = hueAngle - int(360.0*floor( double(hueAngle) / 360.0 ));
 
-			const std::array<char,3> rgb = HSVtoRGB( wrappedHueAngle, 1.0, value );
-			file.write( rgb.data(), 3 );
+			data[frame][bin] = HSVtoRGB( wrappedHueAngle, 1.0, value );
 			}
 
-	file.close();
+	writeBMP( fileName, data );
 	return *this;
 	}
 
