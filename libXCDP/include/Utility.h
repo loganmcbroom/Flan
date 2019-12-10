@@ -1,6 +1,11 @@
 #pragma once
 
+//Any small misc code can live here 
+
 #include <functional>
+#include <vector>
+#include <string>
+#include <array>
 
 namespace xcdp {
 
@@ -21,4 +26,9 @@ extern const Perturber
 	normalDistUp, 
 	normalDistDown;
 }
+
+std::array<char,3> HSVtoRGB( int H, double S, double V );
+bool writeTGA( const std::string & fileName, std::vector<std::vector<std::array<char,3>>> & data );
+bool writeBMP( const std::string & filename, std::vector<std::vector<std::array<char,3>>> & data );
+
 }
