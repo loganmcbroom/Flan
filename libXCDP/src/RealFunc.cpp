@@ -25,7 +25,7 @@ void RealFunc::graph( const std::string & filename,
 		outputs[x] = int( ( f( double(x) / resD + left ) - bottom ) * resD );
 
 	//y -> x to match write order
-	std::vector<std::vector<std::array<char,3>>> data( width, std::vector( height, std::array<char,3>( {0,0,0} ) ) );
+	std::vector<std::vector<std::array<uint8_t,3>>> data( width, std::vector( height, std::array<uint8_t,3>( {0,0,0} ) ) );
 	for( int y = 0; y < height; ++y )
 		{
 		for( int x = 0; x < width; ++x )	

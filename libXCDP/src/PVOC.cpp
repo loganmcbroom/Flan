@@ -42,7 +42,7 @@ namespace xcdp {
 //	Conversions
 //========================================================================
 
-//Phase Vocoder resynthesis. Comments are light, Audio::getPVOC has most of the info.
+//Phase Vocoder resynthesis. Comments are light, Audio::convertToPVOC has most of the info.
 Audio PVOC::convertToAudio() const
 	{
 	std::cout << "Getting audio ... \n";
@@ -121,7 +121,7 @@ const PVOC & PVOC::getSpectrograph( const std::string & fileName ) const
 	double maxMag = getMaxPartialMagnitude();
 
 	//bin -> frame to match write order
-	std::vector<std::vector<std::array<char,3>>> data( getNumFrames(), std::vector( getNumBins(), std::array<char,3>( {0,0,0} ) ) );
+	std::vector<std::vector<std::array<uint8_t,3>>> data( getNumFrames(), std::vector( getNumBins(), std::array<uint8_t,3>( {0,0,0} ) ) );
 	for( size_t bin = 0; bin < getNumBins(); ++bin )
 		for( size_t frame = 0; frame < numFrames; ++frame )	
 			{

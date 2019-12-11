@@ -53,7 +53,7 @@ const Perturber Perturbers::normalDistDown = []( double x, double amount )
 
 const Perturber Perturbers::identity = []( double x, double amount ){ return x; };
 
-std::array<char,3> HSVtoRGB( int H, double S, double V ) 
+std::array<uint8_t,3> HSVtoRGB( int H, double S, double V ) 
 	{
 	double C = S * V;
 	double X = C * (1 - abs(fmod(H / 60.0, 2) - 1));
@@ -67,7 +67,7 @@ std::array<char,3> HSVtoRGB( int H, double S, double V )
 	else if( H >= 240 && H < 300 ) { Rs = X; Gs = 0; Bs = C; }
 	else						   { Rs = C; Gs = 0; Bs = X; }
 
-	return std::array<char,3>({ char((Rs + m) * 255),  char((Gs + m) * 255),  char((Bs + m) * 255) });
+	return std::array<uint8_t,3>({ uint8_t((Rs + m) * 255),  uint8_t((Gs + m) * 255),  uint8_t((Bs + m) * 255) });
 	}
 
 template <typename T>
@@ -84,7 +84,7 @@ T swap_endian(T u)
     source.u = u;
 
     for( size_t k = 0; k < sizeof(T); k++ )
-        dest.u8[k] = source.u8[sizeof(T) - k - 1];
+        dest.u8[k] = source.u8[k];
 
     return dest.u;
 	}
@@ -95,7 +95,7 @@ void write_bytes( unsigned char * target, T u )
     static_assert( CHAR_BIT == 8, "CHAR_BIT != 8" );
 
     for( size_t k = 0; k < sizeof(T); k++ )
-        target[k] = ( u >> 8*(sizeof(T)-1-k) ) & 0xFF;
+        target[k] = ( u >> 8*k ) & 0xFF;
 
     return;
 	}
@@ -110,39 +110,7 @@ void write_bytes( unsigned char * target, const char * source )
     return;
 	}
 
-bool writeTGA( const std::string & filename, std::vector<std::vector<std::array<char,3>>> & data )
-	{
-	std::ofstream file( filename, std::ios::binary );
-	if( !file )
-		{
-		std::cout << "Error opening " << filename << " to write TGA.\n";
-		return false;
-		}
-
-	const size_t width  = data.size();
-	const size_t height = data[0].size();
-
-	//The image header
-	unsigned char header[ 18 ] = { 0 };
-	header[  2 ] = 1;  //Uncompressed, RGB image
-	header[ 12 ] = ( width		     )	& 0xFF;
-	header[ 13 ] = ( width		>> 8 )	& 0xFF;
-	header[ 14 ] = ( height		     )	& 0xFF;
-	header[ 15 ] = ( height		>> 8 )	& 0xFF;
-	header[ 16 ] = 24;  //Bits per pixel
-
-	file.write( (const char *) header, 18 );
-
-	//y -> x to match tga write order
-	for( int y = 0; y < height; ++y )
-		for( int x = 0; x < width; ++x )	
-			file.write( data[x][y].data(), 3 );
-
-	file.close();
-	return true;
-	}
-
-bool writeBMP( const std::string & filename, std::vector<std::vector<std::array<char,3>>> & data )
+bool writeBMP( const std::string & filename, const std::vector<std::vector<std::array<uint8_t,3>>> & data )
 	{
 	auto bail = []( const std::string & s )
 		{
@@ -162,31 +130,33 @@ bool writeBMP( const std::string & filename, std::vector<std::vector<std::array<
 
 	unsigned char header[ headerSize ] = { 0 };
 		write_bytes( header +  0, "BM" );
-		write_bytes( header +  2, swap_endian( headerSize + DIBheaderSize + dataSize ) );
-		write_bytes( header + 10, swap_endian( headerSize + DIBheaderSize ) );
+		write_bytes( header +  2, headerSize + DIBheaderSize + dataSize );
+		write_bytes( header + 10, headerSize + DIBheaderSize );
 	file.write( (const char *) header, headerSize );
 
 	unsigned char DIBheader[ DIBheaderSize ] = { 0 };
-		write_bytes( DIBheader +  0, swap_endian( DIBheaderSize		) );  
-		write_bytes( DIBheader +  4, swap_endian( width				) );  
-		write_bytes( DIBheader +  8, swap_endian( height			) );  
-		write_bytes( DIBheader + 12, swap_endian( (uint32_t) 1		) );  
-		write_bytes( DIBheader + 14, swap_endian( (uint32_t) 32		) );  //bits per pixel
-		write_bytes( DIBheader + 16, swap_endian( (uint32_t) 0		) );  
-		write_bytes( DIBheader + 20, swap_endian( 0					) );  
-		write_bytes( DIBheader + 24, swap_endian( (uint32_t) 1	) );  
-		write_bytes( DIBheader + 28, swap_endian( (uint32_t) 1	) );  
-		write_bytes( DIBheader + 32, swap_endian( (uint32_t) 0		) );  
-		write_bytes( DIBheader + 36, swap_endian( (uint32_t) 0		) );  
+		write_bytes( DIBheader +  0, DIBheaderSize	);  //size
+		write_bytes( DIBheader +  4, width			);  //width
+		write_bytes( DIBheader +  8, height			);  //height
+		write_bytes( DIBheader + 12, (uint32_t) 1	);  //number of planes
+		write_bytes( DIBheader + 14, (uint32_t) 32	);  //bits per pixel
+		write_bytes( DIBheader + 16, (uint32_t) 0	);  //Compression type
+		write_bytes( DIBheader + 20, (uint32_t) 0	);  //compressed size (0 for 0 type compression)
+		write_bytes( DIBheader + 24, (uint32_t) 1	);  //x resolution ???
+		write_bytes( DIBheader + 28, (uint32_t) 1	);  //y resolution ???
+		write_bytes( DIBheader + 32, (uint32_t) 0	);  //number of used colors (0 for 2^n)
+		write_bytes( DIBheader + 36, (uint32_t) 0	);  //number of important colors
 	file.write( (const char *) DIBheader, DIBheaderSize );
 
 	//y -> x to match write order
 	for( int y = 0; y < height; ++y )
 		for( int x = 0; x < width; ++x )
 			{
-			const char alpha = 0x1F;
-			file.write( &alpha, 1 );
-			file.write( data[x][y].data(), 3 );
+			const uint32_t alpha = 0b00000000;
+			file.write( (char *) &data[x][y][2], 1 ); 
+			file.write( (char *) &data[x][y][1], 1 ); 
+			file.write( (char *) &data[x][y][0], 1 ); 
+			file.write( (char *) &alpha, 1 );
 			}
 
 	file.close();
