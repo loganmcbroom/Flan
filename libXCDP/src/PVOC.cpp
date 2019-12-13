@@ -15,27 +15,6 @@
 
 const double pi = std::acos( -1.0 );
 
-/** TODO:
-	blur scatter
-	stretch time
-	formants get
-	formants put
-	morph morph
-	superaccu
-	focus exag
-
-Boilerplate:
-	auto format = getFormat();
-	PVOC out( format );
-
-	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
-		for( size_t frame = 0; frame < out.getNumFrames(); ++frame )
-			for( size_t bin = 0; bin < out.getNumBins(); ++bin )
-
-	return out;
-
-*/
-
 namespace xcdp {
 
 //========================================================================
@@ -58,10 +37,7 @@ Audio PVOC::convertToAudio() const
 	audioFormat.sampleRate = getSampleRate();
 	Audio out( audioFormat );
 
-	//Scale window for faster normalization later
-	std::vector<double> window = window::Hann( frameSize );
-	for( size_t i = 0; i < window.size(); ++i )
-		window[i] /= frameSize * getOverlaps();
+	const double windowScale = frameSize * getOverlaps();
 
 	std::vector<double> phaseBuffer( numBins );
 	std::complex<double> *fftIn = (std::complex<double>*) fftw_alloc_complex( numBins );
@@ -101,7 +77,7 @@ Audio PVOC::convertToAudio() const
 				if( 0 <= actualSample && actualSample < out.getNumSamples() )
 					{ 
 					out.setSample( channel, actualSample, out.getSample( channel, actualSample ) +
-						window[relativeSample] * fftOut[relativeSample] );
+						window::Hann( double(relativeSample) / double(frameSize) ) / windowScale * fftOut[relativeSample] );
 					}
 				}
 			}
@@ -113,7 +89,7 @@ Audio PVOC::convertToAudio() const
 	return out;
 	}
 
-const PVOC & PVOC::getSpectrograph( const std::string & fileName ) const
+const PVOC & PVOC::graph( const std::string & fileName ) const
 	{
 	std::cout << "Getting Spectrograph ... \n";
 

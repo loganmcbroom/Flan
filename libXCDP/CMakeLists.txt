@@ -7,6 +7,9 @@ add_library( libXCDP
 	src/AudioBuffer.cpp 
 	src/PVOC.cpp 
 	src/PVOCBuffer.cpp 
+	src/Spectrum.cpp
+	src/SpectrumBuffer.cpp
+
 	src/WindowFunctions.cpp 
 	src/RealFunc.cpp
 	src/Utility.cpp

@@ -71,25 +71,6 @@ std::array<uint8_t,3> HSVtoRGB( int H, double S, double V )
 	}
 
 template <typename T>
-T swap_endian(T u)
-	{
-    static_assert( CHAR_BIT == 8, "CHAR_BIT != 8" );
-
-    union
-		{
-        T u;
-        unsigned char u8[sizeof(T)];
-		} source, dest;
-
-    source.u = u;
-
-    for( size_t k = 0; k < sizeof(T); k++ )
-        dest.u8[k] = source.u8[k];
-
-    return dest.u;
-	}
-
-template <typename T>
 void write_bytes( unsigned char * target, T u )
 	{
     static_assert( CHAR_BIT == 8, "CHAR_BIT != 8" );
@@ -138,8 +119,8 @@ bool writeBMP( const std::string & filename, const std::vector<std::vector<std::
 		write_bytes( DIBheader +  0, DIBheaderSize	);  //size
 		write_bytes( DIBheader +  4, width			);  //width
 		write_bytes( DIBheader +  8, height			);  //height
-		write_bytes( DIBheader + 12, (uint32_t) 1	);  //number of planes
-		write_bytes( DIBheader + 14, (uint32_t) 32	);  //bits per pixel
+		write_bytes( DIBheader + 12, (uint16_t) 1	);  //number of planes
+		write_bytes( DIBheader + 14, (uint16_t) 32	);  //bits per pixel
 		write_bytes( DIBheader + 16, (uint32_t) 0	);  //Compression type
 		write_bytes( DIBheader + 20, (uint32_t) 0	);  //compressed size (0 for 0 type compression)
 		write_bytes( DIBheader + 24, (uint32_t) 1	);  //x resolution ???

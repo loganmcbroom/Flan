@@ -154,7 +154,7 @@ double AudioBuffer::getLength() const
 
 double AudioBuffer::getMaxSampleMagnitude() const
 	{
-	return std::abs(*std::max_element( buffer.begin(), buffer.end(), []( double a, double b)
+	return std::abs(*std::max_element( buffer.begin(), buffer.end(), []( double a, double b )
 		{
 		return std::abs( a ) < std::abs( b );
 		}));
@@ -163,20 +163,24 @@ double AudioBuffer::getMaxSampleMagnitude() const
 //======================================================
 //	Setters
 //======================================================
-void AudioBuffer::setSample( size_t channel, size_t frame, double sample ) 
+void AudioBuffer::setSample( size_t channel, size_t sample, double newValue ) 
 	{
-	buffer[getPos( channel, frame )] = sample;
+	buffer[getPos( channel, sample )] = newValue;
 	}
 
-double & AudioBuffer::getSample( size_t channel, size_t frame )
+double & AudioBuffer::getSample( size_t channel, size_t sample )
 	{
-	return buffer[getPos( channel, frame )];
+	return buffer[getPos( channel, sample )];
 	}
 
 void xcdp::AudioBuffer::clearBuffer()
 	{
 	std::fill( buffer.begin(), buffer.end(), 0 );
 	}
+
+//======================================================
+//	Private
+//======================================================
 
 size_t xcdp::AudioBuffer::getPos( size_t channel, size_t sample ) const
 	{

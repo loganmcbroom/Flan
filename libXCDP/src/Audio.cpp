@@ -9,6 +9,7 @@
 
 #include "RealFunc.h"
 #include "PVOC.h"
+#include "Spectrum.h"
 #include "WindowFunctions.h"
 
 using namespace xcdp;
@@ -98,6 +99,39 @@ double Audio::getTotalEnergy() const
     return sum;
     }
 
+Audio Audio::graph( const std::string & filename, size_t width, size_t height ) const
+	{
+	if( getNumSamples() == 0 ) return *this;
+	width = std::min( width, getNumSamples() );
+
+	std::vector<std::vector<std::array<uint8_t,3>>> data( width, std::vector( height*getNumChannels(), HSVtoRGB( 180, .8, .1 ) ) );
+
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		{
+		std::vector<double> energies( width, 0.0 );
+		for( size_t sample = 0; sample < getNumSamples(); ++sample )
+			energies[ double(sample) / double(getNumSamples()) * width ] += getSample( channel, sample );
+		double maxEnergy = 0;
+		for( size_t x = 0; x < width; ++x )
+			maxEnergy = std::max( maxEnergy, std::abs( energies[x] ) );
+
+		for( size_t x = 0; x < width; ++x )
+			{
+			const int height2 = height / 2;
+			data[x][height2 + height * channel ] = {0,0,0};
+			for( int y = 0; std::abs( y ) < std::abs( energies[x] / maxEnergy * height2 ) * 0.9; energies[x] > 0 ? ++y : --y )
+				{
+				auto color = HSVtoRGB( 0, .8, .65 );
+				data[x][ height2 + y + height * channel ] = color;
+				}
+			}
+		}
+
+	writeBMP( filename, data );
+
+	return *this;
+	}
+
 //========================================================
 // Conversions
 //========================================================
@@ -121,9 +155,6 @@ PVOC Audio::convertToPVOC( const size_t frameSize, const size_t overlaps ) const
 	PVOCFormat.overlaps = overlaps;
 	PVOC out( PVOCFormat );
 
-	//Generate window
-	const std::vector<double> window = window::Hann( frameSize );
-
 	//Allocate fftw input buffer, output buffer, phase buffer, and plan
 	std::vector<double> phaseBuffer( numBins );
 	double * fftIn = fftw_alloc_real( frameSize );
@@ -146,7 +177,7 @@ PVOC Audio::convertToPVOC( const size_t frameSize, const size_t overlaps ) const
 				// - overlaps/2 to center window around analysis point
 				const int actualSample = int(relativeSample) + int(hopSize) * (int(hop) - int(overlaps/2));
 				if( 0 <= actualSample && actualSample < numFrames )
-					fftIn[relativeSample] = getSample( channel, actualSample ) * window[relativeSample];
+					fftIn[relativeSample] = getSample( channel, actualSample ) * window::Hann( double(relativeSample) / double(frameSize) );
 				else
 					fftIn[relativeSample] = 0;
 				}
@@ -181,7 +212,41 @@ PVOC Audio::convertToPVOC( const size_t frameSize, const size_t overlaps ) const
 				out.setBin( channel, hop, bin, { abs( fftOut[bin] ), frequency } );
 				}
 			}
-			
+		}
+
+	fftw_destroy_plan( plan );
+	fftw_free( fftOut );
+	fftw_free( fftIn );
+
+	return out;
+	}
+Spectrum Audio::convertToSpectrum() const
+	{
+	const size_t outnumBins = std::floor( double( getNumSamples() ) / 2.0 ) + 1;
+
+	Spectrum::Format format;
+	format.numChannels = getNumChannels();
+	format.numBins = outnumBins;
+	format.sampleRate = getSampleRate();
+	Spectrum out( format );
+
+	//Allocate fftw buffers and plan
+	double * fftIn = fftw_alloc_real( getNumSamples() );
+	std::complex<double> * fftOut = (std::complex<double>*) fftw_alloc_complex( outnumBins );
+	fftw_plan plan = fftw_plan_dft_r2c_1d( int( getNumSamples() ), fftIn, (fftw_complex*) fftOut, FFTW_ESTIMATE );
+
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		{
+		//Read buffer data into fftIn
+		for( size_t sample = 0; sample < getNumSamples(); ++sample )
+			fftIn[sample] = getSample( channel, sample );
+
+		//fft
+		fftw_execute( plan );
+
+		//Read fftOut into out spectrum
+		for( size_t bin = 0; bin < outnumBins; ++bin )
+			out.setSpectra( channel, bin, fftOut[bin] );
 		}
 
 	fftw_destroy_plan( plan );
@@ -538,7 +603,7 @@ Audio Audio::repitch( RealFunc factor ) const
 	return out;                   
 	}
 
-Audio Audio::convolve( const std::vector<double> & ir ) const
+Audio Audio::convolve( const std::vector<RealFunc> & ir ) const
 	{
 	std::cout << "Convolving ... \n";
 	auto format = getFormat();
@@ -546,16 +611,16 @@ Audio Audio::convolve( const std::vector<double> & ir ) const
 	Audio out( format );
 
 	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
-		for( size_t sample = 0; sample < out.getNumSamples(); ++sample )
+		for( size_t outSample = 0; outSample < out.getNumSamples(); ++outSample )
 			{
 			double convolutionSum = 0;
-			for( int i = 0; i < ir.size(); ++i )
+			for( int irSample = 0; irSample < ir.size(); ++irSample )
 				{
-				const int inSample = sample + 1 - i;
+				const int inSample = outSample + 1 - irSample;
 				if( 0 <= inSample && inSample < getNumSamples() )
-					convolutionSum += ir[i] * getSample( channel, inSample );
+					convolutionSum += ir[irSample]( out.sampleToTime( outSample ) ) * getSample( channel, inSample );
 				}
-			out.setSample( channel, sample, convolutionSum );
+			out.setSample( channel, outSample, convolutionSum );
 			}
 
 	return out;
@@ -621,7 +686,22 @@ Audio Audio::fades( double fadeTime ) const
 
 	return out;
 	}
-	
+
+Audio Audio::lowPass( RealFunc cutoff, size_t taps ) const
+	{
+	std::vector<RealFunc> ir;
+	for( size_t tap = 0; tap <= taps; ++tap ) 
+		ir.push_back( [&cutoff, this, taps, tap]( double t )
+			{
+			const double n = double(tap) - int(taps) / 2;
+			const double N = getSampleRate();
+			const double K = 2.0 * cutoff(t);
+			if( n == 0 ) return K / N;
+			else return sin( pi * n * K / N ) / ( N * sin( pi * n / N ) ) * window::Hann( double(tap) / double(taps) ); 
+			} );
+
+	return convolve( ir );
+	}
 
 //========================================================
 // Multi-In Procs

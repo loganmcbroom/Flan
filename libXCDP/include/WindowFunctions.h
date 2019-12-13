@@ -1,9 +1,13 @@
 #pragma once
 
-#include <vector>
+//x should sit between 0 and 1
 
-namespace xcdp::window {
+namespace xcdp{
 
-const std::vector<double> Hann( size_t frameSize );
+struct RealFunc;
 
-} // End namespace xcdp::window
+namespace window {
+
+double Hann( double x );
+
+}}

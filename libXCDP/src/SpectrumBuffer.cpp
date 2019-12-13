@@ -34,6 +34,10 @@ size_t SpectrumBuffer::getNumBins() const
 	{
 	return format.numBins;
 	}
+size_t SpectrumBuffer::getSampleRate() const
+	{
+	return format.sampleRate;
+	}
 double SpectrumBuffer::binToFrequency( size_t bin ) const
 	{
 	return double( bin ) / double( getNumBins() ) * double( format.sampleRate );

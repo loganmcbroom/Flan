@@ -6,6 +6,8 @@
 #include <iostream>
 #include <string>
 
+static const double pi = acos( -1 );
+
 namespace xcdp {
 
 void RealFunc::graph( const std::string & filename,
@@ -51,6 +53,16 @@ RealFunc RealFunc::ADSR( double a, double d, double s, double r, double sLvl, do
 		else if( t < a + d		   ) return std::pow( 1.0 - ( t - a ) / d, dExp ) * ( 1.0 - sLvl ) + sLvl;
 		else if( t < a + d + s	   ) return sLvl;
 		else if( t < a + d + s + r ) return std::pow( 1.0 - ( t - a - d - s ) / r, rExp ) * sLvl;
+		};
+	}
+
+RealFunc RealFunc::oscillate( RealFunc min, RealFunc max, RealFunc period, RealFunc wave )
+	{
+	return [&]( double t )
+		{
+		const double center = ( max(t) + min(t) ) / 2.0;
+		const double amp    = ( max(t) - min(t) ) / 2.0;
+		return center + amp * wave( 2.0 * pi * t / period(t) );
 		};
 	}
 

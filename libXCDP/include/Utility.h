@@ -28,7 +28,6 @@ extern const Perturber
 }
 
 std::array<uint8_t,3> HSVtoRGB( int H, double S, double V );
-bool writeTGA( const std::string & fileName, const std::vector<std::vector<std::array<uint8_t,3>>> & data );
 bool writeBMP( const std::string & filename, const std::vector<std::vector<std::array<uint8_t,3>>> & data );
 
 }

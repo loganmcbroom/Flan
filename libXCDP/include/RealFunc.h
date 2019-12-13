@@ -8,6 +8,7 @@ namespace xcdp {
 
 /*
  * Utility function abstraction for allowing doubles to be implicitly callable
+ * also some other stuff
  */
 struct RealFunc 
 {
@@ -22,12 +23,23 @@ struct RealFunc
 		: f( [t0]( double t ){ return double(t0); } ) 
 		{}
 	double operator()( double t ) const { return f(t); }
+	double operator[]( double t ) const { return pow( 2, f(t) ); }
+	RealFunc logify() const { return [this]( double t ){ return operator[](t); }; }
 
-	void graph( const std::string & filename = std::string("tempRealFuncGraph.tga"),
+	RealFunc operator*( const RealFunc r ) const { return [this, r](double t){ return operator()(t) * r(t); }; }
+	RealFunc operator/( const RealFunc r ) const { return [this, r](double t){ return operator()(t) / r(t); }; }
+	RealFunc operator+( const RealFunc r ) const { return [this, r](double t){ return operator()(t) + r(t); }; }
+	RealFunc operator-( const RealFunc r ) const { return [this, r](double t){ return operator()(t) - r(t); }; }
+	RealFunc operator-() const { return [this](double t){ return -operator()(t); }; }
+	
+	void graph( const std::string & filename,
 		double left = -1, double right = 10, double bottom = -1, double top = 3.0, size_t resolution = 128 ) const;
 
 	static RealFunc ADSR( double a, double d, double s, double r, double sLvl,
 		double aExp = 1, double dExp = 1, double rExp = 1 );
+
+	static RealFunc oscillate( RealFunc min, RealFunc max, RealFunc period = 2.0 * 3.14159265359, 
+		RealFunc wave = []( double t ){ return sin(t); } );
 
 	static RealFunc interpolatePoints( const std::vector< std::pair< double, double > > points, 
 		Interpolator = Interpolators::linear );

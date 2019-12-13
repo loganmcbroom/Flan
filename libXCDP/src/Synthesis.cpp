@@ -26,8 +26,6 @@ Audio waveform( RealFunc wave, double length, RealFunc freq )
 			out.setSample( channel, sample, wave( std::fmod( input, 2 * pi ) ) );
 			}
 
-	
-	
 	return out;
 	}
 

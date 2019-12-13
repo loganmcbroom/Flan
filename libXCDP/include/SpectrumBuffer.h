@@ -28,6 +28,7 @@ public:
 	Format getFormat() const;
 	size_t getNumChannels() const;
 	size_t getNumBins() const;
+	size_t getSampleRate() const;
 
 	double binToFrequency( size_t sample ) const;
 	size_t frequencyToBin( double time ) const;

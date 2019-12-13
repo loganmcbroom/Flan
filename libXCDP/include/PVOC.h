@@ -25,8 +25,7 @@ public:
 
 	Audio convertToAudio() const;
 
-	//Note this is currently saving to tga, not the easiest to open image format, just easy to make
-	const PVOC & getSpectrograph( const std::string & fileName ) const;
+	const PVOC & graph( const std::string & fileName ) const;
 
 	//========================================================================
 	// Selection
