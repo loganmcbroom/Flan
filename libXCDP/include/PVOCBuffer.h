@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <string>
 
 namespace xcdp {
 
@@ -18,10 +19,14 @@ public:
 		};
 
 	PVOCBuffer( const Format & );
+	PVOCBuffer( const std::string & filename );
 
 	//======================================================
 	//	I/O
 	//======================================================
+
+	bool load( const std::string & filename );
+	bool save( const std::string & filename ) const;
 
 	//======================================================
 	//	Getters
@@ -61,7 +66,7 @@ private://======================================================================
 
 	size_t getPos( size_t, size_t, size_t ) const;
 	
-	const Format format;
+	Format format;
 	std::vector< MFPair > buffer;
 };
 

@@ -21,25 +21,15 @@ void graph( const std::string & f );
 
 void main()
 	{
-	//Audio sine = makeSine( [](double t){ return 440.0*(1+t);} );
-	Audio other = Audio( "Audio/bah.wav" );
-	Audio bah = Audio( "Audio/co.wav" )
-	//.setVolume( 0.5 )
-	//Audio bah = Synthesis::saw( 2.0, []( double t ){ return 220.0+220.0*t; } )
-	//.convertToPVOC( 2048, 32 )
-	//.modifyFrequency( []( double t, double f ){ return f*(0.7 + 0.5*sin(16.0*t)); } )
-	//.modifyTime( []( double t, double f ){ return t*1.0 + f/12000.0; } )
-	//.resonate( 8, .3 )
-	//.getSpectrograph( "temp.bmp" )
-	//.convertToAudio()
-	.convolve( other )
-	.setVolume( 0.7 );
-
-	//RealFunc tvp1 = RealFunc::interpolatePoints( { {0, 2}, {1, 2}, {2, 1}, {3, 2} } );
-	//RealFunc tvp2 = RealFunc::interpolatePoints( { {0, 2}, {1, 2}, {2, 1}, {3, 2} }, Interpolators::sine );
-	//tvp1.graph( "tempBMP.bmp" );
+	Audio( "Audio/bah.wav" )
+	.convertToPVOC()
+	.save( "spectral.pvoc" );
 	
-	graph( "temp.bmp" );
+	Audio bah = PVOC( "spectral.pvoc" )
+	.convertToAudio();
+
+	
+	//graph( "temp.bmp" );
 	play( bah );
 	}
 

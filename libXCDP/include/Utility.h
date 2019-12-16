@@ -27,6 +27,60 @@ extern const Perturber
 	normalDistDown;
 }
 
+bool isLittleEndian();
+
+template <typename T>
+T swapEndian( T u )
+	{
+    union
+    {
+        T u;
+        unsigned char u8[ sizeof(T) ];
+    } source, dest;
+
+    source.u = u;
+
+    for( size_t k = 0; k < sizeof(T); k++ )
+        dest.u8[k] = source.u8[ sizeof(T) - k - 1 ];
+
+    return dest.u;
+	}
+
+template <typename T>
+T makeLittleEndian( T u )
+	{
+	return isLittleEndian() ? u : swapEndian( u );
+	}
+
+template <typename T>
+T littleEndianToCurrent( T u )
+	{
+	return isLittleEndian() ? u : swapEndian( u );
+	}
+
+template <typename T>
+inline void writeBytes( unsigned char * target, T u )
+	{
+	u = makeLittleEndian( u );
+
+	union
+    {
+        T u;
+        unsigned char u8[ sizeof(T) ];
+    } u2;
+
+	u2.u = u;
+
+    for( size_t k = 0; k < sizeof(T); k++ )
+        target[k] = u2.u8[k];
+	}
+
+inline void writeBytes( unsigned char * target, const char * source )
+	{
+    for( size_t k = 0; k < strlen(source); k++ )
+        target[k] = source[k];
+	}
+
 std::array<uint8_t,3> HSVtoRGB( int H, double S, double V );
 bool writeBMP( const std::string & filename, const std::vector<std::vector<std::array<uint8_t,3>>> & data );
 

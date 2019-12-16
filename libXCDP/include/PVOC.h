@@ -18,6 +18,7 @@ public:
 	typedef const std::vector<const PVOC &> & Vec;
 
 	PVOC( const PVOCBuffer::Format & other ) : PVOCBuffer( other ) {}
+	PVOC( const std::string & other ) : PVOCBuffer( other ) {}
 
 	//========================================================================
 	//	Conversions

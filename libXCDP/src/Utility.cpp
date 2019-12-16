@@ -70,25 +70,11 @@ std::array<uint8_t,3> HSVtoRGB( int H, double S, double V )
 	return std::array<uint8_t,3>({ uint8_t((Rs + m) * 255),  uint8_t((Gs + m) * 255),  uint8_t((Bs + m) * 255) });
 	}
 
-template <typename T>
-void write_bytes( unsigned char * target, T u )
+bool isLittleEndian()
 	{
-    static_assert( CHAR_BIT == 8, "CHAR_BIT != 8" );
-
-    for( size_t k = 0; k < sizeof(T); k++ )
-        target[k] = ( u >> 8*k ) & 0xFF;
-
-    return;
-	}
-
-void write_bytes( unsigned char * target, const char * source )
-	{
-    static_assert( CHAR_BIT == 8, "CHAR_BIT != 8" );
-
-    for( size_t k = 0; k < strlen(source); k++ )
-        target[k] = source[k];
-
-    return;
+    short int number = 0x1;
+    char *numPtr = (char*)&number;
+    return (numPtr[0] == 1);
 	}
 
 bool writeBMP( const std::string & filename, const std::vector<std::vector<std::array<uint8_t,3>>> & data )
@@ -110,30 +96,30 @@ bool writeBMP( const std::string & filename, const std::vector<std::vector<std::
 	const uint32_t DIBheaderSize = 40;
 
 	unsigned char header[ headerSize ] = { 0 };
-		write_bytes( header +  0, "BM" );
-		write_bytes( header +  2, headerSize + DIBheaderSize + dataSize );
-		write_bytes( header + 10, headerSize + DIBheaderSize );
+		writeBytes( header +  0, "BM" );
+		writeBytes( header +  2, headerSize + DIBheaderSize + dataSize );
+		writeBytes( header + 10, headerSize + DIBheaderSize );
 	file.write( (const char *) header, headerSize );
 
 	unsigned char DIBheader[ DIBheaderSize ] = { 0 };
-		write_bytes( DIBheader +  0, DIBheaderSize	);  //size
-		write_bytes( DIBheader +  4, width			);  //width
-		write_bytes( DIBheader +  8, height			);  //height
-		write_bytes( DIBheader + 12, (uint16_t) 1	);  //number of planes
-		write_bytes( DIBheader + 14, (uint16_t) 32	);  //bits per pixel
-		write_bytes( DIBheader + 16, (uint32_t) 0	);  //Compression type
-		write_bytes( DIBheader + 20, (uint32_t) 0	);  //compressed size (0 for 0 type compression)
-		write_bytes( DIBheader + 24, (uint32_t) 1	);  //x resolution ???
-		write_bytes( DIBheader + 28, (uint32_t) 1	);  //y resolution ???
-		write_bytes( DIBheader + 32, (uint32_t) 0	);  //number of used colors (0 for 2^n)
-		write_bytes( DIBheader + 36, (uint32_t) 0	);  //number of important colors
+		writeBytes( DIBheader +  0, DIBheaderSize	);  //size
+		writeBytes( DIBheader +  4, width			);  //width
+		writeBytes( DIBheader +  8, height			);  //height
+		writeBytes( DIBheader + 12, (uint16_t) 1	);  //number of planes
+		writeBytes( DIBheader + 14, (uint16_t) 32	);  //bits per pixel
+		writeBytes( DIBheader + 16, (uint32_t) 0	);  //Compression type
+		writeBytes( DIBheader + 20, (uint32_t) 0	);  //compressed size (0 for 0 type compression)
+		writeBytes( DIBheader + 24, (uint32_t) 1	);  //x resolution ???
+		writeBytes( DIBheader + 28, (uint32_t) 1	);  //y resolution ???
+		writeBytes( DIBheader + 32, (uint32_t) 0	);  //number of used colors (0 for 2^n)
+		writeBytes( DIBheader + 36, (uint32_t) 0	);  //number of important colors
 	file.write( (const char *) DIBheader, DIBheaderSize );
 
 	//y -> x to match write order
 	for( int y = 0; y < height; ++y )
 		for( int x = 0; x < width; ++x )
 			{
-			const uint32_t alpha = 0b00000000;
+			const uint8_t alpha = 0b00;
 			file.write( (char *) &data[x][y][2], 1 ); 
 			file.write( (char *) &data[x][y][1], 1 ); 
 			file.write( (char *) &data[x][y][0], 1 ); 

@@ -101,10 +101,13 @@ double Audio::getTotalEnergy() const
 
 Audio Audio::graph( const std::string & filename, size_t width, size_t height ) const
 	{
+	const auto audioColor = HSVtoRGB( 0, .8, .65 ); // redish
+	const auto backgroundColor = HSVtoRGB( 180, .8, .1 ); // blueish
+
 	if( getNumSamples() == 0 ) return *this;
 	width = std::min( width, getNumSamples() );
 
-	std::vector<std::vector<std::array<uint8_t,3>>> data( width, std::vector( height*getNumChannels(), HSVtoRGB( 180, .8, .1 ) ) );
+	std::vector<std::vector<std::array<uint8_t,3>>> data( width, std::vector( height*getNumChannels(), backgroundColor ) );
 
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
 		{
@@ -121,8 +124,7 @@ Audio Audio::graph( const std::string & filename, size_t width, size_t height ) 
 			data[x][height2 + height * channel ] = {0,0,0};
 			for( int y = 0; std::abs( y ) < std::abs( energies[x] / maxEnergy * height2 ) * 0.9; energies[x] > 0 ? ++y : --y )
 				{
-				auto color = HSVtoRGB( 0, .8, .65 );
-				data[x][ height2 + y + height * channel ] = color;
+				data[x][ height2 + y + height * channel ] = audioColor;
 				}
 			}
 		}
