@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <array>
+#include <chrono>
 
 namespace xcdp {
 
@@ -83,5 +84,21 @@ inline void writeBytes( unsigned char * target, const char * source )
 
 std::array<uint8_t,3> HSVtoRGB( int H, double S, double V );
 bool writeBMP( const std::string & filename, const std::vector<std::vector<std::array<uint8_t,3>>> & data );
+
+class elapsedtimer
+{
+public:
+	elapsedtimer()
+	{
+		m_begin = std::chrono::steady_clock::now();
+	}
+	long long elapsed()
+	{
+		auto now = std::chrono::steady_clock::now();
+		return std::chrono::duration_cast<std::chrono::milliseconds>(now - m_begin).count();
+	}
+private:
+	std::chrono::steady_clock::time_point m_begin;
+};
 
 }

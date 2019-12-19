@@ -11,6 +11,8 @@
 #include "PVOC.h"
 #include "Spectrum.h"
 #include "WindowFunctions.h"
+#include "WDL/resample.h"
+
 
 using namespace xcdp;
 
@@ -688,6 +690,54 @@ Audio Audio::fades( double fadeTime ) const
 
 	return out;
 	}
+
+Audio Audio::repitchWDL(RealFunc factor, int granul, int qual) const
+{
+	std::cout << "repitching with WDL resampler...\n";
+	// estimate output length
+	double acclen = 0.0;
+	int count = 0;
+	while (count < getNumSamples())
+	{
+		acclen += granul * std::clamp(1.0/factor((double)count / getSampleRate()),0.001,128.0);
+		count += granul;
+	}
+	std::cout << "estimated output length " << acclen/getSampleRate() << "\n";
+	auto format = getFormat();
+	format.numSamples = size_t(ceil(acclen));
+	Audio result(format);
+	count = 0;
+	WDL_Resampler rs;
+	auto chs = getNumChannels();
+	auto insamples = getNumSamples();
+	std::vector<double> rsoutbuf(chs*granul);
+	int outcount = 0;
+	while (count < getNumSamples())
+	{
+		double factor_to_use = std::clamp(1.0 / factor((double)count / getSampleRate()), 0.001, 128.0);
+		rs.SetRates(getSampleRate(), getSampleRate()*factor_to_use);
+		WDL_ResampleSample* rsinbuf = nullptr;
+		int wanted = rs.ResamplePrepare(granul, chs, &rsinbuf);
+		for (int i = 0; i < chs; ++i)
+		{
+			for (int j = 0; j < wanted; ++j)
+			{
+				if (count + j < insamples)
+					rsinbuf[j*chs + i] = getSample(i, count + j);
+				else
+					rsinbuf[j*chs + i] = 0.0;
+			}
+		}
+		rs.ResampleOut(rsoutbuf.data(), wanted, granul, chs);
+		for (int i = 0; i < chs; ++i)
+			for (int j = 0; j < granul; ++j)
+				if (outcount+j<acclen)
+					result.setSample(i, outcount + j, rsoutbuf[j*chs + i]);
+		outcount += granul;
+		count += wanted;
+	}
+	return result;
+}
 
 Audio Audio::lowPass( RealFunc cutoff, size_t taps ) const
 	{
