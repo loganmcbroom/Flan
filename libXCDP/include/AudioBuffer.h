@@ -50,7 +50,7 @@ public:
 	void setSample( size_t channel, size_t frame, double sample );
 	double & getSample( size_t channel, size_t frame );
 	void clearBuffer();
-
+	double* getRawBuffer() { return buffer.data(); }
 private://=================================================================================================
 
 	size_t getPos( size_t, size_t ) const;

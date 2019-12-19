@@ -8,7 +8,8 @@ namespace xcdp {
 namespace Synthesis {
 
 //wave is only evaluated from 0 to 2pi, which is its expected period
-Audio waveform( RealFunc wave, double length, RealFunc freq );
+
+Audio waveform( RealFunc wave, double length, RealFunc freq, int samplerate=44100, int oversample=16 );
 
 Audio sine( double length, RealFunc freq );
 Audio square( double length, RealFunc freq );
