@@ -34,7 +34,7 @@ public:
 	// Information
 	//========================================================
 
-	double Audio::getTotalEnergy() const;
+	double getTotalEnergy() const;
 
 	Audio graph( const std::string & filename, size_t width = 2048, size_t height = 512 ) const;
 
@@ -65,6 +65,7 @@ public:
 	Audio reverse() const;
 	Audio cut( double startTime, double endTime ) const;
 	Audio repitch( RealFunc factor ) const;
+	Audio repitchWDL(RealFunc factor, int granul = 64, int qual = 0) const;
 	Audio convolve( const std::vector<RealFunc> & ) const;
 	Audio delay( double delayTime, size_t numDelays, double decayAmount = .5, Audio::Mod mod = nullptr, bool fbIterate = true ) const;
 	Audio fades( double fadeTime = .05 ) const;

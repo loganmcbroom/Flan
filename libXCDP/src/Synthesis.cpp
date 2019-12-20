@@ -4,30 +4,41 @@
 
 #include <algorithm>
 
+#include "WDL/resample.h"
+
 static const double pi = std::acos( -1 );
 
 namespace xcdp {
 namespace Synthesis {
 
-Audio waveform( RealFunc wave, double length, RealFunc freq )
-	{
+Audio waveform( RealFunc wave, double length, RealFunc freq, int samplerate, int oversample )
+{
 	length = std::max( length, 0.0 );
 
 	Audio::Format format;
-	format.numChannels = 2;
-	format.numSamples = length * 48000;
-	format.sampleRate = 48000;
+	format.numChannels = 1;
+	format.numSamples = length * samplerate;
+	format.sampleRate = samplerate;
 	Audio out( format );
-
-	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
-		for( size_t sample = 0; sample < out.getNumSamples(); ++sample )
-			{
-			const double input = 2.0 * pi * freq( out.sampleToTime( sample ) ) * double(sample) / out.getSampleRate();
-			out.setSample( channel, sample, wave( std::fmod( input, 2 * pi ) ) );
-			}
-
-	return out;
+	WDL_Resampler rs;
+	rs.SetMode(true, 1, true, 512); // CPU-heavy but pretty good sinc interpolation
+	double overrate = samplerate * oversample;
+	rs.SetRates(overrate, samplerate);
+	double* rsinbuf = nullptr;
+	int wanted = rs.ResamplePrepare(format.numSamples, 1, &rsinbuf);
+	double phase = 0.0;
+	
+	for( size_t sample = 0; sample < wanted; ++sample )
+	{
+		double s = wave(phase);
+		rsinbuf[sample] = s * 0.9; // lower the gain a bit in case the resampling causes overshoots
+		phase += freq(double(sample)/overrate) * (2*pi/overrate);
+		phase = std::fmod(phase, 2 * pi);
+		
 	}
+	rs.ResampleOut(out.getRawBuffer(), wanted, format.numSamples, 1);
+	return out;
+}
 
 Audio sine( double length, RealFunc freq)
 	{
