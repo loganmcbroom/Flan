@@ -291,14 +291,13 @@ PVOC PVOC::modifyTime( Surface outPosFunc, Interpolator interp ) const
 				const double outPos = timeToFrame_d( outPosFunc( frameToTime( frame ), binToFrequency( bin ) ) );
 				const bool forward = outPos > prevOutPos[bin];
 
-				const long long prevOutPosRound = forward? std::ceil( prevOutPos[bin] ) : std::floor( prevOutPos[bin] );
-				const long long outPosRound     = forward? std::ceil( outPos          ) : std::floor( outPos          );
+				const long long startFrame = forward? std::ceil( prevOutPos[bin] ) : std::floor( prevOutPos[bin] );
+				const long long endFrame   = forward? std::ceil( outPos          ) : std::floor( outPos          );
 
-				const size_t startFrame = std::clamp( prevOutPosRound, 0ll, long long(out.getNumFrames() - 1) );
-				const size_t endFrame   = std::clamp( outPosRound    , 0ll, long long(out.getNumFrames() - 1) );
-
-				for( size_t outFrame = startFrame; outFrame != endFrame; forward? ++outFrame : --outFrame )
+				for( long long outFrame = startFrame; outFrame != endFrame; forward? ++outFrame : --outFrame )
 					{
+					if( outFrame < 0 || out.getNumFrames() <= outFrame ) continue;
+
 					const double mix = ( double( outFrame ) - prevOutPos[bin] ) / ( outPos - prevOutPos[bin] );
 					const double interpMagnitude = interp( mix, getBin( channel, frame - 1, bin ).magnitude, getBin( channel, frame, bin ).magnitude );
 

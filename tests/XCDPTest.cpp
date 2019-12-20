@@ -12,12 +12,18 @@ using namespace xcdp;
 void play( const Audio & toPlay );
 void graph( const std::string & f );
 
-//TODO
-//AA filter synthesis
-//desample ending bug
-//sort PVOC data by frequency, see if output improves
-//Make sure surfaces are supported everywhere they could be
-//qt
+/* TODO:
+stretch data loss? 0 initial frequency artifact?
+sort PVOC data by frequency, see if output improves
+Make sure surfaces are supported everywhere they could be
+
+wavetable synth
+additive synth
+analysis file saving
+documentation
+more filters
+qt
+*/
 
 void main()
 	{
