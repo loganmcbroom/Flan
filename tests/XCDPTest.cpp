@@ -19,7 +19,6 @@ Make sure surfaces are supported everywhere they could be
 
 wavetable synth
 additive synth
-analysis file saving
 documentation
 more filters
 qt
@@ -27,16 +26,12 @@ qt
 
 void main()
 	{
-	Audio( "Audio/bah.wav" )
-	.convertToPVOC()
-	.save( "spectral.pvoc" );
-	
-	Audio bah = PVOC( "spectral.pvoc" )
-	.convertToAudio();
-
+	Audio bah = Audio( "Audio/Bah.wav" )
+	.repitch( []( double t ){ return .3+t; } );
 	
 	//graph( "temp.bmp" );
 	play( bah );
+
 	}
 
 #include <Windows.h>
