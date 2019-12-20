@@ -11,8 +11,8 @@ static const double pi = std::acos( -1 );
 namespace xcdp {
 namespace Synthesis {
 
-Audio waveform( RealFunc wave, double length, RealFunc freq, int samplerate, int oversample )
-{
+Audio waveform( RealFunc wave, double length, RealFunc freq, size_t samplerate, size_t oversample )
+	{
 	length = std::max( length, 0.0 );
 
 	Audio::Format format;
@@ -23,22 +23,22 @@ Audio waveform( RealFunc wave, double length, RealFunc freq, int samplerate, int
 	WDL_Resampler rs;
 	rs.SetMode(true, 1, true, 512); // CPU-heavy but pretty good sinc interpolation
 	double overrate = samplerate * oversample;
-	rs.SetRates(overrate, samplerate);
+	rs.SetRates( overrate, samplerate );
 	double* rsinbuf = nullptr;
-	int wanted = rs.ResamplePrepare(format.numSamples, 1, &rsinbuf);
+	int wanted = rs.ResamplePrepare( format.numSamples, 1, &rsinbuf );
 	double phase = 0.0;
 	
 	for( size_t sample = 0; sample < wanted; ++sample )
-	{
+		{
 		double s = wave(phase);
 		rsinbuf[sample] = s * 0.9; // lower the gain a bit in case the resampling causes overshoots
-		phase += freq(double(sample)/overrate) * (2*pi/overrate);
-		phase = std::fmod(phase, 2 * pi);
+		phase += freq( double(sample) / overrate ) * ( 2 * pi / overrate );
+		phase = std::fmod( phase, 2 * pi );
 		
-	}
-	rs.ResampleOut(out.getRawBuffer(), wanted, format.numSamples, 1);
+		}
+	rs.ResampleOut( out.getRawBuffer(), wanted, format.numSamples, 1 );
 	return out;
-}
+	}
 
 Audio sine( double length, RealFunc freq)
 	{

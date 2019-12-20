@@ -511,100 +511,61 @@ Audio Audio::cut( double startTime, double endTime ) const
 	return out;
 	}
 
-Audio Audio::repitch( RealFunc factor ) const
+Audio Audio::repitch( RealFunc factor, size_t granul, size_t qual ) const
 	{
-	std::cout << "Repitching ... \n";
-	//We can't have true continuous pitch shifting, so we approximate the scaling factor
-	// piecewise linearly. Blocksize decides how often the continuous factor is sampled
-	const size_t blockSize = getSampleRate() / 100; //100 times per second
-	const size_t numBlocks = size_t( floor( getNumSamples() / blockSize ) );
+	std::cout << "Repitching...\n";
 
-	//Protection from bad factor outputs
-	auto safeFactor = [factor]( double t ){ return std::clamp( factor(t), .001, 1000.0 ); };
+	auto safeFactor = [this, &factor]( double count )
+		{ 
+		return std::max( 1.0 / factor( double(count) / getSampleRate() ), 0.001 ); 
+		};
 
-	//Estimate output buffer length via integration (trapezoidal approximation)
-	//libsamplerate uses linear pitch shifting as well so this should be within a sample
-	//of the actual needed buffer length. It is rounded up, and there is an additional 
-	//protection against bad array access later.
-	double outLength = 0.5 / safeFactor( 0 ) 
-					 + 0.5 / safeFactor( sampleToTime( blockSize * numBlocks ) ); // first and last terms
-	for( size_t i = 1; i < numBlocks; ++i ) //Middle terms
-		outLength += 1.0 / safeFactor( sampleToTime( i * blockSize ) );
-	outLength *= blockSize; //Multiply by trapezoid base size
-	//Handle remaining ( in length modulo blockSize ) samples
-	outLength += ( getNumSamples() % blockSize ) 
-					* ( 0.5 / safeFactor( sampleToTime( numBlocks * blockSize ) ) 
-					  + 0.5 / safeFactor( sampleToTime( getNumSamples() )   ) );
+	// estimate output length
+	double acclen = 0.0;
+	for( int count = 0; count < getNumSamples(); count += granul )
+		acclen += granul * safeFactor( count );
 
 	auto format = getFormat();
-	format.numSamples = size_t( ceil( outLength ) );
+	format.numSamples = size_t(ceil(acclen));
 	Audio out( format );
+	
+	WDL_Resampler rs;
+		 if( qual == 0 ) rs.SetMode( true,  0, true, 64 ); // reasonable sinc resampling
+	else if( qual == 1 ) rs.SetMode( true,  1, false    ); // linear interpolation with simple filter
+	else if( qual == 2 ) rs.SetMode( false, 0, false    ); // no interpolation, useful for dirty sound
+	const size_t chs = getNumChannels();
+	const size_t insamples = getNumSamples();
+	std::vector<double> rsoutbuf( chs * granul );
 
-
-	//Converter initialization
-	int error = 0;
-	SRC_STATE * state = src_new( 1, int( getNumChannels() ), &error ); //type 0 resampling, best quality
-	if( state == nullptr )
+	int count = 0;
+	int outcount = 0;
+	while( count < getNumSamples() )
 		{
-		printToLog( "Error creating sample rate converter in repitch.\n" );
-		return *this;
+		const double factor_to_use = safeFactor( count );
+		rs.SetRates( getSampleRate(), getSampleRate() * factor_to_use );
+		WDL_ResampleSample* rsinbuf = nullptr;
+		const int wanted = rs.ResamplePrepare( granul, chs, &rsinbuf );
+
+		for( size_t channel = 0; channel < chs; ++channel )
+			for( size_t j = 0; j < wanted; ++j )
+				{
+				if( count + j < insamples )
+					rsinbuf[ j * chs + channel ] = getSample( channel, count + j );
+				else
+					rsinbuf[ j * chs + channel ] = 0.0;
+				}
+
+		rs.ResampleOut( rsoutbuf.data(), wanted, granul, chs );
+		for( int i = 0; i < chs; ++i )
+			for( int j = 0; j < granul; ++j )
+				if( outcount + j < acclen )
+					out.setSample( i, outcount + j, rsoutbuf[ j  *chs + i ] );
+
+		outcount += granul;
+		count += wanted;
 		}
 
-	//Conversion settings
-	SRC_DATA data = {};
-
-	//What the heck are these two? These, and the block+1 and numBlocks+1 later, are 
-	// there to correctly lerp between pitches. If we don't start at 0 and set the initial
-	// pitch, the first block will have constant pitch
-	data.input_frames = 0; 
-	src_process( state, &data );
-
-	//Interleaved float buffers
-	std::vector<float> inF ( getNumSamples() * getNumChannels() );
-	std::vector<float> outF( int( ceil(outLength) ) * out.getNumChannels() );
-
-	//Load data into float buffer
-	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t frame = 0; frame < getNumSamples(); ++frame )
-			inF[getNumChannels()*frame+channel] = float( getSample( channel, frame ) );
-
-	//Set up data struct used by libsamplerate
-	data.data_in = inF.data(); //We will increment these as needed in the main loop
-	data.data_out = outF.data();
-	data.input_frames  = long( blockSize ); //Process one block at a time
-	data.output_frames = long( out.getNumSamples() );
-	data.end_of_input = 0;
-
-	//Process blocks
-	for( size_t block = 0; block < numBlocks; ++block )
-		{
-		//Note the 1/factor, we are increasing pitch by decreasing sample rate and then playing back at
-		//the original sample rate
-		data.src_ratio = 1.0 / safeFactor( sampleToTime( (block + 1) * blockSize ) );
-		src_process( state, &data );
-		data.data_in  += blockSize * getNumChannels();
-		data.data_out += data.output_frames_gen * out.getNumChannels();
-		data.output_frames -= data.output_frames_gen; //This protects from bad array access
-		}
-
-	//Process remainder of in samples that didn't fill a block
-	data.end_of_input = 1;
-	data.input_frames  = long( getNumSamples() % blockSize );
-	data.src_ratio = 1.0 / safeFactor( sampleToTime( (numBlocks + 1) * blockSize ) );
-	src_process( state, &data );
-
-	src_delete( state );
-
-	//Transform back, again if we sould use src on doubles this would be waaay faster
-	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
-		for( size_t frame = 0; frame < out.getNumSamples(); ++frame )
-			{
-			//if( channel == 0 and frame < 100 )
-			//	std::cout << " " << inF[getNumChannels()*frame+channel];
-			out.setSample( channel, frame, (double) outF[getNumChannels()*frame+channel] );
-			}
-
-	return out;                   
+	return out;
 	}
 
 Audio Audio::convolve( const std::vector<RealFunc> & ir ) const
@@ -690,60 +651,6 @@ Audio Audio::fades( double fadeTime ) const
 
 	return out;
 	}
-
-Audio Audio::repitchWDL(RealFunc factor, int granul, int qual) const
-{
-	std::cout << "repitching with WDL resampler...\n";
-	// estimate output length
-	double acclen = 0.0;
-	int count = 0;
-	while (count < getNumSamples())
-	{
-		acclen += granul * std::clamp(1.0/factor((double)count / getSampleRate()),0.001,128.0);
-		count += granul;
-	}
-	std::cout << "estimated output length " << acclen/getSampleRate() << "\n";
-	auto format = getFormat();
-	format.numSamples = size_t(ceil(acclen));
-	Audio result(format);
-	count = 0;
-	WDL_Resampler rs;
-	if (qual == 0)
-		rs.SetMode(true, 0, true, 64); // reasonable sinc resampling
-	else if (qual == 1)
-		rs.SetMode(true, 1, false); // linear interpolation with simple filter
-	else if (qual == 2)
-		rs.SetMode(false, 0, false); // no interpolation, useful for dirty sound
-	auto chs = getNumChannels();
-	auto insamples = getNumSamples();
-	std::vector<double> rsoutbuf(chs*granul);
-	int outcount = 0;
-	while (count < getNumSamples())
-	{
-		double factor_to_use = std::clamp(1.0 / factor((double)count / getSampleRate()), 0.001, 128.0);
-		rs.SetRates(getSampleRate(), getSampleRate()*factor_to_use);
-		WDL_ResampleSample* rsinbuf = nullptr;
-		int wanted = rs.ResamplePrepare(granul, chs, &rsinbuf);
-		for (int i = 0; i < chs; ++i)
-		{
-			for (int j = 0; j < wanted; ++j)
-			{
-				if (count + j < insamples)
-					rsinbuf[j*chs + i] = getSample(i, count + j);
-				else
-					rsinbuf[j*chs + i] = 0.0;
-			}
-		}
-		rs.ResampleOut(rsoutbuf.data(), wanted, granul, chs);
-		for (int i = 0; i < chs; ++i)
-			for (int j = 0; j < granul; ++j)
-				if (outcount+j<acclen)
-					result.setSample(i, outcount + j, rsoutbuf[j*chs + i]);
-		outcount += granul;
-		count += wanted;
-	}
-	return result;
-}
 
 Audio Audio::lowPass( RealFunc cutoff, size_t taps ) const
 	{

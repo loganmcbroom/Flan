@@ -15,6 +15,12 @@ add_library( libXCDP
 	src/Utility.cpp
 	src/Synthesis.cpp
 
+	src/WDL/denormal.h
+	src/WDL/heapbuf.h
+	src/WDL/resample.h
+	src/WDL/resample.cpp
+	src/WDL/wdltypes.h
+
 	src/CDPMapPVOC.cpp
 	)
 
