@@ -708,6 +708,12 @@ Audio Audio::repitchWDL(RealFunc factor, int granul, int qual) const
 	Audio result(format);
 	count = 0;
 	WDL_Resampler rs;
+	if (qual == 0)
+		rs.SetMode(true, 0, true, 64); // reasonable sinc resampling
+	else if (qual == 1)
+		rs.SetMode(true, 1, false); // linear interpolation with simple filter
+	else if (qual == 2)
+		rs.SetMode(false, 0, false); // no interpolation, useful for dirty sound
 	auto chs = getNumChannels();
 	auto insamples = getNumSamples();
 	std::vector<double> rsoutbuf(chs*granul);
