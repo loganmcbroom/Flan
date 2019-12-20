@@ -31,7 +31,6 @@ void main()
 	
 	//graph( "temp.bmp" );
 	play( bah );
-
 	}
 
 #include <Windows.h>
@@ -46,6 +45,5 @@ void play( const Audio & toPlay )
 
 void graph( const std::string & f )
 	{
-	const std::string command = std::string("start \"C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\paint.exe\" ");
-	system( (command + f).c_str() );
+	system( (std::string("start ") + f).c_str() );
 	}

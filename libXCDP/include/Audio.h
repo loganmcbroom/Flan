@@ -64,7 +64,7 @@ public:
 	Audio iterate( size_t n, Audio::Mod mod = nullptr, bool fbIterate = false ) const;
 	Audio reverse() const;
 	Audio cut( double startTime, double endTime ) const;
-	Audio repitch(RealFunc factor, size_t granul = 64, size_t qual = 0) const;
+	Audio repitch( RealFunc factor, size_t granul = 64, size_t qual = 0 ) const;
 	Audio convolve( const std::vector<RealFunc> & ) const;
 	Audio delay( double delayTime, size_t numDelays, double decayAmount = .5, Audio::Mod mod = nullptr, bool fbIterate = true ) const;
 	Audio fades( double fadeTime = .05 ) const;
