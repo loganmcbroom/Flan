@@ -2,13 +2,14 @@
 
 #include <vector>
 #include <string>
+#include <memory>
 
 namespace xcdp {
 
 class PVOCBuffer
 {
 public:
-	struct MFPair { double magnitude, frequency; };
+	struct MFPair { float magnitude, frequency; };
 	struct Format 
 		{ 
 		size_t numChannels = 0, numFrames = 0, numBins = 0;
@@ -43,16 +44,16 @@ public:
 	size_t getOverlaps() const;
 
 	size_t getFrameSize() const;
-	double getBinWidth() const;
-	double getMaxPartialMagnitude() const;
+	float getBinWidth() const;
+	float getMaxPartialMagnitude() const;
 
-	size_t timeToFrame( double time ) const;
-	double timeToFrame_d( double time ) const;
-	double frameToTime( size_t frame ) const;
+	size_t timeToFrame( float time ) const;
+	float timeToFrame_d( float time ) const;
+	float frameToTime( size_t frame ) const;
 
-	size_t frequencyToBin( double freq ) const;
-	double frequencyToBin_d( double freq ) const;
-	double binToFrequency( size_t bin ) const;
+	size_t frequencyToBin( float freq ) const;
+	float frequencyToBin_d( float freq ) const;
+	float binToFrequency( size_t bin ) const;
 
 	//======================================================
 	//	Setters
@@ -62,12 +63,16 @@ public:
 	MFPair & getBin( size_t channel, size_t frame, size_t bin );
 	void clearBuffer();
 
+	//raw buffer access, use with caution
+	std::shared_ptr<std::vector< MFPair >> getBuffer() { return buffer; }
+	const std::shared_ptr<std::vector< MFPair >> getBuffer() const { return buffer; }
+
 private://=================================================================================================
 
 	size_t getPos( size_t, size_t, size_t ) const;
 	
 	Format format;
-	std::vector< MFPair > buffer;
+	std::shared_ptr<std::vector< MFPair >> buffer;
 };
 
 } // End namespace xcdp

@@ -11,7 +11,7 @@ static const double pi = acos( -1 );
 namespace xcdp {
 
 void RealFunc::graph( const std::string & filename,
-		double left, double right, double bottom, double top, size_t resolution ) const
+		float left, float right, float bottom, float top, size_t resolution ) const
 	{
 	std::cout << "Generating function graph ... ";
 
@@ -44,21 +44,21 @@ void RealFunc::graph( const std::string & filename,
 	std::cout << "Done\n";
 	}
 
-RealFunc RealFunc::ADSR( double a, double d, double s, double r, double sLvl, double aExp, double dExp, double rExp )
+RealFunc RealFunc::ADSR( float a, float d, float s, float r, float sLvl, float aExp, float dExp, float rExp )
 	{
-	return [a, d, s, r, sLvl, aExp, dExp, rExp]( double t )
+	return [a, d, s, r, sLvl, aExp, dExp, rExp]( float t )
 		{
-			 if( t < 0 || t > a+d+s+r ) return 0.0;
+			 if( t < 0 || t > a+d+s+r ) return (float) 0.0;
 		else if( t < a			   ) return std::pow( t / a, aExp );
-		else if( t < a + d		   ) return std::pow( 1.0 - ( t - a ) / d, dExp ) * ( 1.0 - sLvl ) + sLvl;
+		else if( t < a + d		   ) return std::pow( (float) 1.0 - ( t - a ) / d, dExp ) * ( (float) 1.0 - sLvl ) + sLvl;
 		else if( t < a + d + s	   ) return sLvl;
-		else if( t < a + d + s + r ) return std::pow( 1.0 - ( t - a - d - s ) / r, rExp ) * sLvl;
+		else if( t < a + d + s + r ) return std::pow( (float) 1.0 - ( t - a - d - s ) / r, rExp ) * sLvl;
 		};
 	}
 
 RealFunc RealFunc::oscillate( RealFunc min, RealFunc max, RealFunc period, RealFunc wave )
 	{
-	return [&]( double t )
+	return [&]( float t )
 		{
 		const double center = ( max(t) + min(t) ) / 2.0;
 		const double amp    = ( max(t) - min(t) ) / 2.0;
@@ -66,12 +66,12 @@ RealFunc RealFunc::oscillate( RealFunc min, RealFunc max, RealFunc period, RealF
 		};
 	}
 
-RealFunc RealFunc::interpolatePoints( const std::vector< std::pair< double, double > > ps, Interpolator interp )
+RealFunc RealFunc::interpolatePoints( const std::vector< std::pair< float, float > > ps, Interpolator interp )
 	{
-	return [ps, interp]( double t )
+	return [ps, interp]( float t )
 		{
-		if( ps.size() == 0 ) return 0.0;
-		if( t < ps[0].first || ps[ps.size()-1].first < t ) return 0.0;
+		if( ps.size() == 0 ) return 0.0f;
+		if( t < ps[0].first || ps[ps.size()-1].first < t ) return 0.0f;
 		for( size_t i = 1; i < ps.size(); ++i )
 			if( t < ps[i].first )
 				return interp( ( t - ps[i-1].first ) / ( ps[i].first - ps[i-1].first ), ps[i-1].second, ps[i].second );

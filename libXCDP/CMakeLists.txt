@@ -1,6 +1,7 @@
-find_package( FFTW			REQUIRED ) # FFTW::fftw
 find_package( SndFile		REQUIRED ) # SndFile::sndfile
 find_package( SampleRate	REQUIRED ) # SampleRate::samplerate
+find_package( OpenCL		REQUIRED ) # OpenCL::OpenCL
+find_package( FFTWF			REQUIRED ) # FFTWF::fftwf
 
 add_library( libXCDP 
 	src/Audio.cpp 
@@ -14,6 +15,7 @@ add_library( libXCDP
 	src/RealFunc.cpp
 	src/Utility.cpp
 	src/Synthesis.cpp
+	src/CLContext.cpp
 
 	src/WDL/denormal.h
 	src/WDL/heapbuf.h
@@ -33,8 +35,9 @@ target_include_directories( libXCDP
 
 target_link_libraries( libXCDP 
 	PRIVATE 
-		FFTW::fftw
 		SndFile::sndfile
 		SampleRate::samplerate
+		OpenCL::OpenCL
+		FFTWF::fftwf
 )	
 

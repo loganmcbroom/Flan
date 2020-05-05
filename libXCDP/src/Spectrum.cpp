@@ -17,7 +17,7 @@ Audio Spectrum::convertToAudio()
 	Audio out( format );
 
 	//Allocate fftw buffers and plan
-	complex_d * fftIn = ( complex_d * ) fftw_alloc_complex( getNumBins() );
+	std::complex<double> * fftIn = ( std::complex<double> * ) fftw_alloc_complex( getNumBins() );
 	double *fftOut = fftw_alloc_real( outNumSamples );
 	fftw_plan plan = fftw_plan_dft_c2r_1d( int( outNumSamples ), (fftw_complex*) fftIn, fftOut, FFTW_ESTIMATE );
 

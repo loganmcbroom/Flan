@@ -24,7 +24,7 @@ Audio waveform( RealFunc wave, double length, RealFunc freq, size_t samplerate, 
 	rs.SetMode(true, 1, true, 512); // CPU-heavy but pretty good sinc interpolation
 	double overrate = samplerate * oversample;
 	rs.SetRates( overrate, samplerate );
-	double* rsinbuf = nullptr;
+	WDL_ResampleSample * rsinbuf = nullptr;
 	int wanted = rs.ResamplePrepare( format.numSamples, 1, &rsinbuf );
 	double phase = 0.0;
 	
@@ -36,7 +36,7 @@ Audio waveform( RealFunc wave, double length, RealFunc freq, size_t samplerate, 
 		phase = std::fmod( phase, 2 * pi );
 		
 		}
-	rs.ResampleOut( out.getRawBuffer(), wanted, format.numSamples, 1 );
+	rs.ResampleOut( out.getBuffer()->data(), wanted, format.numSamples, 1 );
 	return out;
 	}
 

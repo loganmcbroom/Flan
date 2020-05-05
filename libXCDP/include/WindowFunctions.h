@@ -8,6 +8,6 @@ struct RealFunc;
 
 namespace window {
 
-double Hann( double x );
+float Hann( float x );
 
 }}

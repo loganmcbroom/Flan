@@ -13,7 +13,7 @@ AudioBuffer::AudioBuffer()
 	{}
 AudioBuffer::AudioBuffer( const Format & other )
 	: format( other )
-	, buffer( getNumChannels() * getNumSamples() )
+	, buffer( std::make_shared<std::vector<float>>( getNumChannels() * getNumSamples() ) )
 	{}
 AudioBuffer::AudioBuffer( const std::string & filename )
 	: format()
@@ -43,8 +43,9 @@ void AudioBuffer::load( const std::string & filePath )
 	*this = AudioBuffer( format );
 
 	//Create temporary buffer for interleaved data in file, read data in, close the file
-	std::vector< double > interleavedBuffer( info.frames * info.channels );
-	sf_readf_double( file, interleavedBuffer.data(), info.frames );
+	std::vector<float> interleavedBuffer( info.frames * info.channels );
+	sf_readf_float( file, interleavedBuffer.data(), info.frames );
+
 	if( sf_close( file ) != 0 )
 		{
 		std::cout << "Error closing " << filePath << ".\n";
@@ -73,15 +74,15 @@ bool AudioBuffer::save( const std::string & filePath ) const
 		}
 
 	//Create a temporary buffer for interleaved data and copy the buffer in
-	std::vector< double > interleavedBuffer( getNumSamples() * getNumChannels() );
+	std::vector<float> interleavedBuffer( getNumSamples() * getNumChannels() );
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
 		for( size_t frame = 0; frame < getNumSamples(); ++frame )
 			interleavedBuffer[ frame * info.channels + channel ] = getSample( channel, frame );
 
 	//Clip all samples in the interleaved buffer
-	std::for_each( interleavedBuffer.begin(), interleavedBuffer.end(), []( double & s )
+	std::for_each( interleavedBuffer.begin(), interleavedBuffer.end(), []( float & s )
 		{
-		s = std::clamp( s, -1.0, 1.0 );
+		s = std::clamp( s, float(-1.0), float(1.0) );
 		});
 
 	//Open the file and write in the interleaved buffer
@@ -92,7 +93,7 @@ bool AudioBuffer::save( const std::string & filePath ) const
 		std::cout << filePath << " could not be opened for saving.\n";
 		return false;
 		}
-	if( sf_writef_double( file, interleavedBuffer.data(), info.frames ) != info.frames )	
+	if( sf_writef_float( file, interleavedBuffer.data(), info.frames ) != info.frames )	
 		{
 		std::cout << "Error writing data into " << filePath << ".\n";
 		return false;
@@ -112,9 +113,9 @@ void AudioBuffer::printSummary() const
 //======================================================
 //	Getters
 //======================================================
-double AudioBuffer::getSample( size_t channel, size_t frame ) const 
+float AudioBuffer::getSample( size_t channel, size_t frame ) const 
 	{
-	return buffer[getPos( channel, frame )];
+	return (*buffer)[getPos( channel, frame )];
 	}
 
 AudioBuffer::Format xcdp::AudioBuffer::getFormat() const
@@ -137,24 +138,25 @@ size_t AudioBuffer::getSampleRate() const
 	return format.sampleRate;
 	}
 
-double AudioBuffer::sampleToTime( size_t sample ) const
+float AudioBuffer::sampleToTime( size_t sample ) const
 	{
-	return double( sample ) / double( getSampleRate() );
+	return float( sample ) / float( getSampleRate() );
 	}
 
-size_t AudioBuffer::timeToSample( double time ) const
+size_t AudioBuffer::timeToSample( float time ) const
 	{
-	return size_t( time  * double( getSampleRate() ) );
+	return double(time) * getSampleRate();
 	}
 
-double AudioBuffer::getLength() const
+float AudioBuffer::getLength() const
 	{
 	return sampleToTime( getNumSamples() );
 	}
 
-double AudioBuffer::getMaxSampleMagnitude() const
+float AudioBuffer::getMaxSampleMagnitude() const
 	{
-	return std::abs(*std::max_element( buffer.begin(), buffer.end(), []( double a, double b )
+	if( getNumSamples() == 0 || getNumChannels() == 0 ) return 0;
+	return std::abs(*std::max_element( buffer->begin(), buffer->end(), []( float a, float b )
 		{
 		return std::abs( a ) < std::abs( b );
 		}));
@@ -163,19 +165,29 @@ double AudioBuffer::getMaxSampleMagnitude() const
 //======================================================
 //	Setters
 //======================================================
-void AudioBuffer::setSample( size_t channel, size_t sample, double newValue ) 
+void AudioBuffer::setSample( size_t channel, size_t sample, float newValue ) 
 	{
-	buffer[getPos( channel, sample )] = newValue;
+	(*buffer)[getPos( channel, sample )] = newValue;
 	}
 
-double & AudioBuffer::getSample( size_t channel, size_t sample )
+float & AudioBuffer::getSample( size_t channel, size_t sample )
 	{
-	return buffer[getPos( channel, sample )];
+	return (*buffer)[getPos( channel, sample )];
 	}
 
 void xcdp::AudioBuffer::clearBuffer()
 	{
-	std::fill( buffer.begin(), buffer.end(), 0 );
+	std::fill( buffer->begin(), buffer->end(), 0 );
+	}
+
+float * AudioBuffer::getSamplePointer( size_t channel, size_t frame )
+	{ 
+	return buffer->data() + getPos( channel, frame );
+	}
+
+const float * AudioBuffer::getSamplePointer( size_t channel, size_t frame ) const
+	{ 
+	return buffer->data() + getPos( channel, frame );
 	}
 
 //======================================================

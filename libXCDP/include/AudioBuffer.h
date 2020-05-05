@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <string>
+#include <memory>
 
 namespace xcdp {
 
@@ -30,33 +31,40 @@ public:
 	//	Getters
 	//======================================================
 
-	double getSample( size_t channel, size_t frame ) const;
+	float getSample( size_t channel, size_t frame ) const;
 	
 	Format getFormat() const;
 	size_t getNumChannels() const;
 	size_t getNumSamples() const;
 	size_t getSampleRate() const;
 
-	double sampleToTime( size_t sample ) const;
-	size_t timeToSample( double time ) const;
-	double getLength() const;
+	float sampleToTime( size_t sample ) const;
+	size_t timeToSample( float time ) const;
+	float getLength() const;
 
-	double getMaxSampleMagnitude() const;
+	float getMaxSampleMagnitude() const;
 
 	//======================================================
 	//	Setters
 	//======================================================
 
-	void setSample( size_t channel, size_t frame, double sample );
-	double & getSample( size_t channel, size_t frame );
+	void setSample( size_t channel, size_t frame, float sample );
+	float & getSample( size_t channel, size_t frame );
+	
 	void clearBuffer();
-	double* getRawBuffer() { return buffer.data(); }
+
+	//Raw buffer access methods, only use if it adds significant speed
+	std::shared_ptr<std::vector<float>> getBuffer() { return buffer; }
+	const std::shared_ptr<std::vector<float>> getBuffer() const { return buffer; }
+	float * getSamplePointer( size_t channel, size_t frame );
+	const float * getSamplePointer( size_t channel, size_t frame ) const;
+
 private://=================================================================================================
 
-	size_t getPos( size_t, size_t ) const;
+	inline size_t getPos( size_t, size_t ) const;
 
 	Format format;
-	std::vector< double > buffer;
+	std::shared_ptr<std::vector<float>> buffer;
 };
 
 } // End namespace xcdp

@@ -15,8 +15,9 @@ class PVOC : public PVOCBuffer
 {
 public:
 
-	typedef const std::vector<const PVOC &> & Vec;
+	using Vec = const std::vector<const PVOC &> &;
 
+	PVOC() : PVOCBuffer( PVOCBuffer::Format() ) {}
 	PVOC( const PVOCBuffer::Format & other ) : PVOCBuffer( other ) {}
 	PVOC( const std::string & other ) : PVOCBuffer( other ) {}
 
@@ -32,9 +33,9 @@ public:
 	// Selection
 	//========================================================================
 
-	PVOC getFrame( double time ) const;
-	PVOC timeSelect( double length, Surface selector ) const;
-	PVOC holdAtTimes( const std::vector<double> & timesToHold  ) const;
+	PVOC getFrame( float time ) const;
+	PVOC timeSelect( float length, Surface selector ) const;
+	PVOC holdAtTimes( const std::vector<float> & timesToHold  ) const;
 
 	//========================================================================
 	//	Resampling
@@ -45,10 +46,10 @@ public:
 	PVOC repitch( RealFunc factor, Interpolator = Interpolators::linear ) const;
 	PVOC stretch( RealFunc factor, Interpolator = Interpolators::linear ) const;
 	PVOC interpolate_spline( RealFunc interpolation ) const; //Spline interpolation requires custom handling
-	MFPair getBinInterpolated( size_t channel, double frame, size_t bin, Interpolator = Interpolators::linear ) const;
-	MFPair getBinInterpolated( size_t channel, size_t frame, double bin, Interpolator = Interpolators::linear ) const;
+	MFPair getBinInterpolated( size_t channel, float frame, size_t bin, Interpolator = Interpolators::linear ) const;
+	MFPair getBinInterpolated( size_t channel, size_t frame, float bin, Interpolator = Interpolators::linear ) const;
 	PVOC desample( RealFunc factor, Interpolator = Interpolators::linear ) const;
-	PVOC timeExtrapolate( double startTime, double endTime, double extrapTime, Interpolator = Interpolators::linear ) const;
+	PVOC timeExtrapolate( float startTime, float endTime, float extrapTime, Interpolator = Interpolators::linear ) const;
 
 	//========================================================================
 	// Combinations
@@ -65,7 +66,7 @@ public:
 		Perturber magPerturber = Perturbers::identity, Perturber frqPerturber = Perturbers::normalDist ) const;
 	PVOC retainNLoudestPartials( RealFunc numPartials ) const;
 	PVOC removeNLoudestPartials( RealFunc numPartials ) const;
-	PVOC resonate( double length, Surface decay ) const;
+	PVOC resonate( float length, Surface decay ) const;
 
 	//========================================================================
 	// CDP Map

@@ -3,13 +3,13 @@
 
 #include "RealFunc.h"
 
-const double pi = std::acos( -1.0 );
-
 namespace xcdp::window {
 
-double Hann( double x )
+const float pi = std::acos( -1.0f );
+
+float Hann( float x )
 	{
-	return 0.5 * ( 1.0 - cos( 2.0 * pi * x ) );
+	return 0.5f * ( 1.0f - cos( 2.0f * pi * x ) );
 	}
 
 }

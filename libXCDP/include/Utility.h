@@ -10,7 +10,7 @@
 
 namespace xcdp {
 
-typedef std::function< double ( double mix, double a, double b ) > Interpolator;
+using Interpolator = std::function< float ( float mix, float a, float b ) >;
 namespace Interpolators 
 	{
 	extern const Interpolator 
@@ -19,7 +19,7 @@ namespace Interpolators
 		sine;
 	}
 
-typedef std::function< double ( double, double ) > Perturber;
+typedef std::function< float ( float, float ) > Perturber;
 namespace Perturbers {
 extern const Perturber
 	identity, 
@@ -82,7 +82,7 @@ inline void writeBytes( unsigned char * target, const char * source )
         target[k] = source[k];
 	}
 
-std::array<uint8_t,3> HSVtoRGB( int H, double S, double V );
+std::array<uint8_t,3> HSVtoRGB( int H, float S, float V );
 bool writeBMP( const std::string & filename, const std::vector<std::vector<std::array<uint8_t,3>>> & data );
 
 class elapsedtimer

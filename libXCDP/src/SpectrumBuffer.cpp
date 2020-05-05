@@ -18,7 +18,7 @@ SpectrumBuffer::SpectrumBuffer( const Format & f )
 //	Getters
 //======================================================
 
-complex_d SpectrumBuffer::getSpectra( size_t channel, size_t bin ) const
+complex_f SpectrumBuffer::getSpectra( size_t channel, size_t bin ) const
 	{
 	return buffer[getPos( channel, bin )];
 	}
@@ -48,7 +48,7 @@ size_t SpectrumBuffer::frequencyToBin( double frequency ) const
 	}
 double SpectrumBuffer::getMaxSpectraMagnitude() const
 	{
-	return std::abs(*std::max_element( buffer.begin(), buffer.end(), []( complex_d a, complex_d b )
+	return std::abs(*std::max_element( buffer.begin(), buffer.end(), []( complex_f a, complex_f b )
 		{
 		return std::abs( a ) < std::abs( b );
 		}));
@@ -58,11 +58,11 @@ double SpectrumBuffer::getMaxSpectraMagnitude() const
 //	Setters
 //======================================================
 
-void SpectrumBuffer::setSpectra( size_t channel, size_t bin, std::complex<double> newValue )
+void SpectrumBuffer::setSpectra( size_t channel, size_t bin, complex_f newValue )
 	{
 	buffer[getPos( channel, bin )] = newValue;
 	}
-complex_d & SpectrumBuffer::getSpectra( size_t channel, size_t bin )
+complex_f & SpectrumBuffer::getSpectra( size_t channel, size_t bin )
 	{
 	return buffer[getPos( channel, bin )];
 	}

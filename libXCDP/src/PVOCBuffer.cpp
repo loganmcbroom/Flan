@@ -11,7 +11,7 @@ namespace xcdp {
 
 PVOCBuffer::PVOCBuffer( const Format & other )
 	: format( other )
-	, buffer( getNumChannels() * getNumFrames() * getNumBins() )
+	, buffer( std::make_shared<std::vector<MFPair>>( getNumChannels() * getNumFrames() * getNumBins() ))
 	{}
 
 PVOCBuffer::PVOCBuffer( const std::string & filename )
@@ -40,7 +40,7 @@ bool PVOCBuffer::save( const std::string & filename ) const
 
 	const uint32_t RIFFChunkSize = 12;
 	const uint32_t FMTChunkSize = 34;
-	const uint32_t dataChunkSize = 8 + buffer.size() * 2 * sizeof(double);
+	const uint32_t dataChunkSize = 8 + buffer->size() * 2 * sizeof(float);
 
 	//Write RIFF chunk
 	unsigned char RIFFChunk[ RIFFChunkSize ] = { 0 };
@@ -74,11 +74,11 @@ bool PVOCBuffer::save( const std::string & filename ) const
 				{
 				const auto mf = getBin( channel, frame, bin );
 
-				const double m = makeLittleEndian( mf.magnitude );
-				const double f = makeLittleEndian( mf.frequency );
+				const float m = makeLittleEndian( mf.magnitude );
+				const float f = makeLittleEndian( mf.frequency );
 
-				file.write( (char *) &m, sizeof( double ) ); 
-				file.write( (char *) &f, sizeof( double ) ); 
+				file.write( (char *) &m, sizeof( float ) ); 
+				file.write( (char *) &f, sizeof( float ) ); 
 				}
 
 	file.close();
@@ -115,7 +115,7 @@ bool PVOCBuffer::load( const std::string & filename )
 	file.read( (char * ) &int32Buffer, 4 ); format.numBins = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); format.sampleRate = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); format.overlaps = int32Buffer;
-	file.read( (char * ) &int32Buffer, 4 ); if( int32Buffer != 64 ) return bail( "Just use doubles, nerd" ); //bit depth
+	file.read( (char * ) &int32Buffer, 4 ); if( int32Buffer != 32 ) return bail( "Using floats only here" ); //bit depth
 	file.read( (char * ) &int16Buffer, 2 ); if( int16Buffer != 1 ) return bail( "Just use Hann window, nerd" ); //window type
 	*this = PVOCBuffer( format );
 
@@ -126,9 +126,9 @@ bool PVOCBuffer::load( const std::string & filename )
 		for( size_t frame = 0; frame < getNumFrames(); ++frame )
 			for( size_t bin = 0; bin < getNumBins(); ++bin )
 				{
-				double m, f;
-				file.read( (char *) &m, sizeof( double ) );
-				file.read( (char *) &f, sizeof( double ) );
+				float m, f;
+				file.read( (char *) &m, sizeof( float ) );
+				file.read( (char *) &f, sizeof( float ) );
 				setBin( channel, frame, bin, { littleEndianToCurrent(m), littleEndianToCurrent(f) } );
 				}
 	}
@@ -139,7 +139,7 @@ bool PVOCBuffer::load( const std::string & filename )
 
 PVOCBuffer::MFPair PVOCBuffer::getBin( size_t channel, size_t frame, size_t bin ) const
 	{
-	return buffer[getPos( channel, frame, bin )];
+	return (*buffer)[getPos( channel, frame, bin )];
 	}
 
 size_t PVOCBuffer::getNumChannels() const
@@ -170,46 +170,46 @@ size_t PVOCBuffer::getOverlaps() const
 	{
 	return format.overlaps;
 	}
-double PVOCBuffer::getBinWidth() const
+float PVOCBuffer::getBinWidth() const
 	{
-	return double( getSampleRate() ) / double( getFrameSize() );
+	return float( getSampleRate() ) / float( getFrameSize() );
 	}
-double PVOCBuffer::getMaxPartialMagnitude() const
+float PVOCBuffer::getMaxPartialMagnitude() const
 	{
-	double maxMagnitude = 0;
-	for( auto i : buffer )
+	float maxMagnitude = 0;
+	for( auto i : *buffer )
 		{
-		const double trueMag = std::abs( i.magnitude );
+		const float trueMag = std::abs( i.magnitude );
 		if( trueMag > maxMagnitude )
 			maxMagnitude = trueMag;
 		}
 	return maxMagnitude;
 	}
 
-size_t PVOCBuffer::timeToFrame( double t ) const
+size_t PVOCBuffer::timeToFrame( float t ) const
 	{
 	return (size_t) timeToFrame_d( t );
 	}
-double PVOCBuffer::timeToFrame_d( double t ) const
+float PVOCBuffer::timeToFrame_d( float t ) const
 	{
-	return t * double(getSampleRate()) * double(getOverlaps()) / double(getFrameSize());
+	return t * float(getSampleRate()) * float(getOverlaps()) / float(getFrameSize());
 	}
-double PVOCBuffer::frameToTime( size_t frame ) const
+float PVOCBuffer::frameToTime( size_t frame ) const
 	{
-	return frame * double(getFrameSize()) / double(getSampleRate()) / double(getOverlaps());
+	return frame * float(getFrameSize()) / float(getSampleRate()) / float(getOverlaps());
 	}
 
-size_t PVOCBuffer::frequencyToBin( double freq ) const
+size_t PVOCBuffer::frequencyToBin( float freq ) const
 	{
 	return (size_t) frequencyToBin_d( freq );
 	}
-double PVOCBuffer::frequencyToBin_d( double freq ) const
+float PVOCBuffer::frequencyToBin_d( float freq ) const
 	{
 	return freq / getBinWidth();
 	}
-double PVOCBuffer::binToFrequency( size_t bin ) const
+float PVOCBuffer::binToFrequency( size_t bin ) const
 	{
-	return double( bin ) * getBinWidth();
+	return float( bin ) * getBinWidth();
 	}
 
 //======================================================
@@ -218,16 +218,16 @@ double PVOCBuffer::binToFrequency( size_t bin ) const
 
 void PVOCBuffer::setBin( size_t channel, size_t frame, size_t bin, MFPair value )
 	{
-	buffer[getPos( channel, frame, bin )] = value;
+	(*buffer)[getPos( channel, frame, bin )] = value;
 	}
 PVOCBuffer::MFPair & PVOCBuffer::getBin( size_t channel, size_t frame, size_t bin )
 	{
-	return buffer[getPos( channel, frame, bin )];
+	return (*buffer)[getPos( channel, frame, bin )];
 	}
 
 void PVOCBuffer::clearBuffer()
 	{
-	std::fill( buffer.begin(), buffer.end(), MFPair({ 0,0 }) );
+	std::fill( buffer->begin(), buffer->end(), MFPair({ 0,0 }) );
 	}
 
 size_t PVOCBuffer::getPos( size_t c, size_t f, size_t b ) const
