@@ -1,11 +1,11 @@
-#include "AudioBuffer.h"
+#include "xcdp/AudioBuffer.h"
 
 #include <iostream>
 #include <algorithm>
 
 #include <sndfile.h>
 
-using namespace xcdp;
+namespace xcdp{
 
 AudioBuffer::AudioBuffer()
 	: format()
@@ -13,7 +13,7 @@ AudioBuffer::AudioBuffer()
 	{}
 AudioBuffer::AudioBuffer( const Format & other )
 	: format( other )
-	, buffer( std::make_shared<std::vector<float>>( getNumChannels() * getNumSamples() ) )
+	, buffer( std::make_shared<std::vector<float>>( getNumChannels() * getNumFrames() ) )
 	{}
 AudioBuffer::AudioBuffer( const std::string & filename )
 	: format()
@@ -39,7 +39,7 @@ void AudioBuffer::load( const std::string & filePath )
 	//Copy file info into format
 	format.sampleRate = info.samplerate;
 	format.numChannels = info.channels;
-	format.numSamples = info.frames;
+	format.numFrames = info.frames;
 	*this = AudioBuffer( format );
 
 	//Create temporary buffer for interleaved data in file, read data in, close the file
@@ -63,7 +63,7 @@ bool AudioBuffer::save( const std::string & filePath ) const
 	//Check that nothing silly is going on with the file formatting
 	SF_INFO info = {};
 	info.channels	= int( getNumChannels() );
-	info.frames		= int( getNumSamples()	);
+	info.frames		= int( getNumFrames()	);
 	info.samplerate = int( getSampleRate() );
 	info.format = SF_FORMAT_WAV | SF_FORMAT_PCM_24;
 	if( !sf_format_check( &info ) )
@@ -74,15 +74,15 @@ bool AudioBuffer::save( const std::string & filePath ) const
 		}
 
 	//Create a temporary buffer for interleaved data and copy the buffer in
-	std::vector<float> interleavedBuffer( getNumSamples() * getNumChannels() );
+	std::vector<float> interleavedBuffer( getNumFrames() * getNumChannels() );
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t frame = 0; frame < getNumSamples(); ++frame )
+		for( size_t frame = 0; frame < getNumFrames(); ++frame )
 			interleavedBuffer[ frame * info.channels + channel ] = getSample( channel, frame );
 
 	//Clip all samples in the interleaved buffer
 	std::for_each( interleavedBuffer.begin(), interleavedBuffer.end(), []( float & s )
 		{
-		s = std::clamp( s, float(-1.0), float(1.0) );
+		s = std::clamp( s, -1.0f, 1.0f );
 		});
 
 	//Open the file and write in the interleaved buffer
@@ -105,9 +105,7 @@ bool AudioBuffer::save( const std::string & filePath ) const
 
 void AudioBuffer::printSummary() const
 	{
-	std::cout << "\n===================================================\n";
-	std::cout << "Channels: " << getNumChannels() << " Frames: " << getNumSamples() << " Sample Rate: " << getSampleRate() << "\n";
-	std::cout << "===================================================\n\n";
+	std::cout << *this;
 	}
 
 //======================================================
@@ -115,7 +113,7 @@ void AudioBuffer::printSummary() const
 //======================================================
 float AudioBuffer::getSample( size_t channel, size_t frame ) const 
 	{
-	return (*buffer)[getPos( channel, frame )];
+	return (*buffer)[getBufferPos( channel, frame )];
 	}
 
 AudioBuffer::Format xcdp::AudioBuffer::getFormat() const
@@ -128,9 +126,9 @@ size_t AudioBuffer::getNumChannels() const
 	return format.numChannels;
 	}
 
-size_t AudioBuffer::getNumSamples() const 
+size_t AudioBuffer::getNumFrames() const 
 	{
-	return format.numSamples;
+	return format.numFrames;
 	}
 
 size_t AudioBuffer::getSampleRate() const 
@@ -138,24 +136,24 @@ size_t AudioBuffer::getSampleRate() const
 	return format.sampleRate;
 	}
 
-float AudioBuffer::sampleToTime( size_t sample ) const
+float AudioBuffer::frameToTime() const
 	{
-	return float( sample ) / float( getSampleRate() );
+	return 1.0f / timeToFrame();
 	}
 
-size_t AudioBuffer::timeToSample( float time ) const
+float AudioBuffer::timeToFrame() const
 	{
-	return double(time) * getSampleRate();
+	return float( getSampleRate() );
 	}
 
 float AudioBuffer::getLength() const
 	{
-	return sampleToTime( getNumSamples() );
+	return getNumFrames() * frameToTime();
 	}
 
 float AudioBuffer::getMaxSampleMagnitude() const
 	{
-	if( getNumSamples() == 0 || getNumChannels() == 0 ) return 0;
+	if( getNumFrames() == 0 || getNumChannels() == 0 ) return 0;
 	return std::abs(*std::max_element( buffer->begin(), buffer->end(), []( float a, float b )
 		{
 		return std::abs( a ) < std::abs( b );
@@ -167,12 +165,12 @@ float AudioBuffer::getMaxSampleMagnitude() const
 //======================================================
 void AudioBuffer::setSample( size_t channel, size_t sample, float newValue ) 
 	{
-	(*buffer)[getPos( channel, sample )] = newValue;
+	(*buffer)[getBufferPos( channel, sample )] = newValue;
 	}
 
 float & AudioBuffer::getSample( size_t channel, size_t sample )
 	{
-	return (*buffer)[getPos( channel, sample )];
+	return (*buffer)[getBufferPos( channel, sample )];
 	}
 
 void xcdp::AudioBuffer::clearBuffer()
@@ -182,19 +180,35 @@ void xcdp::AudioBuffer::clearBuffer()
 
 float * AudioBuffer::getSamplePointer( size_t channel, size_t frame )
 	{ 
-	return buffer->data() + getPos( channel, frame );
+	return buffer->data() + getBufferPos( channel, frame );
 	}
 
 const float * AudioBuffer::getSamplePointer( size_t channel, size_t frame ) const
 	{ 
-	return buffer->data() + getPos( channel, frame );
+	return buffer->data() + getBufferPos( channel, frame );
 	}
 
 //======================================================
 //	Private
 //======================================================
 
-size_t xcdp::AudioBuffer::getPos( size_t channel, size_t sample ) const
+size_t AudioBuffer::getBufferPos( size_t channel, size_t sample ) const
 	{
-	return channel * getNumSamples() + sample;
+	return channel * getNumFrames() + sample;
 	}
+
+//======================================================
+//	Global
+//======================================================
+std::ostream & operator<<( std::ostream & os, const AudioBuffer & audio )
+	{
+	os << "\n=========================== Audio Info ==========================="
+	   << "\nChannels:\t"		<< audio.getNumChannels() 
+	   << "\nSamples:\t"		<< audio.getNumFrames() 
+	   << "\nSample Rate:\t"	<< audio.getSampleRate()
+	   << "\n==================================================================" 
+	   << "\n\n";
+	return os;
+	}
+
+} // End namespace xcdp

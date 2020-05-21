@@ -1,26 +1,91 @@
-#include "PVOC.h"
+#include "xcdp/PVOC.h"
 
-#include <algorithm>
 #include <iostream>
 #include <complex>
 #include <array>
-#include <fstream>
 
 #include <fftw3.h>
-#include "spline.h"
+#include "xcdp/spline.h"
 
-#include "RealFunc.h"
-#include "WindowFunctions.h"
-#include "Audio.h"
-#include "CLContext.h"
+#include "xcdp/WindowFunctions.h"
+#include "xcdp/Audio.h"
+#include "xcdp/CLContext.h"
+#include "xcdp/CLProgs.h"
 
 namespace xcdp {
 
-const float pi = std::acos( -1.0 );
+const float pi = std::acos( -1.0f );
 
 //========================================================================
 //	Conversions
 //========================================================================
+
+Audio convertToAudio_cpu( const PVOC & me )
+	{
+	std::cout << "Getting audio ... \n";
+	const size_t numBins = me.getNumBins();
+	const size_t frameSize = me.getWindowSize();
+	const size_t hopSize = frameSize / me.getOverlaps();
+	const size_t numHops = me.getNumFrames();
+	const float binWidth_f = me.binToFrequency();
+	
+	AudioBuffer::Format audioFormat;
+	audioFormat.numChannels = me.getNumChannels();
+	audioFormat.numFrames = numHops * hopSize;
+	audioFormat.sampleRate = me.getSampleRate();
+	Audio out( audioFormat );
+
+	const float windowScale = frameSize * me.getOverlaps();
+
+	std::vector<float> phaseBuffer( numBins );
+	std::complex<float> *fftIn = (std::complex<float>*) fftwf_alloc_complex( numBins );
+	float * fftOut = fftwf_alloc_real( frameSize );
+	fftwf_plan plan = fftwf_plan_dft_c2r_1d( int(frameSize), (fftwf_complex*) fftIn, fftOut, FFTW_MEASURE );
+
+	for( size_t channel = 0; channel < me.getNumChannels(); ++channel )
+		{
+		///initial phase?
+		std::fill( phaseBuffer.begin(), phaseBuffer.end(), 0 );
+
+		for( size_t hop = 0; hop < numHops; ++hop )
+			{
+			//reconstruct phase and convert to rectangular, store in fftIn
+			//It's the same as in the analysis but backwards so I'm not writing up every step
+			for( size_t bin = 0; bin < numBins; ++bin )
+				{
+				const float magnitude = me.getMF( channel, hop, bin ).m;
+
+				const float trueFreq = me.getMF( channel, hop, bin ).f;
+				const float binDeviation = trueFreq / binWidth_f - float(bin);
+				const float deltaPhase = 2.0 * pi * binDeviation / float(me.getOverlaps());
+				const float expectedPhaseDiff = float(bin) * ( 2.0f * pi / float(me.getOverlaps()) );
+				const float phaseDiff = deltaPhase + expectedPhaseDiff;
+				phaseBuffer[bin] += phaseDiff;
+				
+				fftIn[bin] = std::polar( magnitude, phaseBuffer[bin] );
+				}
+
+			fftwf_execute( plan );
+
+			//Accumulate ifft output into audio buffer
+			for( size_t relativeSample = 0; relativeSample < frameSize; ++relativeSample )
+				{
+				// - overlaps/2 is a consequency of marginal frames
+				const int actualSample = (int(hop)-int(me.getOverlaps()/2)) * int(hopSize) + int(relativeSample);
+				if( 0 <= actualSample && actualSample < out.getNumFrames() )
+					{ 
+					out.setSample( channel, actualSample, out.getSample( channel, actualSample ) +
+						window::Hann( float(relativeSample) / float(frameSize) ) / windowScale * fftOut[relativeSample] );
+					}
+				}
+			}
+		}
+	fftwf_destroy_plan( plan );
+	fftwf_free( fftIn );
+	fftwf_free( fftOut );
+
+	return out;
+	}
 
 struct convertToAudio_FFTWHelper
 	{
@@ -43,51 +108,31 @@ struct convertToAudio_FFTWHelper
 	fftwf_plan plan;
 	};
 
-struct convertToAudio_ProgramHelper
-	{
-	convertToAudio_ProgramHelper()
-		{
-		std::ifstream t( "OpenCL/PVOC_convertToAudio.c" );
-		if( !t.is_open() )
-			{
-			std::cout << "Couldn't find PVOC to Audio conversion opencl file" << std::endl;
-			exit( 1 );
-			}
-		std::stringstream source;
-		source << t.rdbuf();
-
-		auto cl = CLContext::get();
-		program = cl::Program( cl.context, source.str() );
-
-		if( program.build( { cl.device }, "-cl-denorms-are-zero" ) != CL_SUCCESS )
-			{
-			std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>( cl.device ) << "\n";
-			exit( 1 );
-			}
-		}
-
-	cl::Program program;
-	};
-
-//Phase Vocoder resynthesis. Comments are light, Audio::convertToPVOC has most of the info.
 Audio PVOC::convertToAudio() const
 	{
-	std::cout << "Getting audio ... \n";
+	std::cout << "PVOC::convertToAudio ... \n";
+
+#ifndef USE_OPENCL
+	return convertToAudio_cpu( *this, frameSize, overlaps );
+#else
+
 	const size_t numBins = getNumBins();
-	const size_t frameSize = getFrameSize();
+	const int numBins_i = int(numBins);
+	const size_t frameSize = getWindowSize();
 	const size_t hopSize = frameSize / getOverlaps();
 	const size_t numHops = getNumFrames();
-	const float binWidthD = getBinWidth();
+	const float binWidth_f = binToFrequency();
 	const size_t outChannelDataCount = numBins * numHops;
-	std::vector<MFPair>::iterator inBufferWriteHead = getBuffer()->begin();
+	const float overlaps_f = float( getOverlaps() );
+	const MF * inBufferReadHead = getMFPointer( 0, 0, 0 );
 	
 	AudioBuffer::Format audioFormat;
 	audioFormat.numChannels = getNumChannels();
-	audioFormat.numSamples = numHops * hopSize;
+	audioFormat.numFrames = numHops * hopSize;
 	audioFormat.sampleRate = getSampleRate();
 	Audio out( audioFormat );
 
-	const float windowScale = frameSize * getOverlaps();
+	const float windowScale = float( frameSize * getOverlaps() );
 
 	//Sample Hann window
 	std::vector<float> hannWindow( frameSize );
@@ -99,12 +144,13 @@ Audio PVOC::convertToAudio() const
 
 	//prepare OpenCL
 	auto cl = CLContext::get();
-	static convertToAudio_ProgramHelper programHelper;
-	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( PVOCBuffer::MFPair ) * outChannelDataCount );
+	static ProgramHelper programHelper( CLProgs::PVOC_convertToAudio );
+	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( PVOCBuffer::MF ) * outChannelDataCount );
 	cl::Buffer clOut( cl.context, CL_MEM_READ_WRITE, sizeof( std::complex<float> ) * outChannelDataCount );
 	cl::Buffer clPhase( cl.context, CL_MEM_READ_WRITE, sizeof( float ) * numBins );
 	cl::KernelFunctor< cl::Buffer > cl_phaseToFFT( programHelper.program, "phaseToFFT" );
-	cl::KernelFunctor< cl::Buffer, cl::Buffer, cl::Buffer > cl_freqToPhase( programHelper.program, "freqToPhase" );
+	cl::KernelFunctor< cl::Buffer, cl::Buffer, cl::Buffer, float, float, int > 
+		cl_freqToPhase( programHelper.program, "freqToPhase" );
 
 	std::vector<std::complex<float>> clOutHostBuff( outChannelDataCount );
 	
@@ -113,15 +159,21 @@ Audio PVOC::convertToAudio() const
 		cl.queue.enqueueFillBuffer( clPhase, 0, 0, sizeof( float ) * numBins );
 
 		//Copy buffer into OpenCL device
-		cl::copy( cl.queue, inBufferWriteHead, inBufferWriteHead + outChannelDataCount, clIn );
-		inBufferWriteHead += outChannelDataCount;
+		cl::copy( cl.queue, inBufferReadHead, inBufferReadHead + outChannelDataCount, clIn );
+		inBufferReadHead += outChannelDataCount;
 		cl.queue.enqueueBarrierWithWaitList();
 
 		//Convert frequencies into phases, copy polar into clOut
 		//	This must be ordered due to the phase accumulator
 		for( size_t hop = 0; hop < numHops; ++hop )
 			{
-			cl_freqToPhase( cl::EnqueueArgs( cl.queue, cl::NDRange( hop * numBins ), cl::NDRange( numBins ), cl::NDRange() ), clIn, clOut, clPhase );
+			cl_freqToPhase( cl::EnqueueArgs( cl.queue, cl::NDRange( hop * numBins ), cl::NDRange( numBins ), cl::NDRange() ),
+				clIn, 
+				clOut, 
+				clPhase,
+				overlaps_f,
+				binWidth_f,
+				numBins_i );
 			cl.queue.enqueueBarrierWithWaitList();
 			}
 
@@ -146,44 +198,46 @@ Audio PVOC::convertToAudio() const
 			int actualSample = ( int(hop)-int(getOverlaps()/2) ) * int(hopSize);
 			float * inputSampleHead = out.getSamplePointer( channel, actualSample );
 			for( size_t relativeSample = 0; relativeSample < frameSize; ++relativeSample, ++actualSample )
-				if( 0 <= actualSample && actualSample < out.getNumSamples() )
+				if( 0 <= actualSample && actualSample < out.getNumFrames() )
 					*(inputSampleHead + relativeSample) += fftw.out[relativeSample] * hannWindow[relativeSample];
 			}
 		}
 
 	return out;
+#endif
 	}
 
 const PVOC & PVOC::graph( const std::string & fileName ) const
 	{
-	std::cout << "Getting Spectrograph ... \n";
+	std::cout << "PVOC::graph ... \n";
 
 	size_t numFrames = getNumFrames();
 	float maxMag = getMaxPartialMagnitude();
 
 	//bin -> frame to match write order
 	std::vector<std::vector<std::array<uint8_t,3>>> data( getNumFrames(), std::vector( getNumBins(), std::array<uint8_t,3>( {0,0,0} ) ) );
-	for( size_t bin = 0; bin < getNumBins(); ++bin )
-		for( size_t frame = 0; frame < numFrames; ++frame )	
-			{
-			/* The choice of value and hue here is an aesthetic one
-			 * I've tried to make both low and high frequency information relatively visible
-			 * without oversaturating the highs
-			 * Feel free to change the initial hue below if you don't like matrix green
-			*/
+	if( maxMag > 0 )
+		for( size_t bin = 0; bin < getNumBins(); ++bin )
+			for( size_t frame = 0; frame < numFrames; ++frame )	
+				{
+				/* The choice of value and hue here is an aesthetic one
+				 * I've tried to make both low and high frequency information relatively visible
+				 * without oversaturating the highs
+				 * Feel free to change the initial hue below if you don't like matrix green
+				*/
 
-			const float initialHueAngle = 110;
+				const float initialHueAngle = 110;
 
-			const float normMag = std::abs(getBin( 0, frame, bin ).magnitude) / maxMag;
-			const float value = std::pow( std::clamp( log2( float(bin) + 3.0 )*normMag, 0.0, 1.0 ), 0.4 );
+				const float normMag = std::abs(getMF( 0, frame, bin ).m) / maxMag;
+				const float value = std::pow( std::clamp( log2( float(bin) + 3.0f )*normMag, 0.0f, 1.0f ), 0.4f );
 
-			//bin deviation from bin center on range [-.5,.5]
-			const float deviation = ( getBin(0, frame, bin).frequency / float(getBinWidth()) - float(bin)) / float( getOverlaps() );
-			const int hueAngle = int( deviation * 1800.0 + initialHueAngle );
-			const int wrappedHueAngle = hueAngle - int(360.0*floor( float(hueAngle) / 360.0 ));
+				//bin deviation from bin center on range [-.5,.5]
+				const float deviation = ( getMF(0, frame, bin).f / float(binToFrequency()) - float(bin)) / float( getOverlaps() );
+				const int hueAngle = int( deviation * 1800.0 + initialHueAngle );
+				const int wrappedHueAngle = hueAngle - int(360.0*floor( float(hueAngle) / 360.0 ));
 
-			data[frame][bin] = HSVtoRGB( wrappedHueAngle, 1.0, value );
-			}
+				data[frame][bin] = HSVtoRGB( wrappedHueAngle, 1.0, value );
+				}
 
 	writeBMP( fileName, data );
 	return *this;
@@ -195,7 +249,7 @@ const PVOC & PVOC::graph( const std::string & fileName ) const
 
 PVOC PVOC::getFrame( float time ) const
 	{
-	const float selectedFrame = std::clamp( timeToFrame_d( time ), 0.0f, float( getNumFrames() - 1 ) );
+	const float selectedFrame = std::clamp( timeToFrame() * time, 0.0f, float( getNumFrames() - 1 ) );
 
 	auto format = getFormat();
 	format.numFrames = 1;
@@ -203,63 +257,94 @@ PVOC PVOC::getFrame( float time ) const
 
 	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
 		for( size_t bin = 0; bin < out.getNumBins(); ++bin )
-			out.setBin( channel, 0, bin, getBinInterpolated( channel, selectedFrame, bin ) );
+			out.setMF( channel, 0, bin, getBinInterpolated( channel, selectedFrame, bin ) );
 
 	return out;
 	}
 
-PVOC PVOC::timeSelect( float length, Surface selector ) const
+PVOC PVOC::select( float length, Func2x2 selector, Interpolator interp ) const
 	{
-	std::cout << "Time Select ... \n";
+	std::cout << "PVOC::select ... \n";
 	auto format = getFormat();
-	format.numFrames = timeToFrame( length );
+	format.numFrames = timeToFrame() * length;
 	PVOC out( format );
+
+	const float timeToFrameConst = timeToFrame();
+	const float frameToTimeConst = frameToTime();
+	const float binToFreqConst = binToFrequency();
+	const float freqToBinConst = frequencyToBin();
 
 	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
 		for( size_t frame = 0; frame < out.getNumFrames(); ++frame )
 			{
 			for( size_t bin = 0; bin < getNumBins(); ++bin )
 				{
-				const float currentTimeSelection = selector( frameToTime( frame ), binToFrequency( bin ) );
-				const float selectedFrame = std::clamp( timeToFrame_d( currentTimeSelection ), float(0.0), float( getNumFrames() - 1 ) );
-				out.setBin( channel, frame, bin,  
-					getBinInterpolated( channel, selectedFrame, bin ) );
+				//No need to clamp, getBinInterpolated does bounds checking
+				vec2 selectedPoint = selector( frameToTimeConst * frame, binToFreqConst * bin );
+				selectedPoint.x() *= timeToFrameConst;
+				selectedPoint.y() *= freqToBinConst;
+				out.setMF( channel, frame, bin,  
+					getBinInterpolated( channel, selectedPoint.x(), selectedPoint.y(), interp ) );
 				}
 			}
 
 	return out;
 	}
 
-PVOC PVOC::holdAtTimes( const std::vector<float> & timesToHold  ) const
+PVOC PVOC::freeze( const std::vector<std::array<float,2>> & timing ) const
 	{
-	std::cout << "Hold Frames ... \n";
-	PVOC out( getFormat() );
+	std::cout << "PVOC::freeze ... \n";
 
-	std::vector<size_t> framesToHold( timesToHold.size() );
+	const float timeToFrameConst = timeToFrame();
 
-	std::transform( timesToHold.begin(), timesToHold.end(), framesToHold.begin(), [this]( float t ){ return timeToFrame( t ); } );
+	//Convert times into frames
+	std::vector<std::array<size_t,2>> timingFrames( timing.size() );
+	std::transform( timing.begin(), timing.end(), timingFrames.begin(), [timeToFrameConst]( const std::array<float,2> & i )
+		{ 
+		return std::array<size_t,2>{ 
+			size_t( double( i[0] ) * timeToFrameConst ), 
+			size_t( double( i[1] ) * timeToFrameConst ) };
+		});
+
+	//Sort by occurance frame
+	std::sort( timingFrames.begin(), timingFrames.end(), []( std::array<size_t,2> & a, std::array<size_t,2> & b )
+		{ return a[0] < b[0]; } );
+
+	float totalFreezeTime = 0;
+	for( auto & i : timing ) totalFreezeTime += i[1];
+
+	auto format = getFormat();
+	format.numFrames += ceil( totalFreezeTime * timeToFrameConst );
+	PVOC out( format );
 
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
 		{
 		bool holding = false;
-		size_t currentFrameVecTestingPosition = 0;
-		for( size_t frame = 0; frame < getNumFrames(); ++frame )
+		size_t numFramesHeld = 0;
+		size_t timingIndex = 0;
+		for( size_t inFrame = 0, outFrame = 0; inFrame < getNumFrames(); ++outFrame )
 			{
-			if( frame == framesToHold[currentFrameVecTestingPosition] )
+			if( holding )
 				{
-				holding = true;
-				++currentFrameVecTestingPosition;
+				++numFramesHeld;
+				if( numFramesHeld > timingFrames[timingIndex][1] )
+					{
+					holding = false;
+					++timingIndex;
+					numFramesHeld = 0;
+					}
+				}
+			else
+				{
+				++inFrame;
+				if( inFrame > timingFrames[timingIndex][0] )
+					{
+					holding = true;
+					}
 				}
 
 			for( size_t bin = 0; bin < getNumBins(); ++bin )
-				{
-				if( holding )
-					out.setBin( channel, frame, bin,  
-						getBin( channel, framesToHold[currentFrameVecTestingPosition-1], bin ) );
-				else
-					out.setBin( channel, frame, bin, 
-						getBin( channel, frame, bin ) );
-				}
+				out.setMF( channel, outFrame, bin, getMF( channel, inFrame, bin ) );
 			}
 		}
 
@@ -270,24 +355,185 @@ PVOC PVOC::holdAtTimes( const std::vector<float> & timesToHold  ) const
 //	Resampling
 //========================================================================
 
-PVOC PVOC::modifyFrequency( Surface outFreqFunc, Interpolator interp ) const
+PVOC PVOC::modify( Func2x2 mod, Interpolator interp ) const
 	{
-	std::cout << "Modify Frequency ... \n";
+	std::cout << "PVOC::modify ... \n";
+
+	const size_t numBins = getNumBins();
+	const size_t numFrames = getNumFrames();
+	const size_t inChannelDataCount = numFrames * numBins;
+
+	const float frameToTimeConst = float( getWindowSize() ) / float( getSampleRate() ) / float( getOverlaps() );
+	const float timeToFrameConst = 1.0f / frameToTimeConst;
+	const float binToFrequencyConst = binToFrequency();
+	const float freqToBinConst = 1.0f / binToFrequencyConst;
+
+	//Sample mod functions
+	std::vector<MF> inModified( inChannelDataCount );
+	std::vector<vec2> modPointSamples( inChannelDataCount );
+	float lastOutputFrame = 0;
+	for( size_t frame = 0; frame < numFrames; ++frame )
+		for( size_t bin = 0; bin < numBins; ++bin )
+			{
+			auto modOut = mod( frame * frameToTimeConst, bin * binToFrequencyConst );
+			modOut.x() *= timeToFrameConst;
+			modOut.y() *= freqToBinConst;
+			
+			modPointSamples[ frame * numBins + bin ] = modOut;
+			if( lastOutputFrame < modOut.x() )
+				lastOutputFrame = modOut.x();
+				
+			}
+	++lastOutputFrame;
+	if( lastOutputFrame * frameToTimeConst > 600.0f ) // outfile longer than 10 minutes?
+		{
+		std::cout << "PVOC::modify_cpu tried to make a file longer than 10 minutes, which is currently disabled";
+		return PVOC();
+		}
+
+	auto format = getFormat();
+	format.numFrames = ceil( lastOutputFrame );
+	PVOC out( format );
+	out.clearBuffer();
+	const size_t outChannelDataCount = out.getNumFrames() * out.getNumBins();
+
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		{
+		//Calculate and copy mapped frequencies and input magnitudes
+		auto modDataSamplesWriteHead = inModified.begin();
+		auto inBufferReadHead = getMFPointer( 0, 0, 0 ) + channel * inChannelDataCount;
+		for( size_t frame = 0; frame < numFrames; ++frame )
+			for( size_t bin = 0; bin < numBins; ++bin, ++modDataSamplesWriteHead, ++inBufferReadHead )
+				{
+				*modDataSamplesWriteHead = 
+					{
+					inBufferReadHead->m,
+					mod( frame * frameToTimeConst, inBufferReadHead->f ).y()
+					};
+				}
+		
+		for( size_t frame = 1; frame < numFrames; ++frame )
+			for( size_t bin = 1; bin < numBins; ++bin )
+				{
+				const std::array<vec2, 4> p = {
+					modPointSamples[ ( frame - 1 ) * numBins + bin - 1 ],
+					modPointSamples[ ( frame - 0 ) * numBins + bin - 1 ],
+					modPointSamples[ ( frame - 0 ) * numBins + bin - 0 ],
+					modPointSamples[ ( frame - 1 ) * numBins + bin - 0 ] };
+		
+				const std::array<MF, 4> pMF = {
+					inModified[ ( frame - 1 ) * numBins + bin - 1 ],
+					inModified[ ( frame - 0 ) * numBins + bin - 1 ],
+					inModified[ ( frame - 0 ) * numBins + bin - 0 ],
+					inModified[ ( frame - 1 ) * numBins + bin - 0 ] };
+		
+				const vec2 D12 = p[1] - p[0];
+				const vec2 D23 = p[2] - p[1];
+				const vec2 D34 = p[3] - p[2];
+				const vec2 D41 = p[0] - p[3];
+			
+				// Find box containing shape to iterate over
+				const int minx = fmax( floor( fmin( fmin( p[0].x(), p[1].x() ), fmin( p[2].x(), p[3].x() ) ) ), 0 );
+				const int miny = fmax( floor( fmin( fmin( p[0].y(), p[1].y() ), fmin( p[2].y(), p[3].y() ) ) ), 0 );
+				const int maxx = fmin( ceil(  fmax( fmax( p[0].x(), p[1].x() ), fmax( p[2].x(), p[3].x() ) ) ), format.numFrames - 1 );
+				const int maxy = fmin( ceil(  fmax( fmax( p[0].y(), p[1].y() ), fmax( p[2].y(), p[3].y() ) ) ), numBins - 1 );
+			
+				// Iterate over box
+				for( int x = minx; x <= maxx; ++x )
+					for( int y = miny; y <= maxy; ++y )
+						{	
+						// Ref: http://paulbourke.net/geometry/polygonmesh/#insidepoly
+						bool c = false;
+						if( ( ( p[0].y() <= y && y < p[3].y() ) || ( p[3].y() <= y && y < p[0].y() ) ) && ( x < D41.x() / D41.y() * ( y - p[0].y() ) + p[0].x() ) ) c = !c;
+						if( ( ( p[1].y() <= y && y < p[0].y() ) || ( p[0].y() <= y && y < p[1].y() ) ) && ( x < D12.x() / D12.y() * ( y - p[1].y() ) + p[1].x() ) ) c = !c;
+						if( ( ( p[2].y() <= y && y < p[1].y() ) || ( p[1].y() <= y && y < p[2].y() ) ) && ( x < D23.x() / D23.y() * ( y - p[2].y() ) + p[2].x() ) ) c = !c;
+						if( ( ( p[3].y() <= y && y < p[2].y() ) || ( p[2].y() <= y && y < p[3].y() ) ) && ( x < D34.x() / D34.y() * ( y - p[3].y() ) + p[3].x() ) ) c = !c;
+				
+						if( c )
+							{
+							// Ref: https://www.particleincell.com/2012/quad-interpolation/
+					
+							const std::array<float, 4> alpha = { p[0].x(), p[1].x() - p[0].x(), p[3].x() - p[0].x(), p[0].x() - p[1].x() + p[2].x() - p[3].x() };
+							const std::array<float, 4> beta  = { p[0].y(), p[1].y() - p[0].y(), p[3].y() - p[0].y(), p[0].y() - p[1].y() + p[2].y() - p[3].y() };
+					
+							const float quadA = alpha[3] * beta[2] - alpha[2] * beta[3];
+							const float quadB = alpha[3] * beta[0] - alpha[0] * beta[3] 
+											  + alpha[1] * beta[2] - alpha[2] * beta[1]
+											  + x 		 * beta[3] - alpha[3] * y;
+							const float quadC = alpha[1] * beta[0] - alpha[0] * beta[1]
+												+ x		 * beta[1] - alpha[1] * y;
+					
+							float m;
+							if( quadA == 0.0f )	
+								{
+								if( quadB == 0.0f )
+									continue;
+								m = -quadC / quadB;
+								}
+							else
+								{
+								const float descriminant = quadB * quadB - 4.0f * quadA * quadC;
+								if( descriminant < 0 ) continue;
+								m = ( -quadB + sqrt( descriminant ) ) / ( 2.0f * quadA );
+								}
+							if( alpha[1] + alpha[3] * m == 0 ) continue;
+							const float l = ( x - alpha[0] - alpha[2] * m ) / ( alpha[1] + alpha[3] * m );
+					
+							const float epsilon = 0.0001f;
+							if( fabs( l - 0.5f ) > 0.5f + epsilon || fabs( m - 0.5f ) > 0.5f + epsilon ) continue;
+
+							const std::array<float, 4> w = {
+								( 1.0f - interp( l ) ) * ( 1.0f - interp( m ) ) * pMF[0].m,
+								(        interp( l ) ) * ( 1.0f - interp( m ) ) * pMF[1].m,
+								(        interp( l ) ) * (        interp( m ) ) * pMF[2].m,
+								( 1.0f - interp( l ) ) * (        interp( m ) ) * pMF[3].m };
+							const float totalWeight = w[0] + w[1] + w[2] + w[3];
+							if( totalWeight <= 0 ) continue;
+					
+							auto & outMF = out.getMF( channel, x, y );
+
+							// Frequency is found by taking a weighted sum of the contributing frequencies of the current step 
+							//	and what is already in the output MF
+							outMF.f = ( outMF.f * outMF.m 
+											  + pMF[0].f * w[0]
+											  + pMF[1].f * w[1]
+											  + pMF[2].f * w[2]
+											  + pMF[3].f * w[3] ) 
+											  / ( outMF.m + totalWeight );
+							outMF.m += totalWeight;
+							}
+						}
+				}
+		}
+
+	return out;
+	}
+
+PVOC PVOC::modifyFrequency( Func2x1 outFreqFunc, Interpolator interp ) const
+	{
+	std::cout << "PVOC::modifyFrequency ... \n";
 	PVOC out( getFormat() );
 	out.clearBuffer();
 
-	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t frame = 0; frame < getNumFrames(); ++frame )
+	const size_t numChannels = getNumChannels();
+	const size_t numFrames = getNumFrames();
+	const size_t numBins = getNumBins();
+
+	const float freqToBinConst = frequencyToBin();
+	const float binToFreqConst = binToFrequency();
+	const float frameToTimeConst = frameToTime();
+
+	for( size_t channel = 0; channel < numChannels; ++channel )
+		for( size_t frame = 0; frame < numFrames; ++frame )
 			{
-			float prevOutBin = frequencyToBin_d( outFreqFunc( frameToTime( frame ), 0.0 ) );
-			for( size_t bin = 1; bin < getNumBins(); ++bin )
+			float prevOutBin = freqToBinConst * outFreqFunc( frameToTimeConst * frame, 0.0f );
+			for( size_t bin = 1; bin < numBins; ++bin )
 				{
-				const float outBin = frequencyToBin_d( outFreqFunc( frameToTime( frame ), binToFrequency( bin ) ) );
+				const float outBin = freqToBinConst * outFreqFunc( frameToTimeConst * frame, binToFreqConst * bin );
 				const bool forward = outBin > prevOutBin;
 
 				const long long prevOutBinRound = forward? std::ceil( prevOutBin ) : std::floor( prevOutBin );
 				const long long outBinRound     = forward? std::ceil( outBin     ) : std::floor( outBin     );
-
 				const size_t startBin = std::clamp( prevOutBinRound, 0ll, long long(out.getNumBins() - 1) );
 				const size_t endBin   = std::clamp( outBinRound    , 0ll, long long(out.getNumBins() - 1) );
 
@@ -295,25 +541,25 @@ PVOC PVOC::modifyFrequency( Surface outFreqFunc, Interpolator interp ) const
 					{
 					if( interpBin < 0 || getNumBins() <= interpBin ) continue;
 
-					const float mix = ( float( interpBin ) - prevOutBin ) / ( outBin - prevOutBin );
-					const float interpMagnitude = interp( mix, getBin( channel, frame, bin-1 ).magnitude, getBin( channel, frame, bin ).magnitude );
+					const MF & currentMF = getMF( channel, frame, bin );
+					const MF & prevMF = getMF( channel, frame, bin-1 );
 
-					auto & outMF = out.getBin( channel, frame, interpBin );
+					const float mix = interp( ( float( interpBin ) - prevOutBin ) / ( outBin - prevOutBin ) );
+					const float interpMagnitude = ( 1.0f - mix ) * prevMF.m + mix * currentMF.m;
 
-					if( interpMagnitude > outMF.magnitude )
-						{
-						//Set frequency to whatever frequency is more dominant
-						const float pureInterp = interp( mix, 0.0, 1.0 );
+					auto & outMF = out.getMF( channel, frame, interpBin );
 
-						if( getBin( channel, frame, bin-1 ).magnitude * ( 1.0 - pureInterp ) > 
-						    getBin( channel, frame, bin-0 ).magnitude * ( 0.0 + pureInterp ) )
-							outMF.frequency = outFreqFunc( frameToTime( frame ), getBin( channel, frame, bin-1 ).frequency );
-						else
-							outMF.frequency = outFreqFunc( frameToTime( frame ), getBin( channel, frame, bin-0 ).frequency );
-						}
-					outMF.magnitude += interpMagnitude;
+					//if( prevMF.m * ( 1.0 - mix ) > currentMF.m * ( 0.0 + mix ) )
+					//	outMF.f = outFreqFunc( frameToTime( frame ), prevMF.f );
+					//else
+					//	outMF.f = outFreqFunc( frameToTime( frame ), currentMF.f );
+
+					const float w0 = ( 1.0f - mix ) * prevMF.m;
+					const float w1 = (        mix ) * currentMF.m;
+
+					outMF.f = ( outMF.m * outMF.f + w0 * prevMF.f + w1 * currentMF.f ) / ( outMF.m + w0 + w1 );
+					outMF.m += interpMagnitude;
 					}
-
 				prevOutBin = outBin;
 				}
 			}
@@ -321,58 +567,65 @@ PVOC PVOC::modifyFrequency( Surface outFreqFunc, Interpolator interp ) const
 	return out;
 	}
 
-PVOC PVOC::modifyTime( Surface outPosFunc, Interpolator interp ) const
+PVOC PVOC::modifyTime( Func2x1 outPosFunc, Interpolator interp ) const
 	{
-	std::cout << "Modify Time ... \n";
+	std::cout << "PVOC::modifyTime ... \n";
 
-	//Find farthest output frame
-	size_t lastOutputFrame = 0;
-	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t frame = 0; frame < getNumFrames(); ++frame )
-			for( size_t bin = 0; bin < getNumBins(); ++bin )
-				{
-				const float outTime = outPosFunc( frameToTime( frame ), binToFrequency( bin ) );
-				if( outTime <= 0.0 ) continue;
-				lastOutputFrame = std::max( timeToFrame( outTime ), lastOutputFrame );
-				}
+	const size_t numChannels = getNumChannels();
+	const size_t numFrames = getNumFrames();
+	const size_t numBins = getNumBins();
+
+	//const float freqToBinConst = frequencyToBin();
+	const float binToFreqConst = binToFrequency();
+	const float frameToTimeConst = frameToTime();
+	const float timeToFrameConst = timeToFrame();
+
+	//Find farthest output frame and sample mod function
+	std::vector<float> modFrames( numFrames * numBins );
+	float lastOutputFrame = 0;
+	for( size_t frame = 0; frame < getNumFrames(); ++frame )
+		for( size_t bin = 0; bin < getNumBins(); ++bin )
+			{
+			const float modFrame = outPosFunc( frame * frameToTimeConst, bin * binToFreqConst ) * timeToFrameConst;
+			if( lastOutputFrame < modFrame )
+				lastOutputFrame = modFrame;
+			modFrames[ frame * numBins + bin ] = modFrame;
+			}
 
 	auto format = getFormat();
 	format.numFrames = lastOutputFrame;
 	PVOC out( format );
 	out.clearBuffer();
 
-	std::vector< float > prevOutPos( getNumBins() );
-
-	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+	for( size_t channel = 0; channel < numChannels; ++channel )
 		{
-		//Compute initial frame output positions
-		for( size_t bin = 0; bin < getNumBins(); ++bin )
-			prevOutPos[bin] = timeToFrame_d( outPosFunc( 0.0, binToFrequency( bin ) ) );
-
-		for( size_t frame = 1; frame < getNumFrames(); ++frame ) // Start at 1 because for each frame we will access previous frame
+		for( size_t frame = 1; frame < numFrames; ++frame ) // Start at 1 because for each frame we will access previous frame
 			{
 			for( size_t bin = 0; bin < getNumBins(); ++bin )
 				{
-				const float outPos = timeToFrame_d( outPosFunc( frameToTime( frame ), binToFrequency( bin ) ) );
-				const bool forward = outPos > prevOutPos[bin];
+				const float prevModFrame = modFrames[ ( frame - 1 ) * numBins + bin ];
+				const float modFrame = modFrames[ frame * numBins + bin ];
+				const bool forward = modFrame > prevModFrame;
 
-				const long long startFrame = forward? std::ceil( prevOutPos[bin] ) : std::floor( prevOutPos[bin] );
-				const long long endFrame   = forward? std::ceil( outPos          ) : std::floor( outPos          );
+				const long long startFrame = forward? std::ceil( prevModFrame ) : std::floor( prevModFrame );
+				const long long endFrame   = forward? std::ceil( modFrame     ) : std::floor( modFrame     );
 
 				for( long long outFrame = startFrame; outFrame != endFrame; forward? ++outFrame : --outFrame )
 					{
 					if( outFrame < 0 || out.getNumFrames() <= outFrame ) continue;
 
-					const float mix = ( float( outFrame ) - prevOutPos[bin] ) / ( outPos - prevOutPos[bin] );
-					const float interpMagnitude = interp( mix, getBin( channel, frame - 1, bin ).magnitude, getBin( channel, frame, bin ).magnitude );
+					const MF & currentMF = getMF( channel, frame, bin );
+					const MF & prevMF = getMF( channel, frame - 1, bin );
 
-					auto & outMF = out.getBin( channel, outFrame, bin );
-					if( interpMagnitude > outMF.magnitude )
-						outMF.frequency = interp( mix, getBin( channel, frame - 1, bin ).frequency, getBin( channel, frame, bin ).frequency );
-					outMF.magnitude += interpMagnitude;
+					const float mix = interp( ( modFrame - prevModFrame ) / ( outFrame - prevModFrame ) );
+					const float w0 = ( 1.0f -  mix ) * prevMF.m;
+					const float w1 = mix * currentMF.m;
+
+					//change to new freq technique
+					auto & outMF = out.getMF( channel, outFrame, bin );
+					outMF.f = ( outMF.f * outMF.m + w0 * prevMF.f + w1 * currentMF.f ) / ( outMF.m + w0 + w1 );
+					outMF.m += w0 + w1;
 					}
-
-				prevOutPos[bin] = outPos;
 				}
 			}
 		}
@@ -380,22 +633,283 @@ PVOC PVOC::modifyTime( Surface outPosFunc, Interpolator interp ) const
 	return out;
 	}
 
-PVOC PVOC::repitch( RealFunc factor, Interpolator interp ) const
-	{
-	return modifyFrequency( [&factor]( float t, float f ){ return factor(t)*f; }, interp );
-	}
+#ifdef USE_OPENCL
 
-PVOC PVOC::stretch( RealFunc factor, Interpolator interp ) const
+PVOC PVOC::modify_cl( Func2x2 mod, Interpolator interp  ) const
 	{
-	return modifyTime( [&factor]( float t, float f ){ return factor(t)*t; }, interp );
-	}
+	std::cout << "PVOC::modify_cl ... \n";
 
-PVOC PVOC::interpolate_spline( RealFunc interpolation ) const
-	{
-	std::cout << "Interpolate_spline ... \n";
-	const auto safeInterpolation = [&interpolation, this]( size_t f )
+	using float2 = std::array<float,2>;
+
+	const size_t numBins = getNumBins();
+	const int numBins_i = numBins;
+	const size_t numFrames = getNumFrames();
+	const size_t inChannelDataCount = numFrames * numBins;
+
+	const float frameToTimeConst = float( getWindowSize() ) / float( getSampleRate() ) / float( getOverlaps() );
+	const float timeToFrameConst = 1.0f / frameToTimeConst;
+	const float binToFrequencyConst = binToFrequency();
+	const float freqToBinConst = 1.0f / binToFrequencyConst;
+
+	//Sample mod functions
+	std::vector<float2> inModified( inChannelDataCount );
+	std::vector<vec2> modPointSamples( inChannelDataCount );
+	float lastOutputFrame = 0;
+	for( size_t frame = 0; frame < numFrames; ++frame )
+		for( size_t bin = 0; bin < numBins; ++bin )
+			{
+			auto modOut = mod( frame * frameToTimeConst, bin * binToFrequencyConst );
+			modOut.x() *= timeToFrameConst;
+			modOut.y() *= freqToBinConst;
+			
+			modPointSamples[ frame * numBins + bin ] = modOut;
+			if( lastOutputFrame < modOut.x() )
+				{
+				//std::cout << modOut.x() << std::endl;
+				lastOutputFrame = modOut.x();
+				}
+			}
+	++lastOutputFrame;
+	if( lastOutputFrame * frameToTimeConst > 600.0f ) // outfile longer than 10 minutes?
 		{
-		return std::max( size_t(interpolation( frameToTime( f ) ) ), 1ull );
+		std::cout << "PVOC::modify tried to make a file longer than 10 minutes, which is currently disabled";
+		return PVOC();
+		}
+
+	auto format = getFormat();
+	format.numFrames = ceil( lastOutputFrame );
+	PVOC out( format );
+	//out.clearBuffer();
+	const size_t outChannelDataCount = out.getNumFrames() * out.getNumBins();
+	const int outNumFrames_i = format.numFrames;
+
+	//Prepare OpenCL
+	auto cl = CLContext::get();
+	static ProgramHelper programHelper( CLProgs::PVOC_modify );
+	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( PVOCBuffer::MF ) * inChannelDataCount );
+	cl::Buffer clModPointSamples( cl.context, CL_MEM_READ_ONLY, sizeof( float2 ) * inChannelDataCount );
+	cl::Buffer clOut( cl.context, CL_MEM_WRITE_ONLY, sizeof( PVOCBuffer::MF ) * outChannelDataCount );
+	cl::KernelFunctor< cl::Buffer, cl::Buffer, cl::Buffer, int, int > 
+		cl_modify( programHelper.program, "modify" );
+
+	//Copy stretch samples to device
+	cl::copy( cl.queue, modPointSamples.begin(), modPointSamples.end(), clModPointSamples );
+
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		{
+		//Clear cl out buffer ( the entire buffer might not be written to so it must be scrubbed )
+		cl.queue.enqueueBarrierWithWaitList(); //Can't clear until out copy from previous iteration is complete
+		cl.queue.enqueueFillBuffer( clOut, 0, 0, sizeof( PVOCBuffer::MF ) * outChannelDataCount );
+
+		//Calculate and copy mapped frequencies and input magnitudes
+		auto modDataSamplesWriteHead = inModified.begin();
+		auto inBufferReadHead = getMFPointer( 0, 0, 0 ) + channel * inChannelDataCount;
+		for( size_t frame = 0; frame < numFrames; ++frame )
+			for( size_t bin = 0; bin < numBins; ++bin, ++modDataSamplesWriteHead, ++inBufferReadHead )
+				{
+				*modDataSamplesWriteHead = 
+					{
+					inBufferReadHead->m,
+					mod( frame * frameToTimeConst, inBufferReadHead->f ).y()
+					};
+				}
+		cl::copy( cl.queue, inModified.begin(), inModified.end(), clIn );
+		
+		//Compute on device
+		cl.queue.enqueueBarrierWithWaitList();
+		cl_modify( cl::EnqueueArgs( cl.queue, cl::NDRange( inChannelDataCount ) ), 
+			clIn,
+			clModPointSamples, 
+			clOut, 
+			numBins_i,
+			outNumFrames_i );
+			
+		//copy cl output buffer to out
+		cl.queue.enqueueBarrierWithWaitList();
+		cl::copy( cl.queue, clOut,
+			out.getMFPointer( 0, 0, 0 ) + ( channel + 0 ) * outChannelDataCount, 
+			out.getMFPointer( 0, 0, 0 ) + ( channel + 1 ) * outChannelDataCount );
+		}
+
+	return out;
+	}
+
+PVOC PVOC::modifyFrequency_cl( Func2x1 outFreqFunc, Interpolator interp  ) const
+	{
+	std::cout << "PVOC::modifyFrequency_cl ... \n";
+	PVOC out( getFormat() );
+	out.clearBuffer();
+
+	const size_t numBins = getNumBins();
+	const int numBins_i = numBins;
+	const size_t numFrames = getNumFrames();
+	const size_t inChannelDataCount = numFrames * numBins;
+
+	const float frameToTimeConst = float( getWindowSize() ) / float( getSampleRate() ) / float( getOverlaps() );
+	const float binToFrequencyConst = binToFrequency();
+	const float freqToBinConst = 1.0f / binToFrequency();
+
+	//Sample stretch function
+	std::vector<float> outBinBuffer( inChannelDataCount );
+	std::vector<float> mappedFrequencies( inChannelDataCount );
+	for( size_t frame = 0; frame < numFrames; ++frame )
+		for( size_t bin = 0; bin < numBins; ++bin )
+			outBinBuffer[ frame * numBins + bin ] = outFreqFunc( frame * frameToTimeConst, bin * binToFrequencyConst ) * freqToBinConst;
+
+	//Prepare OpenCL
+	auto cl = CLContext::get();
+	static ProgramHelper programHelper( CLProgs::PVOC_modifyFrequency );
+	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( PVOCBuffer::MF ) * inChannelDataCount );
+	cl::Buffer clMappedFrequencies( cl.context, CL_MEM_READ_ONLY, sizeof( float ) * inChannelDataCount );
+	cl::Buffer clF( cl.context, CL_MEM_READ_ONLY, sizeof( float ) * inChannelDataCount );
+	cl::Buffer clOut( cl.context, CL_MEM_WRITE_ONLY, sizeof( PVOCBuffer::MF ) * inChannelDataCount );
+	cl::KernelFunctor< cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int > 
+		cl_modifyFrequency( programHelper.program, "modifyFrequency" );
+
+	//Copy stretch samples to device
+	cl::copy( cl.queue, outBinBuffer.begin(), outBinBuffer.end(), clF );
+
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		{
+		//Clear cl out buffer ( the entire buffer might not be written to so it must be scrubbed )
+		cl.queue.enqueueBarrierWithWaitList(); //Can't clear until out copy from previous iteration is complete
+		cl.queue.enqueueFillBuffer( clOut, 0, 0, sizeof( PVOCBuffer::MF ) * inChannelDataCount );
+
+		//copy input buffer to device
+		cl::copy( cl.queue, 
+			getMFPointer( 0, 0, 0 ) + ( channel + 0 ) * inChannelDataCount, 
+			getMFPointer( 0, 0, 0 ) + ( channel + 1 ) * inChannelDataCount, 
+			clIn );
+
+		//Calculate mapped frequencies
+		auto mappedFrequenciesWriteHead = mappedFrequencies.begin();
+		auto inBufferReadHead = getMFPointer( 0, 0, 0 ) + channel * inChannelDataCount;
+		for( size_t frame = 0; frame < numFrames; ++frame )
+			for( size_t bin = 0; bin < numBins; ++bin, ++mappedFrequenciesWriteHead, ++inBufferReadHead )
+				*mappedFrequenciesWriteHead = outFreqFunc( frame * frameToTimeConst, inBufferReadHead->f );
+
+		//Copy mapped frequencies
+		cl::copy( cl.queue, mappedFrequencies.begin(), mappedFrequencies.end(), clMappedFrequencies );
+		
+		//Compute on device
+		cl.queue.enqueueBarrierWithWaitList();
+		cl_modifyFrequency( cl::EnqueueArgs( cl.queue, cl::NDRange( inChannelDataCount ) ), 
+			clIn, 
+			clMappedFrequencies,
+			clF, 
+			clOut, 
+			numBins_i );
+			
+		//copy cl output buffer to out
+		cl.queue.enqueueBarrierWithWaitList();
+		cl::copy( cl.queue, clOut,
+			out.getMFPointer( 0, 0, 0 ) + ( channel + 0 ) * inChannelDataCount, 
+			out.getMFPointer( 0, 0, 0 ) + ( channel + 1 ) * inChannelDataCount );
+		}
+
+	return out;
+	}
+
+PVOC PVOC::modifyTime_cl( Func2x1 outPosFunc, Interpolator interp  ) const
+	{
+	std::cout << "PVOC::modifyTime_cl ... \n";
+
+	const size_t numBins = getNumBins();
+	const size_t numFrames = getNumFrames();
+	const size_t inChannelDataCount = numFrames * numBins;
+	const float frameToTimeConst = float( getWindowSize() ) / float( getSampleRate() ) / float( getOverlaps() );
+	const float binToFrequencyConst = binToFrequency();
+	const float timeToFrameConst = 1.0f / frameToTimeConst;
+
+	//Sample stretch function
+	std::vector<float> outPosBuffer( inChannelDataCount );
+	float lastOutputTime = 0;
+	for( size_t frame = 0; frame < numFrames; ++frame )
+		for( size_t bin = 0; bin < numBins; ++bin )
+			{
+			const float outPos = outPosFunc( frame * frameToTimeConst, bin * binToFrequencyConst ) * timeToFrameConst;
+			outPosBuffer[ frame * numBins + bin ] = outPos;
+			if( outPos > lastOutputTime )
+				lastOutputTime = outPos;
+			}
+	++lastOutputTime;
+
+	auto format = getFormat();
+	format.numFrames = ceil( lastOutputTime );
+	PVOC out( format );
+	const size_t outChannelDataCount = out.getNumFrames() * out.getNumBins();
+
+	//prepare OpenCL
+	auto cl = CLContext::get();
+	static ProgramHelper programHelper( CLProgs::PVOC_modifyTime );
+	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( PVOCBuffer::MF ) * inChannelDataCount );
+	cl::Buffer clF( cl.context, CL_MEM_READ_ONLY, sizeof( float ) * inChannelDataCount );
+	cl::Buffer clOut( cl.context, CL_MEM_WRITE_ONLY, sizeof( PVOCBuffer::MF ) * outChannelDataCount );
+	cl::KernelFunctor< cl::Buffer, cl::Buffer, cl::Buffer, int, int > 
+		cl_modifyTime( programHelper.program, "modifyTime" );
+
+	//stretch function samples only need one copy, they're the same for all channels
+	cl::copy( cl.queue, outPosBuffer.begin(), outPosBuffer.end(), clF );
+
+	const int numBins_i = numBins;
+	const int numPrevFrames_i = out.getNumFrames();
+
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		{
+		//Clear cl out buffer ( the entire buffer might not be written to )
+		cl.queue.enqueueBarrierWithWaitList(); //Can't clear until out copy from previous iteration is complete
+		cl.queue.enqueueFillBuffer( clOut, 0, 0, sizeof( PVOCBuffer::MF ) * outChannelDataCount );
+
+		//copy input buffer to device
+		cl::copy( cl.queue, 
+			getMFPointer( 0, 0, 0 ) + ( channel + 0 ) * inChannelDataCount, 
+			getMFPointer( 0, 0, 0 ) + ( channel + 1 ) * inChannelDataCount, 
+			clIn );
+		
+		//Compute on device
+		cl.queue.enqueueBarrierWithWaitList();
+		cl_modifyTime( cl::EnqueueArgs( cl.queue, cl::NDRange( inChannelDataCount ) ), 
+			clIn, 
+			clF, 
+			clOut, 
+			numBins_i,
+			numPrevFrames_i );
+			
+		//copy cl output buffer to out
+		cl.queue.enqueueBarrierWithWaitList();
+		cl::copy( cl.queue, clOut,
+			out.getMFPointer( 0, 0, 0 ) + ( channel + 0 ) * outChannelDataCount, 
+			out.getMFPointer( 0, 0, 0 ) + ( channel + 1 ) * outChannelDataCount );
+		}
+
+	cl.queue.enqueueBarrierWithWaitList();
+	return out;
+	}
+
+#endif
+
+PVOC PVOC::repitch( Func2x1 factor, Interpolator interp ) const
+	{
+	std::cout << "PVOC::repitch ... \n\t";
+	return modifyFrequency_cl( [&factor]( vec2 tf ){ return factor(tf.x(),tf.y())*tf.y(); } );
+	}
+
+PVOC PVOC::stretch( Func2x1 factor, Interpolator interp ) const
+	{
+	std::cout << "PVOC::stretch ... \n\t";
+	return modifyTime_cl( [&factor]( vec2 tf ){ return factor(tf.x(),tf.y())*tf.x(); }, interp );
+	}
+
+PVOC PVOC::stretch_spline( Func1x1 interpolation ) const
+	{
+	std::cout << "PVOC::stretch_spline ... \n";
+
+	const float frameToTimeConst = frameToTime();
+	const float binToFreqConst = binToFrequency();
+
+	const auto safeInterpolation = [&interpolation, this, frameToTimeConst, binToFreqConst]( size_t frame )
+		{
+		return std::max( size_t( interpolation( frame * frameToTimeConst ) ), 1ull );
 		};
 	
 	//Set up output and spline x coordinates
@@ -422,8 +936,8 @@ PVOC PVOC::interpolate_spline( RealFunc interpolation ) const
 			//For each x coordinate get corresponding frequency and magnitude
 			for( size_t frame = 0; frame < getNumFrames(); ++frame )
 				{
-				magnitudeYs[frame] = getBin( channel, frame, bin ).magnitude;
-				frequencyYs[frame] = getBin( channel, frame, bin ).frequency;
+				magnitudeYs[frame] = getMF( channel, frame, bin ).m;
+				frequencyYs[frame] = getMF( channel, frame, bin ).f;
 				}
 
 			//Do the splines
@@ -434,9 +948,8 @@ PVOC PVOC::interpolate_spline( RealFunc interpolation ) const
 			//Evaluate splines into out
 			for( size_t frame = 0; frame < out.getNumFrames(); ++frame )
 				{
-				out.setBin( channel, frame, bin, 
+				out.setMF( channel, frame, bin, 
 					{ 
-					//tk::spline uses floats for everything
 					(float) magnitudeSpline(frame),
 					(float) frequencySpline(frame)
 					} );
@@ -447,50 +960,74 @@ PVOC PVOC::interpolate_spline( RealFunc interpolation ) const
 	return out;
 	}
 
-PVOC::MFPair PVOC::getBinInterpolated( size_t channel, float frame, size_t bin, Interpolator interpolator ) const
+PVOC::MF PVOC::getBinInterpolated( size_t channel, float frame, float bin, Interpolator i ) const
 	{
-	//Subtract epsilon for correct final frame rounding
-	frame = std::clamp( frame, float(0.0), float( getNumFrames() - 1 ) - float(0.00001) );
+	frame = std::clamp( frame, 0.0f, float( getNumFrames() - 1 ) );
+	bin   = std::clamp( bin,   0.0f, float( getNumBins()   - 1 ) );
 
-	const size_t lowFrame = floor( frame );
-	const float rem = frame - float( lowFrame );
-	const auto l = getBin( channel, lowFrame + 0, bin );
-	const auto h = getBin( channel, lowFrame + 1, bin );
+	const std::array< MF, 4 > p = 
+		{
+		getMF( channel, floor( frame ), floor( bin ) ),
+		getMF( channel, ceil ( frame ), floor( bin ) ),
+		getMF( channel, ceil ( frame ), ceil ( bin ) ),
+		getMF( channel, floor( frame ), ceil ( bin ) )
+		};
+
+	const float l = i( frame - floor( frame ) );
+	const float m = i( bin   - floor( bin   ) );
+
+	return {
+		   ( 1.0f - m ) * ( ( 1.0f - l ) * p[0].m + l * p[1].m ) + m * ( ( 1.0f - l ) * p[3].m + l * p[2].m ),
+		   ( 1.0f - m ) * ( ( 1.0f - l ) * p[0].f + l * p[1].f ) + m * ( ( 1.0f - l ) * p[3].f + l * p[2].f )
+		   };
+	}
+
+PVOC::MF PVOC::getBinInterpolated( size_t channel, float frame, size_t bin, Interpolator i ) const
+	{
+	frame = std::clamp( frame, 0.0f, float( getNumFrames() - 1 ) );
+
+	const MF & l = getMF( channel, floor( frame ), bin );
+	const MF & h = getMF( channel, ceil ( frame ), bin );
+
+	const float mix = i( frame - floor( frame ) );
+
+	return { 
+		   ( 1.0f - mix ) * l.m + mix * h.m,
+		   ( 1.0f - mix ) * l.f + mix * h.f
+		   };
+	}
+
+PVOC::MF PVOC::getBinInterpolated( size_t channel, size_t frame, float bin, Interpolator i ) const
+	{
+	bin = std::clamp( bin, 0.0f, float( getNumBins() - 1 ) );
+
+	const auto l = getMF( channel, frame, floor( bin ) );
+	const auto h = getMF( channel, frame, ceil ( bin ) );
+
+	const float mix = i( bin - floor( bin ) );
 
 	return  { 
-			interpolator( rem, l.magnitude, h.magnitude ),
-			interpolator( rem, l.frequency, h.frequency )
+			( 1.0f - mix ) * l.m + mix * h.m,
+			( 1.0f - mix ) * l.f + mix * h.f
 			};
 	}
 
-PVOC::MFPair PVOC::getBinInterpolated( size_t channel, size_t frame, float bin, Interpolator interpolator ) const
+PVOC PVOC::desample( Func2x1 factor, Interpolator interpolator ) const
 	{
-	//Subtract epsilon for correct final frame rounding
-	bin = std::clamp( bin, float(0.0), float( getNumBins() - 1 ) - float(0.00001) );
-
-	const size_t lowBin = floor( bin );
-	const float rem = bin - float( lowBin );
-	const auto l = getBin( channel, frame, lowBin + 0 );
-	const auto h = getBin( channel, frame, lowBin + 1 );
-
-	return  { 
-			interpolator( rem, l.magnitude, h.magnitude ),
-			interpolator( rem, l.frequency, h.frequency )
-			};
-	}
-
-PVOC PVOC::desample( RealFunc factor, Interpolator interpolator ) const
-	{
-	return stretch( [&factor]( float t ){ return 1.0 / factor(t); }, interpolator )
-		  .stretch( factor,                                           interpolator );
+	std::cout << "PVOC::desample ... \n\t";
+	auto downsample = stretch( [&factor]( vec2 tf ){ return 1.0f / factor(tf.x(),tf.y()); }, interpolator );
+	std::cout << "\t";
+	return downsample.stretch( factor,                                                      interpolator );
 	}
 
 PVOC PVOC::timeExtrapolate( float startTime, float endTime, float extrapolationTime, Interpolator interpolator ) const
 	{
+	std::cout << "PVOC::timeExtrapolate ... \n";
+
 	//Linear extrapolation via lines matching original PVOC at x_1 and x_2
-	const size_t startFrame = timeToFrame( startTime		 ); //x_1
-	const size_t endFrame	= timeToFrame( endTime			 ); //x_2
-	const size_t extFrames	= timeToFrame( extrapolationTime ); //Extrapolated frames to generate
+	const size_t startFrame = timeToFrame() * double( startTime );			//x_1
+	const size_t endFrame	= timeToFrame() * double( endTime );			//x_2
+	const size_t extFrames	= timeToFrame() * double( extrapolationTime );	//Extrapolated frames to generate
 
 	auto format = getFormat();
 	format.numFrames = endFrame + extFrames;
@@ -501,22 +1038,22 @@ PVOC PVOC::timeExtrapolate( float startTime, float endTime, float extrapolationT
 		//Copy up to start frame
 		for( size_t frame = 0; frame < startFrame; ++frame )
 			for( size_t bin = 0; bin < getNumBins(); ++bin )
-				out.setBin( channel, frame, bin, getBin( channel, frame, bin ) );
+				out.setMF( channel, frame, bin, getMF( channel, frame, bin ) );
 			
 		//Interpolate and continue beyond endFrame to extrapolate
 		for( size_t frame = startFrame; frame < out.getNumFrames(); ++frame )
 			{
-			const float interpolation = float( frame - startFrame ) / float( endFrame - startFrame ); 
+			const float mix = interpolator (float( frame - startFrame ) / float( endFrame - startFrame ) ); 
 
 			for( size_t bin = 0; bin < getNumBins(); ++bin )
 				{
-				const auto leftBin  =  getBin( channel, startFrame, bin );
-				const auto rightBin =  getBin( channel, endFrame, bin );
+				const auto leftBin  =  getMF( channel, startFrame, bin );
+				const auto rightBin =  getMF( channel, endFrame, bin );
 
-				out.setBin( channel, frame, bin, 
+				out.setMF( channel, frame, bin, 
 					{ 
-					std::abs( interpolator( interpolation, leftBin.magnitude, rightBin.magnitude ) ), 
-					interpolator( interpolation, leftBin.frequency, rightBin.frequency ) 
+					std::abs( ( 1.0f - mix ) * leftBin.m + mix * rightBin.m ), 
+					          ( 1.0f - mix ) * leftBin.f + mix * rightBin.f 
 					} );
 				}
 			}
@@ -528,8 +1065,13 @@ PVOC PVOC::timeExtrapolate( float startTime, float endTime, float extrapolationT
 // Combinations
 //========================================================================
 
-PVOC PVOC::replaceAmplitudes( const PVOC & ampSource, RealFunc amount ) const
+PVOC PVOC::replaceAmplitudes( const PVOC & ampSource, Func2x1 amount ) const
 	{
+	std::cout << "PVOC::replaceAmplitudes ... \n";
+
+	const float frameToTimeConst = frameToTime();
+	const float binToFreqConst = binToFrequency();
+
 	PVOC out( getFormat() );
 
 	if( ampSource.getNumChannels() < getNumChannels()
@@ -543,24 +1085,27 @@ PVOC PVOC::replaceAmplitudes( const PVOC & ampSource, RealFunc amount ) const
 
 	for( size_t channel = 0; channel < numChannels; ++channel )
 		for( size_t frame = 0; frame < numFrames; ++frame )
-			{
-			const float currentAmount = amount( frameToTime( frame ) );
 			for( size_t bin = 0; bin < numBins; ++bin )
 				{
-				const auto currentBin = getBin( channel, frame, bin );
-				out.setBin( channel, frame, bin,
+				const auto currentBin = getMF( channel, frame, bin );
+				const float currentAmount = amount( frame * frameToTimeConst, bin * binToFreqConst );
+				out.setMF( channel, frame, bin,
 					{
-					float( ampSource.getBin( channel, frame, bin ).magnitude * currentAmount + currentBin.magnitude * ( 1.0f - currentAmount ) ),
-					float( currentBin.frequency )
+					float( ampSource.getMF( channel, frame, bin ).m * currentAmount + currentBin.m * ( 1.0f - currentAmount ) ),
+					float( currentBin.f )
 					} );
 				}
-			}
 
 	return out;
 	}
 
-PVOC PVOC::subtractAmplitudes( const PVOC & other, RealFunc amount ) const
+PVOC PVOC::subtractAmplitudes( const PVOC & other, Func2x1 amount ) const
 	{
+	std::cout << "PVOC::subtractAmplitudes ... \n";
+
+	const float frameToTimeConst = frameToTime();
+	const float binToFreqConst = binToFrequency();
+
 	PVOC out( *this );
 
 	const size_t numChannels = std::min( other.getNumChannels(), getNumChannels() );
@@ -569,11 +1114,12 @@ PVOC PVOC::subtractAmplitudes( const PVOC & other, RealFunc amount ) const
 
 	for( size_t channel = 0; channel < numChannels; ++channel )
 		for( size_t frame = 0; frame < numFrames; ++frame )
-			{
-			const float currentAmount = amount( frameToTime( frame ) );
 			for( size_t bin = 0; bin < numBins; ++bin )
-				out.getBin( channel, frame, bin ).magnitude -= other.getBin( channel, frame, bin ).magnitude * currentAmount;
-			}
+				{
+				auto & outBin = out.getMF( channel, frame, bin );
+				const float currentAmount = amount( frame * frameToTimeConst, bin * binToFreqConst );
+				outBin.m = std::abs( outBin.m - other.getMF( channel, frame, bin ).m * currentAmount );
+				}
 
 	return out;
 	}
@@ -582,24 +1128,28 @@ PVOC PVOC::subtractAmplitudes( const PVOC & other, RealFunc amount ) const
 // Uncategorized
 //========================================================================
 
-PVOC PVOC::perturb( RealFunc magAmount, RealFunc frqAmount, 
-					Perturber magPerturber, Perturber frqPerturber ) const
+PVOC PVOC::perturb( Func1x1 magAmount, Func1x1 frqAmount, 
+					Distribution magPerturber, Distribution frqPerturber ) const
 	{
+	std::cout << "PVOC::perturb ... \n";
+
+	const float frameToTimeConst = frameToTime();
+
 	PVOC out( getFormat() );
 
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
 		for( size_t frame = 0; frame < getNumFrames(); ++frame )
 			{
-			const float currentMagAmount = magAmount( frameToTime( frame ) );
-			const float currentFrqAmount = frqAmount( frameToTime( frame ) );
+			const float currentMagAmount = magAmount( frameToTimeConst * frame );
+			const float currentFrqAmount = frqAmount( frameToTimeConst * frame );
 
 			for( size_t bin = 0; bin < getNumBins(); ++bin )
 				{
-				const auto currentBin = getBin( channel, frame, bin );
-				out.setBin( channel, frame, bin,
+				const auto currentBin = getMF( channel, frame, bin );
+				out.setMF( channel, frame, bin,
 					{
-					magPerturber( currentBin.magnitude, currentMagAmount / log2( 1 + bin ) ),
-					frqPerturber( currentBin.frequency, currentFrqAmount )
+					currentBin.m + magPerturber() * currentMagAmount / log2( 1.0f + bin ),
+					currentBin.f + frqPerturber() * currentFrqAmount
 					} );
 				}
 			}
@@ -607,13 +1157,16 @@ PVOC PVOC::perturb( RealFunc magAmount, RealFunc frqAmount,
 	return out;
 	}
 
-PVOC predicateNLoudestPartials( const PVOC & me, RealFunc numBins, std::function< bool (size_t, size_t) > predicate )
+PVOC predicateNLoudestPartials( const PVOC & me, Func1x1 numBins, std::function< bool (size_t, size_t) > predicate )
 	{
-	PVOC out( me.getFormat() );
+	const float frameToTimeConst = me.frameToTime();
 
-	auto safeNumBins = [&numBins, me]( size_t frame )
+	PVOC out( me.getFormat() );
+	out.clearBuffer();
+
+	auto safeNumBins = [&numBins, me, frameToTimeConst]( size_t frame )
 		{
-		return size_t( std::clamp( (float) numBins( me.frameToTime( frame ) ), 0.0f, (float) me.getNumBins() ) );
+		return size_t( std::clamp( numBins( frameToTimeConst * frame ), 0.0f, float( me.getNumBins() ) ) );
 		};
 
 	typedef std::pair<size_t, float> indexVolume;
@@ -625,56 +1178,62 @@ PVOC predicateNLoudestPartials( const PVOC & me, RealFunc numBins, std::function
 			for( size_t bin = 0; bin < me.getNumBins(); ++bin )
 				{
 				indexAndVolumes[bin].first = bin;
-				indexAndVolumes[bin].second = me.getBin( channel, frame, bin ).magnitude;
+				indexAndVolumes[bin].second = me.getMF( channel, frame, bin ).m;
 				}
 			std::sort( indexAndVolumes.begin(), indexAndVolumes.end(), []( indexVolume& a, indexVolume& b ){ return abs(a.second) > abs(b.second); } );
 			for( size_t bin = 0; bin < me.getNumBins(); ++bin )
 				{
 				const size_t actualBin = indexAndVolumes[bin].first;
 				if( predicate( bin, safeNumBins( frame ) ) )
-					out.setBin( channel, frame, actualBin, me.getBin( channel, frame, actualBin ) );
+					out.setMF( channel, frame, actualBin, me.getMF( channel, frame, actualBin ) );
 				else
-					out.setBin( channel, frame, actualBin, { 0.0, me.getBin( channel, frame, actualBin ).frequency } );
+					out.setMF( channel, frame, actualBin, { 0.0, me.getMF( channel, frame, actualBin ).f } );
 				}
 			}
 
 	return out;
 	}
 
-PVOC PVOC::retainNLoudestPartials( RealFunc numBins ) const
+PVOC PVOC::retainNLoudestPartials( Func1x1 numBins ) const
 	{
+	std::cout << "PVOC::retainNLoudestPartials ... \n";
 	return predicateNLoudestPartials( *this, numBins, []( size_t a, size_t b ){ return a < b; } );
 	}
 
-PVOC PVOC::removeNLoudestPartials( RealFunc numBins ) const
+PVOC PVOC::removeNLoudestPartials( Func1x1 numBins ) const
 	{
+	std::cout << "PVOC::removeNLoudestPartials ... \n";
 	return predicateNLoudestPartials( *this, numBins, []( size_t a, size_t b ){ return a >= b; } );
 	}
 
-PVOC PVOC::resonate( float length, Surface decay ) const
+PVOC PVOC::resonate( Func2x1 decay, float length ) const
 	{
+	std::cout << "PVOC::resonate ... \n";
+
 	length = std::max( length, float(0.0) );
 	auto format = getFormat();
-	format.numFrames = std::max( timeToFrame( length ), 1ull );
+	format.numFrames = std::max( size_t( ceil( timeToFrame() * length ) ), 1ull );
 	PVOC out( format );
 
 	//Copy first frame into out
 	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
 		for( size_t bin = 0; bin < out.getNumBins(); ++bin )
-			out.setBin( channel, 0, bin, getBin( channel, 0, bin ) );
+			out.setMF( channel, 0, bin, getMF( channel, 0, bin ) );
 	
-	const float secondsPerFrame = 1.0 / timeToFrame( 1.0 );
+	const float frameToTimeConst = frameToTime();
+	const float secondsPerFrame = frameToTime();
+	const float binToFreqConst = binToFrequency();
 
 	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
 		for( size_t frame = 1; frame < out.getNumFrames(); ++frame )
 			for( size_t bin = 0; bin < out.getNumBins(); ++bin )
 				{
-				const float currentDecay = pow( decay( frameToTime( frame ), binToFrequency( bin ) ), secondsPerFrame );
-				const float decayedAmp = out.getBin( channel, frame - 1, bin ).magnitude * currentDecay;
-				if( frame < getNumFrames() && getBin( channel, frame, bin ).magnitude > decayedAmp )
-					out.setBin( channel, frame, bin, getBin( channel, frame, bin ) );
+				const float currentDecay = pow( decay( frameToTimeConst * frame, binToFreqConst * bin  ), secondsPerFrame );
+				const float decayedAmp = out.getMF( channel, frame - 1, bin ).m * currentDecay;
+				if( frame < getNumFrames() && getMF( channel, frame, bin ).m > decayedAmp )
+					out.setMF( channel, frame, bin, getMF( channel, frame, bin ) );
 				else
-					out.setBin( channel, frame, bin, { decayedAmp, out.getBin( channel, frame - 1, bin ).frequency } );
+					out.setMF( channel, frame, bin, { decayedAmp, out.getMF( channel, frame - 1, bin ).f } );
 				}
 
 	return out;

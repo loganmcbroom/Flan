@@ -16,9 +16,16 @@ public:
 	static CLContext & get();
 
 	cl::Platform platform;
-	cl::Device device;
+	std::vector<cl::Device> devices;
 	cl::Context context;
 	cl::CommandQueue queue;
+};
+
+struct ProgramHelper
+{
+	ProgramHelper( const std::string & source );
+
+	cl::Program program;
 };
 
 };

@@ -1,4 +1,4 @@
-#include "SpectrumBuffer.h"
+#include "xcdp/SpectrumBuffer.h"
 
 #include <algorithm>
 
@@ -38,15 +38,15 @@ size_t SpectrumBuffer::getSampleRate() const
 	{
 	return format.sampleRate;
 	}
-double SpectrumBuffer::binToFrequency( size_t bin ) const
+float SpectrumBuffer::binToFrequency() const
 	{
-	return double( bin ) / double( getNumBins() ) * double( format.sampleRate );
+	return 1.0f / frequencyToBin();
 	}
-size_t SpectrumBuffer::frequencyToBin( double frequency ) const
+float SpectrumBuffer::frequencyToBin() const
 	{
-	return frequency * double( getNumBins() ) / double( format.sampleRate );
+	return float( getNumBins() ) / float( format.sampleRate );
 	}
-double SpectrumBuffer::getMaxSpectraMagnitude() const
+float SpectrumBuffer::getMaxSpectraMagnitude() const
 	{
 	return std::abs(*std::max_element( buffer.begin(), buffer.end(), []( complex_f a, complex_f b )
 		{

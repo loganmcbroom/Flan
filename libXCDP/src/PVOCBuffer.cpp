@@ -1,17 +1,17 @@
-#include "PVOCBuffer.h"
+#include "xcdp/PVOCBuffer.h"
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <fstream>
 
-#include "Utility.h"
+#include "xcdp/Utility.h"
 
 namespace xcdp {
 
 PVOCBuffer::PVOCBuffer( const Format & other )
 	: format( other )
-	, buffer( std::make_shared<std::vector<MFPair>>( getNumChannels() * getNumFrames() * getNumBins() ))
+	, buffer( std::make_shared<std::vector<MF>>( getNumChannels() * getNumFrames() * getNumBins() ))
 	{}
 
 PVOCBuffer::PVOCBuffer( const std::string & filename )
@@ -20,12 +20,6 @@ PVOCBuffer::PVOCBuffer( const std::string & filename )
 	{
 	load( filename );
 	}
-
-//======================================================
-//	IO - Custom RIFF format 
-// We could use the CDP .ana format, but to quote their documentation:
-//		- "The Spectral Domain processes require ana format inputs. This is all you really need to know about them."
-//======================================================
 
 bool PVOCBuffer::save( const std::string & filename ) const
 	{
@@ -40,13 +34,13 @@ bool PVOCBuffer::save( const std::string & filename ) const
 
 	const uint32_t RIFFChunkSize = 12;
 	const uint32_t FMTChunkSize = 34;
-	const uint32_t dataChunkSize = 8 + buffer->size() * 2 * sizeof(float);
+	const uint32_t dataChunkSize = uint32_t( 8 + buffer->size() * 2 * sizeof( float ) );
 
 	//Write RIFF chunk
 	unsigned char RIFFChunk[ RIFFChunkSize ] = { 0 };
-		writeBytes( RIFFChunk + 0, "RIFF"										); //RIFF ID 
-		writeBytes( RIFFChunk + 4, (uint32_t) 4 + FMTChunkSize + dataChunkSize ); //RIFF Chunk Size
-		writeBytes( RIFFChunk + 8, "PVOC"										); //File Type
+		writeBytes( RIFFChunk + 0, "RIFF"		); //RIFF ID 
+		writeBytes( RIFFChunk + 4, (uint32_t) 4 ); //RIFF Chunk Size
+		writeBytes( RIFFChunk + 8, "PVOC"		); //File Type
 	file.write( (const char *) RIFFChunk, RIFFChunkSize );
 
 	//Write format information chunk
@@ -59,7 +53,7 @@ bool PVOCBuffer::save( const std::string & filename ) const
 		writeBytes( FMTChunk +  16, (uint32_t) getNumBins()		); //Number of bins per frame
 		writeBytes( FMTChunk +  20, (uint32_t) getSampleRate()	); //Sample Rate, note this is the sample rate of the audio, not the analysis frame rate
 		writeBytes( FMTChunk +  24, (uint32_t) getOverlaps()	); //Number of windows overlapping at any frame
-		writeBytes( FMTChunk +  28, (uint32_t) 64				); //Bit depth, note that each bin contains two of this in magnitude frequency order
+		writeBytes( FMTChunk +  28, (uint32_t) sizeof( float )	); //Bit depth, note that each bin contains two of this in magnitude frequency order
 		writeBytes( FMTChunk +  32, (uint16_t) 1				); //Window type indicator. 1 = hann.
 	file.write( (const char *) FMTChunk, FMTChunkSize );
 
@@ -72,10 +66,10 @@ bool PVOCBuffer::save( const std::string & filename ) const
 		for( int frame = 0; frame < getNumFrames(); ++frame )
 			for( int bin = 0; bin < getNumBins(); ++bin )
 				{
-				const auto mf = getBin( channel, frame, bin );
+				const auto mf = getMF( channel, frame, bin );
 
-				const float m = makeLittleEndian( mf.magnitude );
-				const float f = makeLittleEndian( mf.frequency );
+				const float m = makeLittleEndian( mf.m );
+				const float f = makeLittleEndian( mf.f );
 
 				file.write( (char *) &m, sizeof( float ) ); 
 				file.write( (char *) &f, sizeof( float ) ); 
@@ -94,7 +88,7 @@ bool PVOCBuffer::load( const std::string & filename )
 		};
 
 	std::ifstream file( filename, std::ios::binary );
-	if( !file ) return bail( "Error opening " + filename + " to write BMP." );
+	if( !file ) return bail( "Error opening " + filename + " to load PVOC." );
 
 	uint16_t int16Buffer;
 	uint32_t int32Buffer;
@@ -115,7 +109,7 @@ bool PVOCBuffer::load( const std::string & filename )
 	file.read( (char * ) &int32Buffer, 4 ); format.numBins = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); format.sampleRate = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); format.overlaps = int32Buffer;
-	file.read( (char * ) &int32Buffer, 4 ); if( int32Buffer != 32 ) return bail( "Using floats only here" ); //bit depth
+	file.read( (char * ) &int32Buffer, 4 ); if( int32Buffer != sizeof( float ) ) return bail( "Using floats only here" ); //bit depth
 	file.read( (char * ) &int16Buffer, 2 ); if( int16Buffer != 1 ) return bail( "Just use Hann window, nerd" ); //window type
 	*this = PVOCBuffer( format );
 
@@ -129,17 +123,23 @@ bool PVOCBuffer::load( const std::string & filename )
 				float m, f;
 				file.read( (char *) &m, sizeof( float ) );
 				file.read( (char *) &f, sizeof( float ) );
-				setBin( channel, frame, bin, { littleEndianToCurrent(m), littleEndianToCurrent(f) } );
+				setMF( channel, frame, bin, { littleEndianToCurrent(m), littleEndianToCurrent(f) } );
 				}
+	return true;
+	}
+
+void PVOCBuffer::printSummary() const
+	{
+	std::cout << *this;
 	}
 
 //======================================================
 //	Getters
 //======================================================
 
-PVOCBuffer::MFPair PVOCBuffer::getBin( size_t channel, size_t frame, size_t bin ) const
+PVOCBuffer::MF PVOCBuffer::getMF( size_t channel, size_t frame, size_t bin ) const
 	{
-	return (*buffer)[getPos( channel, frame, bin )];
+	return (*buffer)[getBufferPos( channel, frame, bin )];
 	}
 
 size_t PVOCBuffer::getNumChannels() const
@@ -154,7 +154,7 @@ size_t PVOCBuffer::getNumBins() const
 	{
 	return format.numBins;
 	}
-size_t PVOCBuffer::getFrameSize() const
+size_t PVOCBuffer::getWindowSize() const
 	{
 	return ( getNumBins() - 1 ) * 2;
 	}
@@ -170,69 +170,92 @@ size_t PVOCBuffer::getOverlaps() const
 	{
 	return format.overlaps;
 	}
-float PVOCBuffer::getBinWidth() const
+
+float PVOCBuffer::getLength() const
 	{
-	return float( getSampleRate() ) / float( getFrameSize() );
+	return getNumFrames() * frameToTime();
 	}
+
 float PVOCBuffer::getMaxPartialMagnitude() const
 	{
 	float maxMagnitude = 0;
 	for( auto i : *buffer )
 		{
-		const float trueMag = std::abs( i.magnitude );
+		const float trueMag = std::abs( i.m );
 		if( trueMag > maxMagnitude )
 			maxMagnitude = trueMag;
 		}
 	return maxMagnitude;
 	}
 
-size_t PVOCBuffer::timeToFrame( float t ) const
+
+float PVOCBuffer::timeToFrame() const
 	{
-	return (size_t) timeToFrame_d( t );
+	return float(getSampleRate()) * float(getOverlaps()) / float(getWindowSize());
 	}
-float PVOCBuffer::timeToFrame_d( float t ) const
+float PVOCBuffer::frameToTime() const
 	{
-	return t * float(getSampleRate()) * float(getOverlaps()) / float(getFrameSize());
-	}
-float PVOCBuffer::frameToTime( size_t frame ) const
-	{
-	return frame * float(getFrameSize()) / float(getSampleRate()) / float(getOverlaps());
+	return 1.0f / timeToFrame();
 	}
 
-size_t PVOCBuffer::frequencyToBin( float freq ) const
+float PVOCBuffer::frequencyToBin() const
 	{
-	return (size_t) frequencyToBin_d( freq );
+	return 1.0f / binToFrequency();
 	}
-float PVOCBuffer::frequencyToBin_d( float freq ) const
+float PVOCBuffer::binToFrequency() const
 	{
-	return freq / getBinWidth();
-	}
-float PVOCBuffer::binToFrequency( size_t bin ) const
-	{
-	return float( bin ) * getBinWidth();
+	return float( getSampleRate() ) / float( getWindowSize() );
 	}
 
 //======================================================
 //	Setters
 //======================================================
 
-void PVOCBuffer::setBin( size_t channel, size_t frame, size_t bin, MFPair value )
+void PVOCBuffer::setMF( size_t channel, size_t frame, size_t bin, MF value )
 	{
-	(*buffer)[getPos( channel, frame, bin )] = value;
+	(*buffer)[getBufferPos( channel, frame, bin )] = value;
 	}
-PVOCBuffer::MFPair & PVOCBuffer::getBin( size_t channel, size_t frame, size_t bin )
+PVOCBuffer::MF & PVOCBuffer::getMF( size_t channel, size_t frame, size_t bin )
 	{
-	return (*buffer)[getPos( channel, frame, bin )];
+	return (*buffer)[getBufferPos( channel, frame, bin )];
 	}
 
 void PVOCBuffer::clearBuffer()
 	{
-	std::fill( buffer->begin(), buffer->end(), MFPair({ 0,0 }) );
+	std::fill( buffer->begin(), buffer->end(), MF({ 0,0 }) );
 	}
 
-size_t PVOCBuffer::getPos( size_t c, size_t f, size_t b ) const
+PVOCBuffer::MF * PVOCBuffer::getMFPointer( size_t channel, size_t frame, size_t bin )
+	{
+	return buffer->data() + getBufferPos( channel, frame, bin );
+	}
+
+const PVOCBuffer::MF * PVOCBuffer::getMFPointer( size_t channel, size_t frame, size_t bin  ) const
+	{
+	return buffer->data() + getBufferPos( channel, frame, bin );
+	}
+
+size_t PVOCBuffer::getBufferPos( size_t c, size_t f, size_t b ) const
 	{
 	return c * getNumFrames() * getNumBins() + f * getNumBins() + b;
+	}
+
+//======================================================
+//	Global
+//======================================================
+
+std::ostream & operator<<( std::ostream & os, const PVOCBuffer & pvoc )
+	{
+	os << "\n=========================== PVOCBuffer Info ==========================="
+	   << "\nChannels:\t"				<< pvoc.getNumChannels() 
+	   << "\nSamples:\t"				<< pvoc.getNumFrames() 
+	   << "\nBins:\t"					<< pvoc.getNumBins() 
+	   << "\Frames/second:\t"			<< pvoc.timeToFrame() 
+	   << "\Bins/Frequency:\t"			<< pvoc.frequencyToBin() 
+	   << "\Overlaps:\t"				<< pvoc.getOverlaps() 
+	   << "\n=======================================================================" 
+	   << "\n\n";
+	return os;
 	}
 
 } // End namespace xcdp

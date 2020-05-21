@@ -1,4 +1,4 @@
-#include "Utility.h"
+#include "xcdp/Utility.h"
 
 #include <random>
 #include <ctime>
@@ -9,49 +9,36 @@
 
 #include <bitset> //temp include
 
-static double pi = acos(-1);
+static float pi = std::acos( -1.0f );
 
 namespace xcdp {
 
-const Interpolator Interpolators::constant = []( float mix, float a, float b ) 
+const Interpolator Interpolators::constant = []( float x ) 
 	{ 
-	return a;
+	return 0.0f;
 	};
 
-const Interpolator Interpolators::linear = []( float mix, float a, float b ) 
+const Interpolator Interpolators::linear = []( float x ) 
 	{ 
-	return ( 1.0 - mix ) * a + mix * b;
+	return x;
 	};
 
-const Interpolator Interpolators::sine = []( float mix, float a, float b ) 
+const Interpolator Interpolators::sine = []( float x ) 
 	{ 
-	return ( 1.0 - cos( pi * mix ) ) / 2.0 * ( b - a ) + a; 
+	return ( 1.0f - cos( pi * x ) ) / 2.0f; 
 	};
 
-
-///Code duplication?
-const Perturber Perturbers::normalDist = []( float x, float amount )
+const Distribution Distributions::normal = []()
 	{
-	static std::default_random_engine rng( time(nullptr) );
+	static std::default_random_engine rng( time( nullptr ) );
 	static std::normal_distribution<float> dist( 0, 1.0 );
-	return x + dist(rng) * amount;
+	return dist(rng);
 	};
 
-const Perturber Perturbers::normalDistUp = []( float x, float amount )
-	{
-	static std::default_random_engine rng( time(nullptr) );
-	static std::normal_distribution<float> dist( 0, 1.0 );
-	return x + abs(dist(rng) * amount);
+const Distribution Distributions::identity = []()
+	{ 
+	return 0; 
 	};
-
-const Perturber Perturbers::normalDistDown = []( float x, float amount )
-	{
-	static std::default_random_engine rng( time(nullptr) );
-	static std::normal_distribution<float> dist( 0, 1.0 );
-	return x - abs(dist(rng) * amount);
-	};
-
-const Perturber Perturbers::identity = []( float x, float amount ){ return x; };
 
 std::array<uint8_t,3> HSVtoRGB( int H, float S, float V ) 
 	{

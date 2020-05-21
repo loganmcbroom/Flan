@@ -22,10 +22,10 @@
 
 */
 
-#include "resample.h"
+#include "../../include/WDL/resample.h"
 #include <math.h>
 
-#include "denormal.h"
+#include "../../include/WDL/denormal.h"
 
 #if !defined(WDL_RESAMPLE_NO_SSE) && !defined(WDL_RESAMPLE_USE_SSE)
   #if defined(__SSE2__) || _M_IX86_FP >= 2 || defined(_WIN64)

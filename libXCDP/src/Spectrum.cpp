@@ -1,8 +1,8 @@
-#include "Spectrum.h"
+#include "xcdp/Spectrum.h"
 
 #include <fftw3.h>
 
-#include "Audio.h"
+#include "xcdp/Audio.h"
 
 namespace xcdp {
 
@@ -12,7 +12,7 @@ Audio Spectrum::convertToAudio()
 
 	Audio::Format format;
 	format.numChannels = getNumChannels();
-	format.numSamples = outNumSamples;
+	format.numFrames = outNumSamples;
 	format.sampleRate = getSampleRate();
 	Audio out( format );
 

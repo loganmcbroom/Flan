@@ -1,7 +1,7 @@
-#include "WindowFunctions.h"
+#include "xcdp/WindowFunctions.h"
 #include <cmath>
 
-#include "RealFunc.h"
+#include "xcdp/Function.h"
 
 namespace xcdp::window {
 

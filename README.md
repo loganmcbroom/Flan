@@ -1,14 +1,18 @@
 # XCDP
 Creative audio processing library based on the Composers Desktop Project.
 
-Link against libsndfile, libsamplerate, and fftw. Fftw requires a shared library, at least on windows where I live.
-
-I'm new to cmake so this isn't exported yet (TODO)
+# Compilation
+Depends on libsndfile, libsamplerate, fftw (the float version). 
+OpenCL is an optional dependancy that permits large optimizations in some of the main algorithms.
+Things will hopefully work out of the box via cmake.
+The cmake find modules are fairly bare-bones, so if they can't find something make sure it is in the system PATH.
 
 # Usage
-There are only two classes you need to be aware of, Audio and PVOC. They inherit buffer functionality from AudioBuffer and PVOCBuffer. 
-Pretty simple. Construct an Audio with a file name and that file is loaded into the Audio. Audio methods process their object and return the result.
-Note that all methods are const. If you want to work in the spectral domain call convertToPVOC, convertToAudio gets you back.
+The classes Audio and PVOC represent all the main algorithms in XCDP. They inherit buffer functionality from AudioBuffer and PVOCBuffer. 
+The Function class and its children allow a great deal of freedom in passing functions (usually in the form of lambdas) in place of constants 
+when calling Audio and PVOC methods. Some basic Audio synthesis functions are found in Synthesis.h. 
+Most other usages can be found in the documentation, here: https://codedocs.xyz/loganmcbroom/XCDP/
+
 Any questions on installation or usage can be directed to:
 
 Discord: https://discord.gg/QmQuJKB

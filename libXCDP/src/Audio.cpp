@@ -1,20 +1,19 @@
-#include "Audio.h"
+#include "xcdp/Audio.h"
 
 #include <iostream>
 #include <algorithm>
 #include <complex>
-#include <fstream>
 
 #include <samplerate.h>
 #include <fftw3.h>
 
-#include "RealFunc.h"
-#include "PVOC.h"
-#include "Spectrum.h"
-#include "WindowFunctions.h"
+#include "xcdp/Function.h"
+#include "xcdp/PVOC.h"
+#include "xcdp/Spectrum.h"
+#include "xcdp/WindowFunctions.h"
 #include "WDL/resample.h"
-#include "CLContext.h"
-
+#include "xcdp/CLContext.h"
+#include "xcdp/CLProgs.h"
 
 using namespace xcdp;
 
@@ -39,7 +38,7 @@ Audio::Audio( const std::string & filename )
 	{}
 
 //========================================================
-// Utility Functions
+// Helper Functions
 //========================================================
 
 void printToLog( std::string s )
@@ -84,8 +83,8 @@ size_t getMaxNumSamples( Audio::Vec ins )
 	{
 	return std::max_element( ins.begin(), ins.end(), []( const Audio & a, const Audio & b )
 		{ 
-		return a.getNumSamples() < b.getNumSamples();
-		} )->getNumSamples();
+		return a.getNumFrames() < b.getNumFrames();
+		} )->getNumFrames();
 	}
 
 //========================================================
@@ -102,11 +101,6 @@ Audio Audio::operator-() const
 	return invertPhase();
 	}
 
-Audio Audio::operator-( const Audio other ) const	
-	{
-	return *this + -other;
-	}
-
 //========================================================
 // Information
 //========================================================
@@ -115,7 +109,7 @@ float Audio::getTotalEnergy() const
     {
     double sum = 0;
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t sample = 0; sample < getNumSamples(); ++sample )
+		for( size_t sample = 0; sample < getNumFrames(); ++sample )
             sum += pow( getSample( channel, sample ), 2 );
     
     return sum;
@@ -123,19 +117,20 @@ float Audio::getTotalEnergy() const
 
 Audio Audio::graph( const std::string & filename, size_t width, size_t height ) const
 	{
-	const auto audioColor = HSVtoRGB( 0, .8, .65 ); // redish
-	const auto backgroundColor = HSVtoRGB( 180, .8, .1 ); // blueish
+	std::cout << "Audio::graph ... " << std::endl;
+	const auto audioColor = HSVtoRGB( 0, .8f, .65f ); // redish
+	const auto backgroundColor = HSVtoRGB( 180, .8f, .1f ); // blueish
 
-	if( getNumSamples() == 0 ) return *this;
-	width = std::min( width, getNumSamples() );
+	if( getNumFrames() == 0 ) return *this;
+	width = std::min( width, getNumFrames() );
 
 	std::vector<std::vector<std::array<uint8_t,3>>> data( width, std::vector( height*getNumChannels(), backgroundColor ) );
 
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
 		{
 		std::vector<float> energies( width, 0.0 );
-		for( size_t sample = 0; sample < getNumSamples(); ++sample )
-			energies[ float( sample ) / float( getNumSamples() * width ) ] += getSample( channel, sample );
+		for( size_t sample = 0; sample < getNumFrames(); ++sample )
+			energies[ float( sample ) / float( getNumFrames() * width ) ] += getSample( channel, sample );
 		float maxEnergy = 0;
 		for( size_t x = 0; x < width; ++x )
 			maxEnergy = std::max( maxEnergy, std::abs( energies[x] ) );
@@ -160,10 +155,90 @@ Audio Audio::graph( const std::string & filename, size_t width, size_t height ) 
 // Conversions
 //========================================================
 
-/* Optimization ideas:
-	Multithread channels, can fftw do this?
-		The other steps could be multithreaded
- */
+PVOC convertToPVOC_cpu( const Audio & me, const size_t frameSize, const size_t overlaps )
+	{
+	//Figure out some helpful quantities
+	const size_t numBins = frameSize / 2 + 1;
+	const size_t hopSize = frameSize / overlaps;
+	const size_t numFrames = me.getNumFrames();
+	//+1 since we analyze at start and end times
+	const size_t numHops = size_t( ceil( numFrames / hopSize ) ) + 1; 
+	const float binWidthD = float( me.getSampleRate() ) / float( frameSize );
+	
+	PVOCBuffer::Format PVOCFormat;
+	PVOCFormat.numChannels = me.getNumChannels();
+	PVOCFormat.numFrames = numHops;
+	PVOCFormat.numBins = numBins;
+	PVOCFormat.sampleRate = me.getSampleRate();
+	PVOCFormat.overlaps = overlaps;
+	PVOC out( PVOCFormat );
+
+	//Allocate fftw input buffer, output buffer, phase buffer, and plan
+	std::vector<float> phaseBuffer( numBins );
+	float * fftIn = fftwf_alloc_real( frameSize );
+	std::complex<float> *fftOut = (std::complex<float>*) fftwf_alloc_complex( numBins );
+	fftwf_plan plan = fftwf_plan_dft_r2c_1d( int( frameSize ), fftIn, (fftwf_complex*) fftOut, FFTW_MEASURE );
+
+	//For each channel, do the whole thing
+	for( size_t channel = 0; channel < me.getNumChannels(); ++channel )
+		{
+		//Set initial phase to 0
+		for( size_t bin = 0; bin < numBins; ++bin )
+			phaseBuffer[bin] = 0;
+
+		//For each hop, fft and save into buffer
+		for( size_t hop = 0; hop < numHops; ++hop )
+			{
+			//Fill fft input buffer with windowed signal, condition protects from bad buffer access in the last few hops
+			for( size_t relativeSample = 0; relativeSample < frameSize; ++relativeSample )
+				{
+				// - overlaps/2 to center window around analysis point
+				const int actualSample = int(relativeSample) + int(hopSize) * (int(hop) - int(overlaps/2));
+				if( 0 <= actualSample && actualSample < numFrames )
+					fftIn[relativeSample] = me.getSample( channel, actualSample ) * window::Hann( float(relativeSample) / float(frameSize) );
+				else
+					fftIn[relativeSample] = 0;
+				}
+	
+			fftwf_execute( plan );
+
+			//For each bin, compute frequency and magnitude
+			for( size_t bin = 0; bin < numBins; ++bin )
+				{
+				//	First, get the bin phase for the current and previous frame. Find the difference.
+				//	We are expecting the phase of the ideal bin wave to move around due to using overlapping windows, so
+				//    figure out what that expected movement is (or at least an equivalent angle).
+				//  Next we get deltaPhase, this tells us how far from the expected phase shift our partial strayed.
+				//	Up to this point we have been using angles potentially outside [-pi,pi], e.g. expectedPhaseDiff
+				//    might be quite large when we really mean to talk about the equivalent angle in [-pi,pi]. We
+				//	  fix all of this by wrapping deltaPhase into [-pi,pi]
+				//  Next we need how far our true frequency deviates from the ideal bin center frequency.
+				//    Dividing by 2pi gives a deviation in [-1/2,1/2], and we multiply by overlaps as our actual bin
+				//    deviation is overlaps times larger than was accounted for (recall we measured the phase
+				//    difference between two overlapped frames).
+				//  Finally, the actual computed frequence is the bin center plus the deviation from that center
+				//    times the width of a single bin.
+				const float phase = arg( fftOut[bin] );
+				const float phaseDiff = phase - phaseBuffer[bin];
+				phaseBuffer[bin] = phase;
+				const float expectedPhaseDiff = float(bin) * ( 2.0 * pi / float(overlaps) );
+				const float deltaPhase = phaseDiff - expectedPhaseDiff;
+				const float wrappedDeltaPhase = deltaPhase-(2.0*pi)*floor((deltaPhase+pi) / ( 2.0 * pi ) );
+				const float binDeviation = float(overlaps) * wrappedDeltaPhase / ( 2.0 * pi );
+				const float frequency = ( float(bin) + binDeviation ) * binWidthD;
+
+				out.setMF( channel, hop, bin, { abs( fftOut[bin] ), frequency } );
+				}
+			}
+		}
+
+	fftwf_destroy_plan( plan );
+	fftwf_free( fftOut );
+	fftwf_free( fftIn );
+
+	return out;
+	}
+
 struct convertToPVOC_FFTWHelper 
 	{
 	convertToPVOC_FFTWHelper( size_t frameSize, size_t numBins )
@@ -185,43 +260,23 @@ struct convertToPVOC_FFTWHelper
 	fftwf_plan plan;
 	};
 
-struct convertToPVOC_ProgramHelper
-	{
-	convertToPVOC_ProgramHelper()
-		{
-		std::ifstream t( "OpenCL/Audio_convertToPVOC.c" );
-		if( !t.is_open() )
-			{
-			std::cout << "Couldn't find Audio to PVOC conversion opencl file" << std::endl;
-			exit( 1 );
-			}
-		std::stringstream source;
-		source << t.rdbuf();
-
-		auto cl = CLContext::get();
-		program = cl::Program( cl.context, source.str() );
-
-		if( program.build( { cl.device }, "-cl-denorms-are-zero" ) != CL_SUCCESS )
-			{
-			std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>( cl.device ) << "\n";
-			exit( 1 );
-			}
-		}
-
-	cl::Program program;
-	};
-
 PVOC Audio::convertToPVOC( const size_t frameSize, const size_t overlaps ) const
 	{
-	std::cout << "Getting PVOC ... \n";
+	std::cout << "Audio::convertToPVOC ... " << std::endl;
+
+#ifndef USE_OPENCL
+	return convertToPVOC_cpu( *this, frameSize, overlaps );
+#else
 
 	//Figure out some helpful quantities
 	const size_t numBins = frameSize / 2 + 1;
+	const int numBins_i = numBins;
+	const float overlaps_f = overlaps;
 	const size_t hopSize = frameSize / overlaps;
-	const size_t numFrames = getNumSamples();
+	const size_t numFrames = getNumFrames();
 	//+1 since we analyze at start and end times
 	const size_t numHops = size_t( ceil( numFrames / hopSize ) ) + 1; 
-	const float binWidthD = float( getSampleRate() ) / float( frameSize );
+	const float binWidth_f = float( getSampleRate() ) / float( frameSize );
 	const size_t outChannelDataCount = numBins * numHops;
 	
 	PVOCBuffer::Format PVOCFormat;
@@ -231,7 +286,7 @@ PVOC Audio::convertToPVOC( const size_t frameSize, const size_t overlaps ) const
 	PVOCFormat.sampleRate = getSampleRate();
 	PVOCFormat.overlaps = overlaps;
 	PVOC out( PVOCFormat );
-	std::vector<PVOCBuffer::MFPair>::iterator outBufferWriteHead = out.getBuffer()->begin();
+	PVOCBuffer::MF * outBufferWriteHead = out.getMFPointer( 0, 0, 0 );
 
 	//Sample Hann window
 	std::vector<float> hannWindow( frameSize );
@@ -243,11 +298,12 @@ PVOC Audio::convertToPVOC( const size_t frameSize, const size_t overlaps ) const
 	
 	//prepare OpenCL
 	auto cl = CLContext::get();
-	static convertToPVOC_ProgramHelper programHelper;
+	static ProgramHelper programHelper( CLProgs::Audio_convertToPVOC );
 	cl::Buffer clIn( cl.context, CL_MEM_READ_WRITE, sizeof( std::complex<float> ) * outChannelDataCount );
-	cl::Buffer clOut( cl.context, CL_MEM_WRITE_ONLY, sizeof( PVOCBuffer::MFPair ) * outChannelDataCount );
+	cl::Buffer clOut( cl.context, CL_MEM_WRITE_ONLY, sizeof( PVOCBuffer::MF ) * outChannelDataCount );
 	cl::KernelFunctor< cl::Buffer > cl_fftToPhase( programHelper.program, "fftToPhase" );
-	cl::KernelFunctor< cl::Buffer, cl::Buffer > cl_phaseToFreq( programHelper.program, "phaseToFreq" );
+	cl::KernelFunctor< cl::Buffer, cl::Buffer, float, float, int > 
+		cl_phaseToFreq( programHelper.program, "phaseToFreq" );
 	
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
 		{
@@ -281,7 +337,12 @@ PVOC Audio::convertToPVOC( const size_t frameSize, const size_t overlaps ) const
 
 		//second call computes all frequencies ( and magnitudes to avoid 2 copies from device ) into second buffer
 		cl.queue.enqueueBarrierWithWaitList();
-		cl_phaseToFreq( cl::EnqueueArgs( cl.queue, cl::NDRange( outChannelDataCount ) ), clIn, clOut );
+		cl_phaseToFreq( cl::EnqueueArgs( cl.queue, cl::NDRange( outChannelDataCount ) ), 
+			clIn, 
+			clOut,
+			overlaps_f,
+			binWidth_f,
+			numBins_i );
 
 		cl.queue.enqueueBarrierWithWaitList();
 		cl::copy( cl.queue, clOut, outBufferWriteHead, outBufferWriteHead + outChannelDataCount );
@@ -290,112 +351,28 @@ PVOC Audio::convertToPVOC( const size_t frameSize, const size_t overlaps ) const
 
 	cl.queue.enqueueBarrierWithWaitList();
 	return out;
+#endif
 	}
 
-//PVOC Audio::convertToPVOC_old( const size_t frameSize, const size_t overlaps ) const
+//Spectrum Audio::convertToSpectrum() const
 //	{
-//	std::cout << "Getting PVOC ... \n";
-//	//Figure out some helpfull quantities
-//	const size_t numBins = frameSize / 2 + 1;
-//	const size_t hopSize = frameSize / overlaps;
-//	const size_t numFrames = getNumSamples();
-//	//+1 since we analyze at start and end times
-//	const size_t numHops = size_t( ceil( numFrames / hopSize ) ) + 1; 
-//	const float binWidthD = float( getSampleRate() ) / float( frameSize );
-//	
-//	PVOCBuffer::Format PVOCFormat;
-//	PVOCFormat.numChannels = getNumChannels();
-//	PVOCFormat.numFrames = numHops;
-//	PVOCFormat.numBins = numBins;
-//	PVOCFormat.sampleRate = getSampleRate();
-//	PVOCFormat.overlaps = overlaps;
-//	PVOC out( PVOCFormat );
+//	const size_t outnumBins = std::floor( float( getNumFrames() ) / 2.0f ) + 1;
 //
-//	//Allocate fftw input buffer, output buffer, phase buffer, and plan
-//	std::vector<float> phaseBuffer( numBins );
-//	float * fftIn = fftwf_alloc_real( frameSize );
-//	std::complex<float> *fftOut = (std::complex<float>*) fftwf_alloc_complex( numBins );
-//	fftwf_plan plan = fftwf_plan_dft_r2c_1d( int( frameSize ), fftIn, (fftwf_complex*) fftOut, FFTW_MEASURE );
-//
-//	//For each channel, do the whole thing
-//	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-//		{
-//		//Set initial phase to 0
-//		for( size_t bin = 0; bin < numBins; ++bin )
-//			phaseBuffer[bin] = 0;
-//
-//		//For each hop, fft and save into buffer
-//		for( size_t hop = 0; hop < numHops; ++hop )
-//			{
-//			//Fill fft input buffer with windowed signal, condition protects from bad buffer access in the last few hops
-//			for( size_t relativeSample = 0; relativeSample < frameSize; ++relativeSample )
-//				{
-//				// - overlaps/2 to center window around analysis point
-//				const int actualSample = int(relativeSample) + int(hopSize) * (int(hop) - int(overlaps/2));
-//				if( 0 <= actualSample && actualSample < numFrames )
-//					fftIn[relativeSample] = getSample( channel, actualSample ) * window::Hann( float(relativeSample) / float(frameSize) );
-//				else
-//					fftIn[relativeSample] = 0;
-//				}
-//	
-//			fftwf_execute( plan );
-//
-//			//For each bin, compute frequency and magnitude
-//			for( size_t bin = 0; bin < numBins; ++bin )
-//				{
-//				//	First, get the bin phase for the current and previous frame. Find the difference.
-//				//	We are expecting the phase of the ideal bin wave to move around due to using overlapping windows, so
-//				//    figure out what that expected movement is (or at least an equivalent angle).
-//				//  Next we get deltaPhase, this tells us how far from the expected phase shift our partial strayed.
-//				//	Up to this point we have been using angles potentially outside [-pi,pi], e.g. expectedPhaseDiff
-//				//    might be quite large when we really mean to talk about the equivalent angle in [-pi,pi]. We
-//				//	  fix all of this by wrapping deltaPhase into [-pi,pi]
-//				//  Next we need how far our true frequency deviates from the ideal bin center frequency.
-//				//    Dividing by 2pi gives a deviation in [-1/2,1/2], and we multiply by overlaps as our actual bin
-//				//    deviation is overlaps times larger than was accounted for (recall we measured the phase
-//				//    difference between two overlapped frames).
-//				//  Finally, the actual computed frequence is the bin center plus the deviation from that center
-//				//    times the width of a single bin.
-//				const float phase = arg( fftOut[bin] );
-//				const float phaseDiff = phase - phaseBuffer[bin];
-//				phaseBuffer[bin] = phase;
-//				const float expectedPhaseDiff = float(bin) * ( 2.0 * pi / float(overlaps) );
-//				const float deltaPhase = phaseDiff - expectedPhaseDiff;
-//				const float wrappedDeltaPhase = deltaPhase-(2.0*pi)*floor((deltaPhase+pi) / ( 2.0 * pi ) );
-//				const float binDeviation = float(overlaps) * wrappedDeltaPhase / ( 2.0 * pi );
-//				const float frequency = ( float(bin) + binDeviation ) * binWidthD;
-//
-//				out.setBin( channel, hop, bin, { abs( fftOut[bin] ), frequency } );
-//				}
-//			}
-//		}
-//
-//	fftwf_destroy_plan( plan );
-//	fftwf_free( fftOut );
-//	fftwf_free( fftIn );
-//
-//	return out;
-//	}
-
-Spectrum Audio::convertToSpectrum() const
-	{
-	const size_t outnumBins = std::floor( float( getNumSamples() ) / 2.0f ) + 1;
-
-	Spectrum::Format format;
-	format.numChannels = getNumChannels();
-	format.numBins = outnumBins;
-	format.sampleRate = getSampleRate();
-	Spectrum out( format );
+//	Spectrum::Format format;
+//	format.numChannels = getNumChannels();
+//	format.numBins = outnumBins;
+//	format.sampleRate = getSampleRate();
+//	Spectrum out( format );
 
 	//Allocate fftw buffers and plan
-	//real_t * fftIn = fftw_alloc_real( getNumSamples() );
+	//real_t * fftIn = fftw_alloc_real( getNumFrames() );
 	//std::complex<real_t> * fftOut = (std::complex<real_t>*) fftw_alloc_complex( outnumBins );
-	//fftw_plan plan = fftw_plan_dft_r2c_1d( int( getNumSamples() ), fftIn, (fftw_complex*) fftOut, FFTW_ESTIMATE );
+	//fftw_plan plan = fftw_plan_dft_r2c_1d( int( getNumFrames() ), fftIn, (fftw_complex*) fftOut, FFTW_ESTIMATE );
 
 	//for( size_t channel = 0; channel < getNumChannels(); ++channel )
 	//	{
 	//	//Read buffer data into fftIn
-	//	for( size_t sample = 0; sample < getNumSamples(); ++sample )
+	//	for( size_t sample = 0; sample < getNumFrames(); ++sample )
 	//		fftIn[sample] = getSample( channel, sample );
 
 	//	//fft
@@ -410,31 +387,35 @@ Spectrum Audio::convertToSpectrum() const
 	//fftw_free( fftOut );
 	//fftw_free( fftIn );
 
-	return out;
-	}
+	//return out;
+	//}
 
 Audio Audio::convertToMidSide() const
 	{
+	std::cout << "Audio::convertToMidSide ... " << std::endl;
 	if( getNumChannels() != 2 )
 		{
 		printToLog( "Can't transform non-stereo Audio between Mid-Side and Left-Right formats. \n" );
 		return *this;
 		}
 	Audio out( getFormat() );
-	for( size_t sample = 0; sample < getNumSamples(); ++sample )
+	for( size_t sample = 0; sample < getNumFrames(); ++sample )
 		{
 		out.setSample( 0, sample, getSample( 0, sample ) + getSample( 1, sample ) );
 		out.setSample( 1, sample, getSample( 0, sample ) - getSample( 1, sample ) );
 		}
 	return out;
 	}
+
 Audio Audio::convertToLeftRight() const
 	{
+	std::cout << "Audio::convertToLeftRight ... " << std::endl << "\t";
 	return convertToMidSide();
 	}
 
 Audio Audio::convertToStereo() const
 	{
+	std::cout << "Audio::convertToStereo ... " << std::endl;
 	auto format = getFormat();
 	format.numChannels = 2;
 	Audio out( format );
@@ -443,10 +424,10 @@ Audio Audio::convertToStereo() const
 		{
 		case 1:
 			{
-			for( size_t sample = 0; sample < out.getNumSamples(); ++sample )
+			for( size_t sample = 0; sample < out.getNumFrames(); ++sample )
 				{
-				out.setSample( 0, sample, getSample( 0, sample ) / sqrt(2) );
-				out.setSample( 1, sample, getSample( 0, sample ) / sqrt(2) );
+				out.setSample( 0, sample, getSample( 0, sample ) / sqrt(2.0f) );
+				out.setSample( 1, sample, getSample( 0, sample ) / sqrt(2.0f) );
 				}
 			break;
 			}
@@ -462,13 +443,15 @@ Audio Audio::convertToStereo() const
 		}
 	return out;
 	}
+
 Audio Audio::convertToMono() const
 	{
+	std::cout << "Audio::convertToMono ... " << std::endl;
 	auto format = getFormat();
 	format.numChannels = 1;
 	Audio out( format );
 
-	for( size_t sample = 0; sample < out.getNumSamples(); ++sample )
+	for( size_t sample = 0; sample < out.getNumFrames(); ++sample )
 		{
 		float sampleAccumulator = 0;
 		for( size_t channel = 0; channel < getNumChannels(); ++channel )
@@ -485,47 +468,49 @@ Audio Audio::convertToMono() const
 
 Audio Audio::invertPhase() const
 	{
+	std::cout << "Audio::invertPhase ... " << std::endl;
 	Audio out( getFormat() );
 
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t sample = 0; sample < getNumSamples(); ++sample )
+		for( size_t sample = 0; sample < getNumFrames(); ++sample )
 			out.setSample( channel, sample, -getSample( channel, sample ) );
 
 	return out;
 	}
 
-Audio Audio::modifyVolume( RealFunc volumeLevel ) const
+Audio Audio::modifyVolume( Func1x1 volumeLevel ) const
 	{
-	std::cout << "Modifying volume ... \n";
+	std::cout << "Audio::modifyVolume ... " << std::endl;
 
 	Audio out( getFormat() );
 
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t sample = 0; sample < getNumSamples(); ++sample )
+		for( size_t sample = 0; sample < getNumFrames(); ++sample )
 			{
-			float calculatedSample = getSample( channel, sample )*volumeLevel(sampleToTime(sample));
+			float calculatedSample = getSample( channel, sample ) * volumeLevel( frameToTime() * sample );
 			out.setSample( channel, sample, calculatedSample );
 			}
 
 	return out;
 	}
 
-Audio Audio::setVolume( RealFunc level ) const
+Audio Audio::setVolume( Func1x1 level ) const
 	{
+	std::cout << "Audio::setVolume ... " << std::endl << "\t";
 	// Divide by getMaxSampleMagnitude to normalize, multiply by level to set
 	const float maxMag = getMaxSampleMagnitude();
 	if( maxMag == 0 ) return *this;
 	return modifyVolume( [ &level, maxMag ]( float t ){ return level(t) / maxMag; } );
 	}
 
-Audio Audio::waveshape( RealFunc shaper ) const
+Audio Audio::waveshape( Func1x1 shaper ) const
 	{
-	std::cout << "Waveshaping ... \n";
+	std::cout << "Audio::waveshape ... " << std::endl;
 
 	Audio out( getFormat() );
 
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t sample = 0; sample < getNumSamples(); ++sample )
+		for( size_t sample = 0; sample < getNumFrames(); ++sample )
 			{
 			out.setSample( channel, sample, shaper( getSample( channel, sample ) ) );
 			}
@@ -533,20 +518,20 @@ Audio Audio::waveshape( RealFunc shaper ) const
 	return out;
 	}
 
-Audio Audio::pan( RealFunc panAmount ) const
+Audio Audio::pan( Func1x1 panAmount ) const
 	{
-	std::cout << "Panning ... \n";
+	std::cout << "Audio::pan ... " << std::endl;
 
 	//Stereo panning algorithm
-	auto stereoPan = [this]( RealFunc panAmount )
+	auto stereoPan = [this]( Func1x1 panAmount )
 		{
 		Audio out( getFormat() );
 
 		for( size_t channel = 0; channel < getNumChannels(); ++channel )
-			for( size_t frame = 0; frame < getNumSamples(); ++frame )
+			for( size_t frame = 0; frame < getNumFrames(); ++frame )
 				{
 				float sample = getSample( channel, frame )
-					* sin( pi / 4.0f * ( std::clamp( panAmount( sampleToTime(frame) ), -1.0f, 1.0f ) + 3.0f - float(channel)*2.0f ) )
+					* sin( pi / 4.0f * ( std::clamp( panAmount( frameToTime() * frame ), -1.0f, 1.0f ) + 3.0f - float(channel)*2.0f ) )
 					* sqrt( 2.0f );
 				out.setSample( channel, frame, sample );
 				}
@@ -567,19 +552,19 @@ Audio Audio::pan( RealFunc panAmount ) const
 		}
 	}
 
-Audio Audio::widen( RealFunc widenAmount ) const
+Audio Audio::widen( Func1x1 widenAmount ) const
 	{
 	return convertToMidSide().pan( widenAmount ).convertToLeftRight();
 	}
 
 Audio Audio::iterate( size_t n, Audio::Mod mod, bool fbIterate ) const
 	{
-	std::cout << "Iterating ... \n";
+	std::cout << "Audio::iterate ... " << std::endl;
 
 	if( mod == nullptr )
 		{
 		auto format = getFormat();
-		format.numSamples = getNumSamples() * n;
+		format.numFrames = getNumFrames() * n;
 		Audio out( format );
 			
 		for( size_t channel = 0; channel < getNumChannels(); ++channel )
@@ -587,7 +572,7 @@ Audio Audio::iterate( size_t n, Audio::Mod mod, bool fbIterate ) const
 			size_t outSample = 0;
 			for( size_t i = 0; i < n; ++i )
 				{
-				for( size_t inSample = 0; inSample < getNumSamples(); ++inSample )
+				for( size_t inSample = 0; inSample < getNumFrames(); ++inSample )
 					{
 					out.setSample( channel, outSample, getSample( channel, inSample ) );
 					++outSample;
@@ -602,15 +587,15 @@ Audio Audio::iterate( size_t n, Audio::Mod mod, bool fbIterate ) const
 		std::vector<Audio> modOutputs;
 		size_t totalSamplesGenerated = 0;
 		modOutputs.push_back( mod( *this, 0 ) );
-		totalSamplesGenerated += modOutputs[0].getNumSamples();
+		totalSamplesGenerated += modOutputs[0].getNumFrames();
 		for( size_t i = 1; i < n; ++i )
 			{
 			modOutputs.push_back( mod( fbIterate? modOutputs[i-1] : *this, i ) );
-			totalSamplesGenerated += modOutputs[i].getNumSamples();
+			totalSamplesGenerated += modOutputs[i].getNumFrames();
 			}
 	
 		auto format = getFormat();
-		format.numSamples = totalSamplesGenerated;
+		format.numFrames = totalSamplesGenerated;
 		Audio out( format );
 			
 		//Append mod outputs to out
@@ -619,7 +604,7 @@ Audio Audio::iterate( size_t n, Audio::Mod mod, bool fbIterate ) const
 			size_t outSample = 0;
 			for( size_t i = 0; i < n; ++i )
 				{
-				for( size_t modSample = 0; modSample < modOutputs[i].getNumSamples(); ++modSample )
+				for( size_t modSample = 0; modSample < modOutputs[i].getNumFrames(); ++modSample )
 					{
 					out.setSample( channel, outSample, modOutputs[i].getSample( channel, modSample ) );
 					++outSample;
@@ -632,14 +617,14 @@ Audio Audio::iterate( size_t n, Audio::Mod mod, bool fbIterate ) const
 
 Audio Audio::reverse() const
 	{
-	std::cout << "Reversing ... \n";
+	std::cout << "Audio::reverse ... " << std::endl;
 
 	Audio out( getFormat() );
 
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t sample = 0; sample < getNumSamples(); ++sample )
+		for( size_t sample = 0; sample < getNumFrames(); ++sample )
 			{
-			out.setSample( channel, sample, getSample( channel, getNumSamples() - 1 - sample ) );
+			out.setSample( channel, sample, getSample( channel, getNumFrames() - 1 - sample ) );
 			}
 
 	return out;
@@ -647,26 +632,26 @@ Audio Audio::reverse() const
 
 Audio Audio::cut( float startTime, float endTime ) const
 	{
-	std::cout << "Cutting ... \n";
+	std::cout << "Audio::cut ... " << std::endl;
 	//input validity checking
 	if( endTime < startTime ) endTime = startTime;
-	const size_t startSample = std::max( size_t(0),       timeToSample( startTime ) );
-	const size_t endSample   = std::min( getNumSamples(), timeToSample( endTime   ) );
+	const size_t startSample = std::max( size_t(0),      size_t( ceil ( timeToFrame() * startTime ) ) );
+	const size_t endSample   = std::min( getNumFrames(), size_t( ceil ( timeToFrame() * endTime   ) ) );
 
 	auto format = getFormat();
-	format.numSamples =  endSample - startSample;
+	format.numFrames =  endSample - startSample;
 	Audio out( format );
 
 	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
-		for( size_t sample = 0; sample < out.getNumSamples(); ++sample )
+		for( size_t sample = 0; sample < out.getNumFrames(); ++sample )
 			out.setSample( channel, sample, getSample( channel, startSample + sample ) );
 
 	return out;
 	}
 
-Audio Audio::repitch( RealFunc factor, size_t granul, size_t qual ) const
+Audio Audio::repitch( Func1x1 factor, size_t granul, size_t qual ) const
 	{
-	std::cout << "Repitching...\n";
+	std::cout << "Audio::repitch ... " << std::endl;
 
 	auto safeFactor = [this, &factor]( float count )
 		{ 
@@ -675,27 +660,32 @@ Audio Audio::repitch( RealFunc factor, size_t granul, size_t qual ) const
 
 	// estimate output length
 	float acclen = 0.0;
-	for( int count = 0; count < getNumSamples(); count += granul )
+	for( int count = 0; count < getNumFrames(); count += granul )
 		acclen += granul * safeFactor( count );
 
 	auto format = getFormat();
-	format.numSamples = size_t(ceil(acclen));
+	format.numFrames = size_t(ceil(acclen));
 	Audio out( format );
 	
 	WDL_Resampler rs;
 		 if( qual == 0 ) rs.SetMode( true,  0, true, 64 ); // reasonable sinc resampling
 	else if( qual == 1 ) rs.SetMode( true,  1, false    ); // linear interpolation with simple filter
 	else if( qual == 2 ) rs.SetMode( false, 0, false    ); // no interpolation, useful for dirty sound
+	else 
+		{
+		std::cout << "Unknown quality in Audio::repitch: " << qual << std::endl;
+		return Audio();
+		}
 	const size_t chs = getNumChannels();
-	const size_t insamples = getNumSamples();
+	const size_t insamples = getNumFrames();
 	std::vector<float> rsoutbuf( chs * granul );
 
 	size_t count = 0;
 	size_t outcount = 0;
-	while( count < getNumSamples() )
+	while( count < getNumFrames() )
 		{
-		const float factor_to_use = safeFactor( count );
-		rs.SetRates( getSampleRate(), float( getSampleRate() ) * factor_to_use );
+		const double factor_to_use = safeFactor( count );
+		rs.SetRates( getSampleRate(), double( getSampleRate() ) * factor_to_use );
 		WDL_ResampleSample* rsinbuf = nullptr;
 		const int wanted = rs.ResamplePrepare( granul, chs, &rsinbuf );
 
@@ -721,22 +711,22 @@ Audio Audio::repitch( RealFunc factor, size_t granul, size_t qual ) const
 	return out;
 	}
 
-Audio Audio::convolve( const std::vector<RealFunc> & ir ) const
+Audio Audio::convolve( const std::vector<Func1x1> & ir ) const
 	{
-	std::cout << "Convolving ... \n";
+	std::cout << "Audio::convolve ... " << std::endl;
 	auto format = getFormat();
-	format.numSamples = getNumSamples() + ir.size();
+	format.numFrames = getNumFrames() + ir.size();
 	Audio out( format );
 
 	for( size_t channel = 0; channel < out.getNumChannels(); ++channel )
-		for( size_t outSample = 0; outSample < out.getNumSamples(); ++outSample )
+		for( size_t outSample = 0; outSample < out.getNumFrames(); ++outSample )
 			{
 			float convolutionSum = 0;
 			for( int irSample = 0; irSample < ir.size(); ++irSample )
 				{
 				const int inSample = outSample + 1 - irSample;
-				if( 0 <= inSample && inSample < getNumSamples() )
-					convolutionSum += ir[irSample]( out.sampleToTime( outSample ) ) * getSample( channel, inSample );
+				if( 0 <= inSample && inSample < getNumFrames() )
+					convolutionSum += ir[irSample]( out.frameToTime() * outSample ) * getSample( channel, inSample );
 				}
 			out.setSample( channel, outSample, convolutionSum );
 			}
@@ -746,12 +736,12 @@ Audio Audio::convolve( const std::vector<RealFunc> & ir ) const
 
 Audio Audio::delay( float delayTime, size_t numDelays, float decay, Audio::Mod mod, bool fbIterate ) const
 	{
-	std::cout << "Delaying ... \n";
+	std::cout << "Audio::delay ... " << std::endl;
 
 	if( mod == nullptr )
 		{
 		auto format = getFormat();
-		format.numSamples = getNumSamples() + timeToSample( delayTime ) * numDelays;
+		format.numFrames = getNumFrames() + timeToFrame() * delayTime * numDelays;
 		Audio out( format );
 
 		for( size_t channel = 0; channel < getNumChannels(); ++channel )
@@ -759,8 +749,8 @@ Audio Audio::delay( float delayTime, size_t numDelays, float decay, Audio::Mod m
 			for( size_t delay = 0; delay < numDelays+1; ++delay )
 				{
 				const float fbDecay = pow( decay, delay );
-				const size_t outSampleOffset = delay * timeToSample(delayTime);
-				for( size_t inSample = 0; inSample < getNumSamples(); ++inSample )
+				const size_t outSampleOffset = delay * timeToFrame() * delayTime;
+				for( size_t inSample = 0; inSample < getNumFrames(); ++inSample )
 					{
 					out.getSample( channel, inSample + outSampleOffset ) += getSample( channel, inSample ) * fbDecay;
 					}
@@ -788,28 +778,30 @@ Audio Audio::delay( float delayTime, size_t numDelays, float decay, Audio::Mod m
 		}
 	}
 
-Audio Audio::fades( float fadeTime ) const
+Audio Audio::fades( float fadeTime, bool start, bool end ) const
 	{
+	std::cout << "Audio::fades ... " << std::endl;
 	fadeTime = std::min( fadeTime, float( getLength() ) / 2.0f );
 
 	Audio out( *this );
 
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
-		for( size_t sample = 0; sample < timeToSample( fadeTime ); ++sample )
+		for( size_t sample = 0; sample < timeToFrame() * fadeTime; ++sample )
 			{
 			
 
-			const float fadeAmt = 0.5f - cos( pi * sampleToTime( sample ) / fadeTime ) / 2.0f;
+			const float fadeAmt = 0.5f - cos( pi * frameToTime() * sample / fadeTime ) / 2.0f;
 			out.getSample( channel, sample						 ) *= fadeAmt;
-			out.getSample( channel, getNumSamples() - 1 - sample ) *= fadeAmt;
+			out.getSample( channel, getNumFrames() - 1 - sample ) *= fadeAmt;
 			}
 
 	return out;
 	}
 
-Audio Audio::lowPass( RealFunc cutoff, size_t taps ) const
+Audio Audio::lowPass( Func1x1 cutoff, size_t taps ) const
 	{
-	std::vector<RealFunc> ir;
+	std::cout << "Audio::lowPass ... " << std::endl;
+	std::vector<Func1x1> ir;
 	for( size_t tap = 0; tap <= taps; ++tap ) 
 		ir.push_back( [&cutoff, this, taps, tap]( float t )
 			{
@@ -827,8 +819,9 @@ Audio Audio::lowPass( RealFunc cutoff, size_t taps ) const
 // Multi-In Procs
 //========================================================
 
-Audio Audio::mix( Audio::Vec ins, std::vector<RealFunc> balances, std::vector<float> startTimes  )
+Audio Audio::mix( Audio::Vec ins, std::vector<Func1x1> balances, std::vector<float> startTimes  )
 	{
+	std::cout << "Audio::mix ... " << std::endl;
 	if( ins.size() == 0 ) return Audio();
 	const float oneOverN = 1.0f / float( ins.size() );
 
@@ -843,20 +836,20 @@ Audio Audio::mix( Audio::Vec ins, std::vector<RealFunc> balances, std::vector<fl
 	//Find how long the longest thing being mixed will last
 	for( size_t in = 0; in < ins.size(); ++in )
 		{
-		format.numSamples = std::max( 
-			format.numSamples, 
-			ins[in].getNumSamples() + ins[in].timeToSample(startTimes[in]) );
+		format.numFrames = std::max( 
+			format.numFrames, 
+			ins[in].getNumFrames() + size_t( ins[in].timeToFrame() * startTimes[in] ) );
 		}
 	Audio out( format );
 	out.clearBuffer();
 
 	for( size_t in = 0; in < ins.size(); ++in )
 		for( size_t channel = 0; channel < ins[in].getNumChannels(); ++channel )
-			for( size_t sample = 0; sample < ins[in].getNumSamples(); ++sample )
+			for( size_t sample = 0; sample < ins[in].getNumFrames(); ++sample )
 				{
-				const size_t outSample = sample + ins[in].timeToSample(startTimes[in]);
+				const size_t outSample = sample + ins[in].timeToFrame() * startTimes[in];
 				out.getSample( channel, outSample ) += 
-					ins[in].getSample( channel, sample ) * balances[in]( ins[0].sampleToTime( outSample ) );
+					ins[in].getSample( channel, sample ) * balances[in]( ins[0].frameToTime() * outSample );
 				}
 
 	return out;
@@ -864,13 +857,14 @@ Audio Audio::mix( Audio::Vec ins, std::vector<RealFunc> balances, std::vector<fl
 
 Audio Audio::join( Audio::Vec ins )
 	{
+	std::cout << "Audio::join ... " << std::endl;
 	if( ins.size() == 0 ) return Audio();
 
 	auto format = ins[0].getFormat();
 	format.numChannels = getMaxNumChannels( ins );
 	int numSamples = 0;
-	for( auto & in : ins ) numSamples += in.getNumSamples();
-	format.numSamples  = numSamples;
+	for( auto & in : ins ) numSamples += in.getNumFrames();
+	format.numFrames  = numSamples;
 	Audio out( format );
 
 	int currentOutStartSample = 0;
@@ -880,12 +874,12 @@ Audio Audio::join( Audio::Vec ins )
 		{
 		for( size_t channel = 0; channel < ins[in].getNumChannels(); ++channel )
 			{
-			for( size_t sample = 0; sample < ins[in].getNumSamples(); ++sample )
+			for( size_t sample = 0; sample < ins[in].getNumFrames(); ++sample )
 				{
 				out.setSample( channel, currentOutStartSample + sample, ins[in].getSample( channel, sample ) );
 				}
 			}
-		currentOutStartSample += ins[in].getNumSamples();
+		currentOutStartSample += ins[in].getNumFrames();
 		}
 
 	return out;

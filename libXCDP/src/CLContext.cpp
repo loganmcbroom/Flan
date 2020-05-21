@@ -1,6 +1,8 @@
-#include "CLContext.h"
+#include "xcdp/CLContext.h"
 
 #include <iostream>
+#include <fstream>
+#include <sstream>
 
 using namespace xcdp;
 
@@ -20,22 +22,20 @@ CLContext::CLContext()
 	std::cout << "Using platform: " << platform.getInfo<CL_PLATFORM_NAME>() << "\n";
 
 	//Get device
-	std::vector<cl::Device> all_devices;
-	platform.getDevices( CL_DEVICE_TYPE_ALL, &all_devices );
-	if( all_devices.size() == 0 )
+	platform.getDevices( CL_DEVICE_TYPE_ALL, &devices );
+	if( devices.size() == 0 )
 		{
 		std::cout<<" No devices found. Check OpenCL installation!\n";
 		exit(1);
 		}
-	device = all_devices[0];
-	std::cout<< "Using device: " << device.getInfo<CL_DEVICE_NAME>() << "\n";
+	std::cout<< "Using device: " << devices[0].getInfo<CL_DEVICE_NAME>() << "\n";
 	
-	context = cl::Context( { device } );
+	context = cl::Context( { devices[0] } );
 
 #ifdef NDEBUG
-	queue = cl::CommandQueue( context, device, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE );
+	queue = cl::CommandQueue( context, devices[0], CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE );
 #else
-	queue = cl::CommandQueue( context, device, CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE | CL_QUEUE_PROFILING_ENABLE );
+	queue = cl::CommandQueue( context, devices[0], CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE | CL_QUEUE_PROFILING_ENABLE );
 #endif
 	
 	std::cout << "OpenCL Initialized \n\n";
@@ -46,3 +46,32 @@ CLContext & CLContext::get()
 	static CLContext instance;
 	return instance;
 	}
+
+ProgramHelper::ProgramHelper( const std::string & source )
+		{
+		cl_int err;
+
+		//std::ifstream t( "OpenCL/" + file );
+		//if( !t.is_open() )
+		//	{
+		//	std::cout << "Couldn't find " << file << std::endl;
+		//	exit( -1 );
+		//	}
+		//std::stringstream source;
+		//source << t.rdbuf();
+
+		auto & cl = CLContext::get();
+		program = cl::Program( cl.context, source, false, &err );
+		if( err != CL_SUCCESS )
+			{
+			std::cout << "OpenCL error " << err << " while parsing:\n" << source << std::endl;
+			exit( err );
+			}
+
+		err = program.build( cl.devices, "-cl-denorms-are-zero" );
+		if( err != CL_SUCCESS )
+			{
+			std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>( cl.devices[0] ) << "\n";
+			exit( err );
+			}
+		}

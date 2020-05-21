@@ -1,4 +1,4 @@
-#include "Synthesis.h"
+#include "xcdp/Synthesis.h"
 
 #include <iostream>
 
@@ -6,55 +6,55 @@
 
 #include "WDL/resample.h"
 
-static const double pi = std::acos( -1 );
+static const float pi = std::acos( -1.0f );
 
 namespace xcdp {
 namespace Synthesis {
 
-Audio waveform( RealFunc wave, double length, RealFunc freq, size_t samplerate, size_t oversample )
+Audio waveform( Func1x1 wave, float length, Func1x1 freq, size_t samplerate, size_t oversample )
 	{
-	length = std::max( length, 0.0 );
+	length = std::max( length, 0.0f );
 
 	Audio::Format format;
 	format.numChannels = 1;
-	format.numSamples = length * samplerate;
+	format.numFrames = length * samplerate;
 	format.sampleRate = samplerate;
 	Audio out( format );
 	WDL_Resampler rs;
 	rs.SetMode(true, 1, true, 512); // CPU-heavy but pretty good sinc interpolation
 	double overrate = samplerate * oversample;
-	rs.SetRates( overrate, samplerate );
+	rs.SetRates( overrate, double( samplerate ) );
 	WDL_ResampleSample * rsinbuf = nullptr;
-	int wanted = rs.ResamplePrepare( format.numSamples, 1, &rsinbuf );
-	double phase = 0.0;
+	int wanted = rs.ResamplePrepare( format.numFrames, 1, &rsinbuf );
+	float phase = 0.0;
 	
 	for( size_t sample = 0; sample < wanted; ++sample )
 		{
-		double s = wave(phase);
+		float s = wave(phase);
 		rsinbuf[sample] = s * 0.9; // lower the gain a bit in case the resampling causes overshoots
-		phase += freq( double(sample) / overrate ) * ( 2 * pi / overrate );
+		phase += freq( float(sample) / overrate ) * ( 2.0f * pi / overrate );
 		phase = std::fmod( phase, 2 * pi );
 		
 		}
-	rs.ResampleOut( out.getBuffer()->data(), wanted, format.numSamples, 1 );
+	rs.ResampleOut( out.getSamplePointer( 0, 0 ), wanted, format.numFrames, 1 );
 	return out;
 	}
 
-Audio sine( double length, RealFunc freq)
+Audio sine( float length, Func1x1 freq )
 	{
-	return waveform( [](double t){ return std::sin( t ); }, length, freq );
+	return waveform( []( float t ){ return std::sin( t ); }, length, freq );
 	}
-Audio square( double length, RealFunc freq)
+Audio square( float length, Func1x1 freq )
 	{
-	return waveform( [](double t){ return t < pi ? -1.0 : 1.0; }, length, freq );
+	return waveform( []( float t ){ return t < pi ? -1.0 : 1.0; }, length, freq );
 	}
-Audio saw( double length, RealFunc freq)
+Audio saw( float length, Func1x1 freq )
 	{
-	return waveform( [](double t){ return -1.0 + 1.0 / pi * t; }, length, freq );
+	return waveform( []( float t ){ return -1.0 + 1.0 / pi * t; }, length, freq );
 	}
-Audio triangle( double length, RealFunc freq)
+Audio triangle( float length, Func1x1 freq )
 	{
-	return waveform( [](double t){ return t < pi? -1.0 + 2.0 / pi * t : 3.0 - 2.0 / pi * t; }, length, freq );
+	return waveform( []( float t ){ return t < pi? -1.0 + 2.0 / pi * t : 3.0 - 2.0 / pi * t; }, length, freq );
 	}
 }
 }

@@ -30,10 +30,10 @@ public:
 	size_t getNumBins() const;
 	size_t getSampleRate() const;
 
-	double binToFrequency( size_t sample ) const;
-	size_t frequencyToBin( double time ) const;
+	float binToFrequency() const;
+	float frequencyToBin() const;
 
-	double getMaxSpectraMagnitude() const;
+	float getMaxSpectraMagnitude() const;
 
 	//======================================================
 	//	Setters
