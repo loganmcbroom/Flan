@@ -87,29 +87,29 @@ Audio convertToAudio_cpu( const PVOC & me )
 	return out;
 	}
 
-struct convertToAudio_FFTWHelper
-	{
-	convertToAudio_FFTWHelper( size_t frameSize, size_t numBins )
-		: in( (std::complex<float>*) fftwf_alloc_complex( numBins ) )
-		, out( fftwf_alloc_real( frameSize ) )
-		, plan( fftwf_plan_dft_c2r_1d( int(frameSize), (fftwf_complex*) in, out, FFTW_MEASURE ) )
-		{}
-	~convertToAudio_FFTWHelper()
-		{
-		fftwf_destroy_plan( plan );
-		fftwf_free( out );
-		fftwf_free( in );
-		}
-
-	void execute() { fftwf_execute( plan ); }
-
-	std::complex<float> * in;
-	float * out;
-	fftwf_plan plan;
-	};
-
 Audio PVOC::convertToAudio() const
 	{
+	struct convertToAudio_FFTWHelper
+		{
+		convertToAudio_FFTWHelper( size_t frameSize, size_t numBins )
+			: in( (std::complex<float>*) fftwf_alloc_complex( numBins ) )
+			, out( fftwf_alloc_real( frameSize ) )
+			, plan( fftwf_plan_dft_c2r_1d( int(frameSize), (fftwf_complex*) in, out, FFTW_MEASURE ) )
+			{}
+		~convertToAudio_FFTWHelper()
+			{
+			fftwf_destroy_plan( plan );
+			fftwf_free( out );
+			fftwf_free( in );
+			}
+
+		void execute() { fftwf_execute( plan ); }
+
+		std::complex<float> * in;
+		float * out;
+		fftwf_plan plan;
+		};
+
 	std::cout << "PVOC::convertToAudio ... \n";
 
 #ifndef USE_OPENCL
