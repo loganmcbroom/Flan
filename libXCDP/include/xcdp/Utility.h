@@ -112,20 +112,42 @@ std::array<uint8_t,3> HSVtoRGB( int H, float S, float V );
  */
 bool writeBMP( const std::string & filename, const std::vector<std::vector<std::array<uint8_t,3>>> & data );
 
-//class elapsedtimer
-//{
-//public:
-//	elapsedtimer()
-//	{
-//		m_begin = std::chrono::steady_clock::now();
-//	}
-//	long long elapsed()
-//	{
-//		auto now = std::chrono::steady_clock::now();
-//		return std::chrono::duration_cast<std::chrono::milliseconds>(now - m_begin).count();
-//	}
-//private:
-//	std::chrono::steady_clock::time_point m_begin;
-//};
+class Timer
+{
+public:
+    void start()
+        {
+        m_StartTime = std::chrono::system_clock::now();
+        m_bRunning = true;
+        }
+    
+    void stop()
+        {
+        m_EndTime = std::chrono::system_clock::now();
+        m_bRunning = false;
+        }
+    
+    float elapsedMilliseconds()
+        {
+        std::chrono::time_point<std::chrono::system_clock> endTime;
+        
+        if(m_bRunning)
+            endTime = std::chrono::system_clock::now();
+        else
+            endTime = m_EndTime;
+        
+        return std::chrono::duration_cast<std::chrono::milliseconds>( endTime - m_StartTime ).count();
+     }
+    
+    float elapsedSeconds()
+    {
+        return elapsedMilliseconds() / 1000.0f;
+    }
+
+private:
+    std::chrono::time_point<std::chrono::system_clock> m_StartTime;
+    std::chrono::time_point<std::chrono::system_clock> m_EndTime;
+    bool                                               m_bRunning = false;
+};
 
 }

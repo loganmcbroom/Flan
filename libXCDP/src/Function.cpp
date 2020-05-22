@@ -17,14 +17,13 @@ void Func1x1::graph( const std::string & filename,
 
 	if( left > right ) std::swap( left, right );
 	if( bottom > top ) std::swap( bottom, top );
-	const float resD = float( resolution );
-	const size_t width  = (right - left) * resolution;
-	const size_t height = (top - bottom) * resolution;
+	const float res_f = float( resolution );
+	const size_t width  = (right - left) * float( resolution );
+	const size_t height = (top - bottom) * float( resolution );
 
-	
 	std::vector<float> outputs( width, 0 );
 	for( size_t x = 0; x < outputs.size(); ++x )
-		outputs[x] = std::round( ( f( x / resD + left ) - bottom ) * resD );
+		outputs[x] = std::round( ( f( float(x) / res_f + left ) - bottom ) * res_f );
 
 	//y -> x to match write order
 	std::vector<std::vector<std::array<uint8_t,3>>> data( width, std::vector( height, std::array<uint8_t,3>( {0,0,0} ) ) );
@@ -57,13 +56,12 @@ Func1x1 Func1x1::ADSR( float a, float d, float s, float r, float sLvl, float aEx
 		};
 	}
 
-Func1x1 Func1x1::oscillate( Func1x1 wave, Func1x1 min, Func1x1 max, Func1x1 period )
+Func1x1 Func1x1::periodize( Func1x1 period )
 	{
-	return [&]( float t )
+	return [=]( float t )
 		{
-		const float center = ( max(t) + min(t) ) / 2.0f;
-		const float amp    = ( max(t) - min(t) ) / 2.0f;
-		return center + amp * wave( 2.0f * pi * t / period(t) );
+		const float p = period( t );
+		return f( std::fmod( t, p ) + ( t < 0.0f ? p : 0.0f ) );
 		};
 	}
 

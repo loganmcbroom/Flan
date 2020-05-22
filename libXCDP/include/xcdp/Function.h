@@ -140,15 +140,14 @@ struct Func1x1 : public Function<float, float>
 	static Func1x1 ADSR( float a, float d, float s, float r, float sLvl,
 		float aExp = 1, float dExp = 1, float rExp = 1 );
 
-	/** This generates a periodic Function from any input wave.
+	/** This generates a periodic Function from the input function. 
 	 *
-	 *	\param wave The function to periodize.
+	 *	\param wave The function to periodize. This will only be accessed on the domain [0,period).
 	 *	\param min Bottom of the generated function.
 	 *	\param max Top of the generated function.
 	 *	\param period The period of the output.
 	 */
-	static Func1x1 oscillate( Func1x1 wave = []( float t ){ return sin(t); },
-		Func1x1 min = -1, Func1x1 max = 1, Func1x1 period = 2.0f * 3.14159265359f );
+	Func1x1 periodize( Func1x1 period = 1.0f );
 
 	/** Generate a function that passes through a given set of points.
 	 *
