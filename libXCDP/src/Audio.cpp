@@ -4,7 +4,6 @@
 #include <algorithm>
 #include <complex>
 
-#include <samplerate.h>
 #include <fftw3.h>
 
 #include "xcdp/Function.h"
@@ -17,24 +16,18 @@
 
 using namespace xcdp;
 
-const float pi = std::acos( -1.0 );
+const float pi = std::acos( -1.0f );
 
 Audio::Audio() 
 	: AudioBuffer() 
-//	, complete( true )
-//	, cancelled( false )
 	{}
 
 Audio::Audio( const AudioBuffer::Format & other ) 
 	: AudioBuffer( other ) 
-//	, complete( false )
-//	, cancelled( false )
 	{}
 
 Audio::Audio( const std::string & filename ) 
 	: AudioBuffer( filename ) 
-//	, complete( true )
-//	, cancelled( false )
 	{}
 
 //========================================================
@@ -788,11 +781,9 @@ Audio Audio::fades( float fadeTime, bool start, bool end ) const
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
 		for( size_t sample = 0; sample < timeToFrame() * fadeTime; ++sample )
 			{
-			
-
 			const float fadeAmt = 0.5f - cos( pi * frameToTime() * sample / fadeTime ) / 2.0f;
-			out.getSample( channel, sample						 ) *= fadeAmt;
-			out.getSample( channel, getNumFrames() - 1 - sample ) *= fadeAmt;
+			if( start ) out.getSample( channel, sample						) *= fadeAmt;
+			if( end	  ) out.getSample( channel, getNumFrames() - 1 - sample ) *= fadeAmt;
 			}
 
 	return out;

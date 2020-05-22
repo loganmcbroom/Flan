@@ -1,3 +1,5 @@
+#ifdef USE_OPENCL
+
 #include "xcdp/CLContext.h"
 
 #include <iostream>
@@ -48,30 +50,32 @@ CLContext & CLContext::get()
 	}
 
 ProgramHelper::ProgramHelper( const std::string & source )
+	{
+	cl_int err;
+
+	//std::ifstream t( "OpenCL/" + file );
+	//if( !t.is_open() )
+	//	{
+	//	std::cout << "Couldn't find " << file << std::endl;
+	//	exit( -1 );
+	//	}
+	//std::stringstream source;
+	//source << t.rdbuf();
+
+	auto & cl = CLContext::get();
+	program = cl::Program( cl.context, source, false, &err );
+	if( err != CL_SUCCESS )
 		{
-		cl_int err;
-
-		//std::ifstream t( "OpenCL/" + file );
-		//if( !t.is_open() )
-		//	{
-		//	std::cout << "Couldn't find " << file << std::endl;
-		//	exit( -1 );
-		//	}
-		//std::stringstream source;
-		//source << t.rdbuf();
-
-		auto & cl = CLContext::get();
-		program = cl::Program( cl.context, source, false, &err );
-		if( err != CL_SUCCESS )
-			{
-			std::cout << "OpenCL error " << err << " while parsing:\n" << source << std::endl;
-			exit( err );
-			}
-
-		err = program.build( cl.devices, "-cl-denorms-are-zero" );
-		if( err != CL_SUCCESS )
-			{
-			std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>( cl.devices[0] ) << "\n";
-			exit( err );
-			}
+		std::cout << "OpenCL error " << err << " while parsing:\n" << source << std::endl;
+		exit( err );
 		}
+
+	err = program.build( cl.devices, "-cl-denorms-are-zero" );
+	if( err != CL_SUCCESS )
+		{
+		std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>( cl.devices[0] ) << "\n";
+		exit( err );
+		}
+	}
+
+#endif

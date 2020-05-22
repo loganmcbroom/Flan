@@ -23,6 +23,16 @@ const Interpolator Interpolators::linear = []( float x )
 	return x;
 	};
 
+const Interpolator Interpolators::smoothstep = []( float x ) 
+	{ 
+	return x * x * ( 3.0f - 2.0f * x );
+	};
+
+const Interpolator Interpolators::smootherstep = []( float x ) 
+	{ 
+	return x * x * x * ( x * ( x * 6.0f - 15.0f ) + 10.0f );
+	};
+
 const Interpolator Interpolators::sine = []( float x ) 
 	{ 
 	return ( 1.0f - cos( pi * x ) ) / 2.0f; 

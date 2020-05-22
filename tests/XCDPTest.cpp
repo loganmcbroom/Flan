@@ -1,27 +1,29 @@
 
 
 /* TODO:
-wavetable synth
-additive synth
-more filters
 
-stretch data loss? 0 initial frequency artifact?
-sort PVOC data by frequency, see if output improves
-Accept saving 0 size audio files
-writebmp shouldn't take vector of vector (and fix documentation)
-optimize cpu audio/pvoc conversions
-add interpolation to gpu methods with interpolator sampling
-Add more interpolators
-Do you need to explicitly write out the forwarding constructors in Audio/PVOC?
-Write custom wav loader so libsndfile isn't required
-test all procs after so many changes
-Add other lib compilation flags?
-Make procs uncrashable
-Implement Audio::fade flags
-Move timer to utilities
-Switch to signed integer representation in PVOC RIFF data
-see if the Funct2x1 constructor can get working
-add Func1x1 spline generator?
+Additions:
+	wavetable synth
+	additive synth
+	more filters
+	add Func1x1 spline generator
+
+Improvements:
+	see if the Funct2x1 constructor can get working
+	Add other lib compilation flags
+		Add header only fft to build as option when fftw isn't used
+		Write custom wav loader so libsndfile isn't required
+	optimize cpu audio/pvoc conversions
+	sort PVOC data by frequency, see if output improves
+
+Fixes:
+	Make procs uncrashable
+	test all procs after so many changes
+	Switch to signed integer representation in PVOC RIFF data
+		add interpolation to gpu methods with interpolator sampling
+		writebmp shouldn't take vector of vector (and fix documentation)
+	stretch data loss? 0 initial frequency artifact?
+	Accept saving 0 size audio files
 */
 
 #include <iostream>

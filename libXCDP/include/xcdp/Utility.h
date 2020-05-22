@@ -25,6 +25,15 @@ extern const Interpolator constant;
 /** Input returning function. */
 extern const Interpolator linear;
 
+/** Input returning function. */
+extern const Interpolator linear;
+
+/** Smoothstep, as seen here: https://en.wikipedia.org/wiki/Smoothstep */
+extern const Interpolator smoothstep;
+
+/** Smootherstep, as seen here: https://en.wikipedia.org/wiki/Smoothstep */
+extern const Interpolator smootherstep;
+
 /** Sine based interpolation. This moves from a valley to the following peak of a sinusoid. */
 extern const Interpolator sine;
 }

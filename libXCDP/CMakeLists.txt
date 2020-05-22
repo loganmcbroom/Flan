@@ -31,7 +31,6 @@ target_include_directories( libXCDP
 target_link_libraries( libXCDP 
 	PRIVATE
 		SndFile::sndfile
-		SampleRate::samplerate
 		FFTWF::fftwf
 		OpenCL::OpenCL
 	)	
