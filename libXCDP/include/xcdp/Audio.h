@@ -53,10 +53,10 @@ public:
 	 */
 	float getTotalEnergy() const;
 
-	/** Creates and saves a bmp of the input waveform
+	/** Creates and saves a bmp of the input waveform. Each channel is graphed and the images are stacked vertically.
 	 *	\param filename File path at which to save (should end in .bmp)
 	 *	\param width Output bmp width
-	 *	\param height Output bmp height
+	 *	\param height The height of each channel in the bmp.
 	 */
 	Audio graph( const std::string & filename, size_t width = 2048, size_t height = 512 ) const;
 

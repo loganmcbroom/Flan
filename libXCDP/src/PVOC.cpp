@@ -215,7 +215,7 @@ const PVOC & PVOC::graph( const std::string & fileName ) const
 	float maxMag = getMaxPartialMagnitude();
 
 	//bin -> frame to match write order
-	std::vector<std::vector<std::array<uint8_t,3>>> data( getNumFrames(), std::vector( getNumBins(), std::array<uint8_t,3>( {0,0,0} ) ) );
+	std::vector<std::array<uint8_t,3>> data( getNumFrames()*getNumBins(), std::array<uint8_t,3>{0,0,0} );
 	if( maxMag > 0 )
 		for( size_t bin = 0; bin < getNumBins(); ++bin )
 			for( size_t frame = 0; frame < numFrames; ++frame )	
@@ -236,10 +236,10 @@ const PVOC & PVOC::graph( const std::string & fileName ) const
 				const int hueAngle = int( deviation * 1800.0 + initialHueAngle );
 				const int wrappedHueAngle = hueAngle - int(360.0*floor( float(hueAngle) / 360.0 ));
 
-				data[frame][bin] = HSVtoRGB( wrappedHueAngle, 1.0, value );
+				data[frame*getNumBins() + bin] = HSVtoRGB( wrappedHueAngle, 1.0, value );
 				}
 
-	writeBMP( fileName, data );
+	writeBMP( fileName, getNumFrames(), data );
 	return *this;
 	}
 

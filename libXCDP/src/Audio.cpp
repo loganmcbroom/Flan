@@ -117,13 +117,13 @@ Audio Audio::graph( const std::string & filename, size_t width, size_t height ) 
 	if( getNumFrames() == 0 ) return *this;
 	width = std::min( width, getNumFrames() );
 
-	std::vector<std::vector<std::array<uint8_t,3>>> data( width, std::vector( height*getNumChannels(), backgroundColor ) );
+	std::vector<std::array<uint8_t,3>> data( width * height * getNumChannels(), backgroundColor );
 
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
 		{
-		std::vector<float> energies( width, 0.0 );
-		for( size_t sample = 0; sample < getNumFrames(); ++sample )
-			energies[ float( sample ) / float( getNumFrames() * width ) ] += getSample( channel, sample );
+		std::vector<float> energies( width, 0.0f );
+		for( size_t frame = 0; frame < getNumFrames(); ++frame )
+			energies[ float( frame * width ) / float( getNumFrames() ) ] += getSample( channel, frame );
 		float maxEnergy = 0;
 		for( size_t x = 0; x < width; ++x )
 			maxEnergy = std::max( maxEnergy, std::abs( energies[x] ) );
@@ -131,15 +131,23 @@ Audio Audio::graph( const std::string & filename, size_t width, size_t height ) 
 		for( size_t x = 0; x < width; ++x )
 			{
 			const int height2 = height / 2;
-			data[x][height2 + height * channel ] = {0,0,0};
-			for( long long int y = 0; std::abs( y ) < std::abs( energies[x] / maxEnergy * height2 ) * 0.9; energies[x] > 0 ? ++y : --y )
+			data[x*height*getNumChannels() + height2 + height * channel ] = {0,0,0};
+
+			const auto midpoint = data.begin() + x * height * getNumChannels() + height2 + height * channel;
+			const int audioHeight = energies[x] / maxEnergy * height2 * 0.9f;
+			if( energies[x] > 0 )
 				{
-				data[x][ height2 + y + height * channel ] = audioColor;
+				std::fill( midpoint,  midpoint  + audioHeight, audioColor );
+				}
+			else
+				{
+				const auto midpointr = std::make_reverse_iterator( midpoint );
+				std::fill( midpointr, midpointr - audioHeight, audioColor );
 				}
 			}
 		}
 
-	writeBMP( filename, data );
+	writeBMP( filename, width, data );
 
 	return *this;
 	}

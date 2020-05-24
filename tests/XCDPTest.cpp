@@ -2,6 +2,9 @@
 
 /* TODO:
 
+Compatibility:
+	check saving and loading on a big endian system
+
 Additions:
 	wavetable synth
 	additive synth
@@ -10,20 +13,27 @@ Additions:
 
 Improvements:
 	see if the Funct2x1 constructor can get working
-	Add other lib compilation flags
-		Add header only fft to build as option when fftw isn't used
-		Write custom wav loader so libsndfile isn't required
 	optimize cpu audio/pvoc conversions
 	sort PVOC data by frequency, see if output improves
+	stop documentation on wdl
 
 Fixes:
 	Make procs uncrashable
 	test all procs after so many changes
 	Switch to signed integer representation in PVOC RIFF data
-		add interpolation to gpu methods with interpolator sampling
-		writebmp shouldn't take vector of vector (and fix documentation)
+	add interpolation to gpu methods with interpolator sampling
 	stretch data loss? 0 initial frequency artifact?
 	Accept saving 0 size audio files
+	allow big widths in Audio::graph
+	8bit support for loading
+
+Dependancy removal:
+	Add other lib compilation flags (implement)
+	Add header only fft to build as option when fftw isn't used
+	Write custom wav loader so libsndfile isn't required
+
+check if the #ifdef in pvoc header can be removed
+rewrite PVOCBuffer::save with new RIFF writer
 */
 
 #include <iostream>
@@ -42,37 +52,11 @@ void graph( const std::string & f );
 
 void main()
 	{
+	//Audio one = Synthesis::sine( 1, 440 );
+	//one.save( "one.wav" );
 
-	Func1x1 func = []( float t ){ return t*t; };
-	func.periodize( []( float t ){ return 1.0f/(t*t+1.0);} )
-	.graph( "tempgraph.bmp" );
-
-    //Audio in = Audio( "Audio/meow.wav" );
-
-	//auto out = 
-    //in
-	//.convertToPVOC()
- //   .modify( []( vec2 v ) 
- //       { 
- //       v.y() += ( 1.0 - cos( v.x() * 10.0f ) ) * 100.0f;
- //       v.x() += ( 1.0f - cos( v.x() * 10.0f ) );
- //       return v;
- //       })
- //   .graph( "tempgraph.bmp" )
-	//.convertToAudio()
- //   ;
-
-    graph( "tempgraph.bmp" );
-	//play( out.setVolume( .5 ) );
-
- //   PVOC meow = Audio( "Audio/meow.wav" ).convertToPVOC();
-
- //   Timer timer;
- //   timer.start();
-	//for( int i = 0; i < 100; ++i )
-	//	 meow.modifyFrequency( []( double t, double f ){ return t; } );
- //   timer.stop();
- //   std::cout << timer.elapsedSeconds() << std::endl;
+	Audio two( "8bitSine.wav" );
+	play( two.setVolume( .2 ) );
 	}
 
 

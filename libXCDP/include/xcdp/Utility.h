@@ -117,9 +117,20 @@ std::array<uint8_t,3> HSVtoRGB( int H, float S, float V );
 
 /** Write a BMP stored in memory to disk.
  *  \param filename File path to write to. Should use the extension bmp.
- *  \param data The data to write (Finish me)
+ *  \param width The width of the output. Height will be determined by the size of data.
+ *  \param data The data to write. The data should be in x-major order, meaning each vertical line should
+ *      be written before the next. Each data point should be in RGB order.
  */
-bool writeBMP( const std::string & filename, const std::vector<std::vector<std::array<uint8_t,3>>> & data );
+bool writeBMP( const std::string & filename, size_t width, const std::vector<std::array<uint8_t,3>> & data );
+
+struct RIFFData
+    {
+    RIFFData( uint32_t v ) : value( v ), numBytes( 4 ) {}
+    RIFFData( uint16_t v ) : value( v ), numBytes( 2 ) {}
+    uint32_t value;
+    uint16_t numBytes; //Must be 2 or 4
+    };
+bool writeRIFF( const std::string & filename, const char type[4], const void * data, size_t dataSize, std::vector<RIFFData> format );
 
 class Timer
 {

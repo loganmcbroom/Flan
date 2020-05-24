@@ -48,15 +48,19 @@ public:
 	//	I/O
 	//======================================================
 
-	/** File loading. Only enabled with libsndfile.
-	 *	\param filePath File to load. Accepts any format accepted by libsndfile. Notably cannot load mp3.
+	/** File loading.
+	 *	\param filePath File to load. If libsndfile is enabled this can be any format accepted by libsndfile, notably not mp3.
+	 *		If libsndfile is disabled this can only be a wave file.
 	 */
-	void load( const std::string & filePath );
+	bool load( const std::string & filePath );
 
-	/** File saving. Only enabled with libsndfile.
-	 *	\param filePath File to save. Saves to 24-bit wave.
+	/** File saving.
+	 *	\param filePath File path to save at.
+	 *	\param format The libsndfile format to save to. The default of -1 will save as 24bit PCM WAVE.
+	 *		If libsndfile is disabled this does nothing, and 24bit PCM WAVE will always be used.
 	 */
-	bool save( const std::string & filePath ) const;
+	bool save( const std::string & filePath, int format = -1 ) const;
+
 
 	/** Prints buffer dimensions and sample rate to cout.
 	 */

@@ -26,7 +26,7 @@ void Func1x1::graph( const std::string & filename,
 		outputs[x] = std::round( ( f( float(x) / res_f + left ) - bottom ) * res_f );
 
 	//y -> x to match write order
-	std::vector<std::vector<std::array<uint8_t,3>>> data( width, std::vector( height, std::array<uint8_t,3>( {0,0,0} ) ) );
+	std::vector<std::array<uint8_t,3>> data( width * height, std::array<uint8_t,3>{0,0,0} );
 	for( uint32_t y = 0; y < height; ++y )
 		{
 		for( uint32_t x = 0; x < width; ++x )	
@@ -34,11 +34,11 @@ void Func1x1::graph( const std::string & filename,
 			float value = ( y == outputs[x] ? 0.0f : 1.0f);
 			if( x + left   * resolution == 0 ) value = 0.0f;
 			if( y + bottom * resolution == 0 ) value = 0.0f;
-			data[x][y] = HSVtoRGB( 0, 0.0, value );
+			data[x*height+y] = HSVtoRGB( 0, 0.0, value );
 			}
 		}
 
-	writeBMP( filename, data );
+	writeBMP( filename, width, data );
 
 	std::cout << "Done\n";
 	}
