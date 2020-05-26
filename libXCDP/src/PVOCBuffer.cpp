@@ -23,8 +23,33 @@ PVOCBuffer::PVOCBuffer( const std::string & filename )
 
 bool PVOCBuffer::save( const std::string & filename ) const
 	{
+	const int byteDepth = 3;
+	const double limit = std::pow( 2, 8 * byteDepth - 1 );
+	const float windowSize_f = getWindowSize();
+	const float maxFreq_f = getSampleRate();
+
+	//Convert buffer to 24bit signed int representation
+	std::vector<uint8_t> bytes( buffer->size() * 2 * byteDepth );
+	for( size_t channel = 0; channel < getNumChannels(); ++channel )
+		for( size_t frame = 0; frame < getNumFrames(); ++frame )
+			for( size_t bin = 0; bin < getNumBins(); ++bin )
+				{
+				int32_t m_32 = double( std::clamp( getMF( channel, frame, bin ).m / windowSize_f, -1.0f, 1.0f ) ) * limit;
+				int32_t f_32 = double( std::clamp( getMF( channel, frame, bin ).f / maxFreq_f,	  -1.0f, 1.0f ) ) * limit;
+
+				size_t pos = getBufferPos( channel, frame, bin ) * 2 * byteDepth;
+
+				bytes[ pos + 0 ] = (uint8_t) ( m_32 >> 0  ) & 0xFF;
+				bytes[ pos + 1 ] = (uint8_t) ( m_32 >> 8  ) & 0xFF;
+				bytes[ pos + 2 ] = (uint8_t) ( m_32 >> 16 ) & 0xFF;
+
+				bytes[ pos + 3 ] = (uint8_t) ( f_32 >> 0 )  & 0xFF;
+				bytes[ pos + 4 ] = (uint8_t) ( f_32 >> 8 )  & 0xFF;
+				bytes[ pos + 5 ] = (uint8_t) ( f_32 >> 16 ) & 0xFF;
+				}
+
 	//Write entire buffer to file
-	writeRIFF( filename, "PVOC", buffer->data(), buffer->size() * 2 * sizeof( float ), 
+	writeRIFF( filename, "PVOC", bytes.data(), bytes.size(), 
 		{
 		(uint16_t) 1,					//Formatting
 		(uint16_t) getNumChannels(),	//Channel Count
@@ -63,28 +88,40 @@ bool PVOCBuffer::load( const std::string & filename )
 	PVOCBuffer::Format format;
 	file.read( strBuffer, 4 ); if( strncmp( strBuffer, "fmt ", 4 ) != 0 ) return bail( filename + " isn't formatted correctly (\"fmt \" wasn't at the start of the format chunk).\n" );
 	file.read( (char * ) &int32Buffer, 4 ); //Chunk size
-	file.read( (char * ) &int16Buffer, 2 ); //formatting
+	file.read( (char * ) &int16Buffer, 2 );  if( int16Buffer != 1 ) return bail( "Formatting must be 1 (signed int)." );
 	file.read( (char * ) &int16Buffer, 2 ); format.numChannels = int16Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); format.numFrames = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); format.numBins = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); format.sampleRate = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); format.overlaps = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); if( int32Buffer != 24 ) return bail( "Bit depth must be 24." );
-	file.read( (char * ) &int16Buffer, 2 ); if( int16Buffer != 1 ) return bail( "PVOC window must be 1 (Hann)." ); //window type
+	file.read( (char * ) &int16Buffer, 2 ); if( int16Buffer != 1 ) return bail( "PVOC window must be 1 (Hann)." );
 	*this = PVOCBuffer( format );
 
 	//Read data subchunk
 	file.read( strBuffer, 4 ); if( strncmp( strBuffer, "data", 4 ) != 0 ) return bail( filename + " isn't a correctly formatted PVOC file (\"data\" wasn't at the start of the data chunk).\n" );
 	file.read( (char * ) &int32Buffer, 4 );
+
+	
+	//Read buffer
+	const double limit = std::pow( 2, 23 );
+	const float windowSize_f = getWindowSize();
+	const float maxFreq_f = getSampleRate();
+
+	auto getFloat = [limit, &file, windowSize_f]( float div )
+		{
+		int32_t i = 0;
+		file.read( ( (char*) &i ), 3 );
+		if( i & 0x800000 ) i |= 0xFF000000;
+		return float( double( i ) / limit ) * div;
+		};
+
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
 		for( size_t frame = 0; frame < getNumFrames(); ++frame )
 			for( size_t bin = 0; bin < getNumBins(); ++bin )
-				{
-				MF mf;
-				file.read( (char *) &mf, sizeof( MF ) );
-				setMF( channel, frame, bin, mf );
-				}
-	return true;
+				setMF( channel, frame, bin, { getFloat( windowSize_f ), getFloat( maxFreq_f ) } );
+
+	return true;		
 	}
 
 void PVOCBuffer::printSummary() const
@@ -209,9 +246,9 @@ std::ostream & operator<<( std::ostream & os, const PVOCBuffer & pvoc )
 	   << "\nChannels:\t"				<< pvoc.getNumChannels() 
 	   << "\nSamples:\t"				<< pvoc.getNumFrames() 
 	   << "\nBins:\t"					<< pvoc.getNumBins() 
-	   << "\Frames/second:\t"			<< pvoc.timeToFrame() 
-	   << "\Bins/Frequency:\t"			<< pvoc.frequencyToBin() 
-	   << "\Overlaps:\t"				<< pvoc.getOverlaps() 
+	   << "\nFrames/second:\t"			<< pvoc.timeToFrame() 
+	   << "\nBins/Frequency:\t"			<< pvoc.frequencyToBin() 
+	   << "\nOverlaps:\t"				<< pvoc.getOverlaps() 
 	   << "\n=======================================================================" 
 	   << "\n\n";
 	return os;

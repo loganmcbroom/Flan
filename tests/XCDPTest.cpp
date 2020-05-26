@@ -13,25 +13,16 @@ Improvements:
 	see if the Funct2x1 fancy constructor can get working
 	optimize cpu audio/pvoc conversions
 	sort PVOC data by frequency, see if output improves
-	stop documentation on wdl
-	swap PVOC to signed integer representation?
+	stop documentation on wdl, etc
 
 Fixes:
 	Make procs uncrashable
 	test all procs after so many changes
-	Switch to signed integer representation in PVOC RIFF data
 	add interpolation to gpu methods with interpolator sampling
 	stretch data loss? 0 initial frequency artifact?
-	Accept saving 0 size audio files
 	allow big widths in Audio::graph
 	check if \cond removed convertToAudio_FFTHelper doc
 	move spline and djfft into some other folder?
-	test djfft gpu methods
-	remove test cmakelist useopencl flag
-
-Dependancy removal:
-	Add header only fft to build as option when fftw isn't used
-	
 */
 
 #include <iostream>
@@ -50,9 +41,15 @@ void graph( const std::string & f );
 
 void main()
 	{
-	Audio one = Synthesis::sine( .5, 440 );
-	play( one );
-	play( one.convertToPVOC().convertToAudio().setVolume( .7 ) );
+	Audio audio = Synthesis::sine( .3, 440 ).setVolume( .9 );
+	PVOC one = audio.convertToPVOC();
+	one.save( "one.pvoc" );
+	PVOC two( "one.pvoc" );
+
+	std::cout << one << two;
+
+	play( audio );
+	play( two.convertToAudio().setVolume( .9 ) );
 	}
 
 

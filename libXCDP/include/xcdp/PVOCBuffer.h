@@ -82,7 +82,9 @@ public:
 	 *		Bytes 0-3 is "data".
 	 *		Bytes 4-7 is the size of the data chunk minus the data up to and including this data (8).
 	 *		The remainder of the bytes are the pvoc data stored in channel -> frame -> bin order. 
-	 *		Each piece of PVOC data should be stored in magnitude, frequency order, using little endian floats
+	 *		Each piece of PVOC data should be stored in magnitude, frequency order, using signed integers (as WAVE does).
+	 *		Note that magnitudes will likely need to be normalized before storage.
+	 *		Frequency data should be scaled so the max 24bit signed int value maps to the audio sample rate corresponding to the PVOC saved.
 	 *
 	 *	\param filePath A PVOC file to load.
 	 */

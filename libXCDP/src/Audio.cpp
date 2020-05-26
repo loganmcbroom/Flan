@@ -203,7 +203,7 @@ public:
 		{ 
 		std::vector<std::complex<float>> in_c( in_.size() );
 		for( int i = 0; i < in_.size(); ++i ) in_c[i] = in_[i]; //convert to complex
-		out_ = dj::fft1d( in_c, dj::fft_dir::DIR_FWD );
+		out_ = dj::fft1d_gpu( in_c, dj::fft_dir::DIR_FWD );
 		}
 
 	std::complex<float>  * outBuffer() { return out_.data(); }

@@ -69,7 +69,7 @@ public:
 
 	void execute() 
 		{ 
-		const std::vector<std::complex<float>> out_c = dj::fft1d( in_, dj::fft_dir::DIR_BWD );
+		const std::vector<std::complex<float>> out_c = dj::fft1d_gpu( in_, dj::fft_dir::DIR_BWD );
 		std::transform( out_c.begin(), out_c.end(), out_.begin(), []( std::complex<float> c ){ return c.real(); } );
 		}
 
