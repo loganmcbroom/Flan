@@ -5,7 +5,6 @@ target_link_libraries( XCDPTest
 	winmm.lib
 	)
 
-add_definitions( -DUSE_OPENCL )
 
 
 

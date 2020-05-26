@@ -32,7 +32,7 @@ if( USE_FFTW )
 endif( USE_FFTW )
 unset( USE_FFTW CACHE )
 
-option( USE_SNDFILE "Build using libsndfile" Off )
+option( USE_SNDFILE "Build using libsndfile" ON )
 if( USE_SNDFILE )
 	add_definitions( -DUSE_SNDFILE )
 	find_package( SndFile REQUIRED ) # SndFile::sndfile

@@ -97,12 +97,11 @@ public:
 	 */
 	PVOC modifyTime( Func2x1 mod, Interpolator = Interpolators::linear ) const;
 
-#ifdef USE_OPENCL
-
 	/** This is nearly identical to PVOC::modify.
 	 *	Due to the computations being on the gpu in parallel it is much faster.
 	 *	The cost of this speed is that the output buffer is write only, so any output bin mapped to more than once
 	 *  will take one of those written values only, with no determination as to which.
+	 *	This method will return the input if xcdp was built without OpenCL.
 	 *	
 	 *	\param mod Takes and returns time/frequency pairs as either xcdp::vec2 or std::complex<float>
 	 *	\param interp Interpolator used in quad mapping, this is sampled 512 times for use by OpenCL
@@ -111,6 +110,7 @@ public:
 
 	/** This is functionally equivalent to using PVOC::modify_cl and only outputting the input time
 	 *	See PVOC::modify_cl for the effects of non-parallel computation
+	 *	This method will return the input if xcdp was built without OpenCL.
 	 *	
 	 *	\param mod Takes time/frequency pairs and returns frequency
 	 *	\param interp Interpolator used in frequency mapping, this is sampled 512 times for use by OpenCL
@@ -119,13 +119,12 @@ public:
 
 	/** This is functionally equivalent to using PVOC::modify_cl and only outputting the input frequency
 	 *	See PVOC::modify_cl for the effects of non-parallel computation
+	 *	This method will return the input if xcdp was built without OpenCL.
 	 *	
 	 *	\param mod Takes time/frequency pairs and returns time
 	 *	\param interp Interpolator used in time mapping, this is sampled 512 times for use by OpenCL
 	 */
 	PVOC modifyTime_cl( Func2x1 mod, Interpolator interp = Interpolators::linear  ) const;
-
-#endif
 
 	/** This is functionally equivalent to using PVOC::modifyFrequency_cl with the mod output multiplied by input frequency
 	 *	

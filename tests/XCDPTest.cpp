@@ -1,5 +1,3 @@
-
-
 /* TODO:
 
 Compatibility:
@@ -12,10 +10,11 @@ Additions:
 	add Func1x1 spline generator
 
 Improvements:
-	see if the Funct2x1 constructor can get working
+	see if the Funct2x1 fancy constructor can get working
 	optimize cpu audio/pvoc conversions
 	sort PVOC data by frequency, see if output improves
 	stop documentation on wdl
+	swap PVOC to signed integer representation?
 
 Fixes:
 	Make procs uncrashable
@@ -25,15 +24,14 @@ Fixes:
 	stretch data loss? 0 initial frequency artifact?
 	Accept saving 0 size audio files
 	allow big widths in Audio::graph
-	8bit support for loading
+	check if \cond removed convertToAudio_FFTHelper doc
+	move spline and djfft into some other folder?
+	test djfft gpu methods
+	remove test cmakelist useopencl flag
 
 Dependancy removal:
-	Add other lib compilation flags (implement)
 	Add header only fft to build as option when fftw isn't used
-	Write custom wav loader so libsndfile isn't required
-
-check if the #ifdef in pvoc header can be removed
-rewrite PVOCBuffer::save with new RIFF writer
+	
 */
 
 #include <iostream>
@@ -52,11 +50,9 @@ void graph( const std::string & f );
 
 void main()
 	{
-	//Audio one = Synthesis::sine( 1, 440 );
-	//one.save( "one.wav" );
-
-	Audio two( "8bitSine.wav" );
-	play( two.setVolume( .2 ) );
+	Audio one = Synthesis::sine( .5, 440 );
+	play( one );
+	play( one.convertToPVOC().convertToAudio().setVolume( .7 ) );
 	}
 
 

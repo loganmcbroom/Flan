@@ -4,8 +4,6 @@
 #include <algorithm>
 #include <complex>
 
-#include <fftw3.h>
-
 #include "xcdp/Function.h"
 #include "xcdp/PVOC.h"
 #include "xcdp/Spectrum.h"
@@ -156,15 +154,82 @@ Audio Audio::graph( const std::string & filename, size_t width, size_t height ) 
 // Conversions
 //========================================================
 
-PVOC convertToPVOC_cpu( const Audio & me, const size_t frameSize, const size_t overlaps )
+#ifdef USE_FFTW
+
+#include <fftw3.h>
+class convertToPVOC_FFTHelper 
+	{
+public:
+	convertToPVOC_FFTHelper( size_t windowSize, size_t numBins )
+		: in_( fftwf_alloc_real( windowSize ) )
+		, out_( (std::complex<float>*) fftwf_alloc_complex( numBins ) )
+		, plan( fftwf_plan_dft_r2c_1d( int( windowSize ), in_, (fftwf_complex*) out_, FFTW_MEASURE ) )
+		{}
+	~convertToPVOC_FFTHelper()
+		{
+		fftwf_destroy_plan( plan );
+		fftwf_free( out_ );
+		fftwf_free( in_ );
+		}
+
+	void execute() { fftwf_execute( plan ); }
+
+	std::complex<float>  * outBuffer() { return out_; }
+
+	float in( size_t n ) { return in_[n]; }
+	void setIn( size_t n, float v ) { in_[n] = v; }
+
+	std::complex<float> out( size_t n ) { return out_[n]; }
+	void setOut( size_t n, std::complex<float> v ) { out_[n] = v; }
+
+private:
+	float * in_;
+	std::complex<float> * out_;
+	fftwf_plan plan;
+	};
+
+#else
+
+#include "xcdp/dj_fft.h";
+class convertToPVOC_FFTHelper
+	{
+public:
+	convertToPVOC_FFTHelper( size_t windowSize, size_t numBins ) 
+		: in_( windowSize )
+		, out_( windowSize, 0 )
+		{}
+
+	void execute() 
+		{ 
+		std::vector<std::complex<float>> in_c( in_.size() );
+		for( int i = 0; i < in_.size(); ++i ) in_c[i] = in_[i]; //convert to complex
+		out_ = dj::fft1d( in_c, dj::fft_dir::DIR_FWD );
+		}
+
+	std::complex<float>  * outBuffer() { return out_.data(); }
+
+	float in( size_t n ) { return in_[n]; }
+	void setIn( size_t n, float v ) { in_[n] = v; }
+
+	std::complex<float> out( size_t n ) { return out_[n]; }
+	void setOut( size_t n, std::complex<float> v ) { out_[n] = v; }
+
+private:
+	std::vector<float> in_;
+	std::vector<std::complex<float>> out_;
+	};
+
+#endif
+
+PVOC convertToPVOC_cpu( const Audio & me, const size_t windowSize, const size_t overlaps )
 	{
 	//Figure out some helpful quantities
-	const size_t numBins = frameSize / 2 + 1;
-	const size_t hopSize = frameSize / overlaps;
+	const size_t numBins = windowSize / 2 + 1;
+	const size_t hopSize = windowSize / overlaps;
 	const size_t numFrames = me.getNumFrames();
 	//+1 since we analyze at start and end times
 	const size_t numHops = size_t( ceil( numFrames / hopSize ) ) + 1; 
-	const float binWidthD = float( me.getSampleRate() ) / float( frameSize );
+	const float binWidthD = float( me.getSampleRate() ) / float( windowSize );
 	
 	PVOCBuffer::Format PVOCFormat;
 	PVOCFormat.numChannels = me.getNumChannels();
@@ -176,9 +241,7 @@ PVOC convertToPVOC_cpu( const Audio & me, const size_t frameSize, const size_t o
 
 	//Allocate fftw input buffer, output buffer, phase buffer, and plan
 	std::vector<float> phaseBuffer( numBins );
-	float * fftIn = fftwf_alloc_real( frameSize );
-	std::complex<float> *fftOut = (std::complex<float>*) fftwf_alloc_complex( numBins );
-	fftwf_plan plan = fftwf_plan_dft_r2c_1d( int( frameSize ), fftIn, (fftwf_complex*) fftOut, FFTW_MEASURE );
+	convertToPVOC_FFTHelper fft( windowSize, numBins );
 
 	//For each channel, do the whole thing
 	for( size_t channel = 0; channel < me.getNumChannels(); ++channel )
@@ -191,17 +254,17 @@ PVOC convertToPVOC_cpu( const Audio & me, const size_t frameSize, const size_t o
 		for( size_t hop = 0; hop < numHops; ++hop )
 			{
 			//Fill fft input buffer with windowed signal, condition protects from bad buffer access in the last few hops
-			for( size_t relativeSample = 0; relativeSample < frameSize; ++relativeSample )
+			for( size_t relativeSample = 0; relativeSample < windowSize; ++relativeSample )
 				{
 				// - overlaps/2 to center window around analysis point
 				const int actualSample = int(relativeSample) + int(hopSize) * (int(hop) - int(overlaps/2));
 				if( 0 <= actualSample && actualSample < numFrames )
-					fftIn[relativeSample] = me.getSample( channel, actualSample ) * window::Hann( float(relativeSample) / float(frameSize) );
+					fft.setIn( relativeSample, me.getSample( channel, actualSample ) * window::Hann( float(relativeSample) / float(windowSize) ) );
 				else
-					fftIn[relativeSample] = 0;
+					fft.setIn( relativeSample, 0 );
 				}
 	
-			fftwf_execute( plan );
+			fft.execute();
 
 			//For each bin, compute frequency and magnitude
 			for( size_t bin = 0; bin < numBins; ++bin )
@@ -219,7 +282,7 @@ PVOC convertToPVOC_cpu( const Audio & me, const size_t frameSize, const size_t o
 				//    difference between two overlapped frames).
 				//  Finally, the actual computed frequence is the bin center plus the deviation from that center
 				//    times the width of a single bin.
-				const float phase = arg( fftOut[bin] );
+				const float phase = arg( fft.out( bin ) );
 				const float phaseDiff = phase - phaseBuffer[bin];
 				phaseBuffer[bin] = phase;
 				const float expectedPhaseDiff = float(bin) * ( 2.0 * pi / float(overlaps) );
@@ -228,56 +291,31 @@ PVOC convertToPVOC_cpu( const Audio & me, const size_t frameSize, const size_t o
 				const float binDeviation = float(overlaps) * wrappedDeltaPhase / ( 2.0 * pi );
 				const float frequency = ( float(bin) + binDeviation ) * binWidthD;
 
-				out.setMF( channel, hop, bin, { abs( fftOut[bin] ), frequency } );
+				out.setMF( channel, hop, bin, { abs( fft.out( bin ) ), frequency } );
 				}
 			}
 		}
 
-	fftwf_destroy_plan( plan );
-	fftwf_free( fftOut );
-	fftwf_free( fftIn );
-
 	return out;
 	}
 
-PVOC Audio::convertToPVOC( const size_t frameSize, const size_t overlaps ) const
+PVOC Audio::convertToPVOC( const size_t windowSize, const size_t overlaps ) const
 	{
-	struct convertToPVOC_FFTWHelper 
-		{
-		convertToPVOC_FFTWHelper( size_t frameSize, size_t numBins )
-			: in( fftwf_alloc_real( frameSize ) )
-			, out( (std::complex<float>*) fftwf_alloc_complex( numBins ) )
-			, plan( fftwf_plan_dft_r2c_1d( int( frameSize ), in, (fftwf_complex*) out, FFTW_MEASURE ) )
-			{}
-		~convertToPVOC_FFTWHelper()
-			{
-			fftwf_destroy_plan( plan );
-			fftwf_free( out );
-			fftwf_free( in );
-			}
-
-		void execute() { fftwf_execute( plan ); }
-
-		float * in;
-		std::complex<float> * out;
-		fftwf_plan plan;
-		};
-
 	std::cout << "Audio::convertToPVOC ... " << std::endl;
 
 #ifndef USE_OPENCL
-	return convertToPVOC_cpu( *this, frameSize, overlaps );
+	return convertToPVOC_cpu( *this, windowSize, overlaps );
 #else
 
 	//Figure out some helpful quantities
-	const size_t numBins = frameSize / 2 + 1;
+	const size_t numBins = windowSize / 2 + 1;
 	const int numBins_i = numBins;
 	const float overlaps_f = overlaps;
-	const size_t hopSize = frameSize / overlaps;
+	const size_t hopSize = windowSize / overlaps;
 	const size_t numFrames = getNumFrames();
 	//+1 since we analyze at start and end times
 	const size_t numHops = size_t( ceil( numFrames / hopSize ) ) + 1; 
-	const float binWidth_f = float( getSampleRate() ) / float( frameSize );
+	const float binWidth_f = float( getSampleRate() ) / float( windowSize );
 	const size_t outChannelDataCount = numBins * numHops;
 	
 	PVOCBuffer::Format PVOCFormat;
@@ -290,12 +328,12 @@ PVOC Audio::convertToPVOC( const size_t frameSize, const size_t overlaps ) const
 	PVOCBuffer::MF * outBufferWriteHead = out.getMFPointer( 0, 0, 0 );
 
 	//Sample Hann window
-	std::vector<float> hannWindow( frameSize );
-	for( size_t i = 0; i < frameSize; ++i )
-		hannWindow[i] = window::Hann( float( i ) / float( frameSize ) );
+	std::vector<float> hannWindow( windowSize );
+	for( size_t i = 0; i < windowSize; ++i )
+		hannWindow[i] = window::Hann( float( i ) / float( windowSize ) );
 
 	//Prepare fftw
-	convertToPVOC_FFTWHelper fftw( frameSize, numBins );
+	convertToPVOC_FFTHelper fft( windowSize, numBins );
 	
 	//prepare OpenCL
 	auto cl = CLContext::get();
@@ -313,23 +351,22 @@ PVOC Audio::convertToPVOC( const size_t frameSize, const size_t overlaps ) const
 			//Fill fft input buffer with windowed signal
 			int actualSample = int(hopSize) * (int(hop) - int(overlaps/2));
 			const float * inputSampleHead = getSamplePointer( channel, actualSample );
-			for( size_t relativeSample = 0; relativeSample < frameSize; ++relativeSample, ++actualSample )
+			for( size_t relativeSample = 0; relativeSample < windowSize; ++relativeSample, ++actualSample )
 				{
 				if( 0 <= actualSample && actualSample < numFrames )
-					fftw.in[relativeSample] = *(inputSampleHead + relativeSample) * hannWindow[relativeSample];
+					fft.setIn( relativeSample, *(inputSampleHead + relativeSample) * hannWindow[relativeSample] );
 				else
-					fftw.in[relativeSample] = 0;
+					fft.setIn( relativeSample, 0 );
 				}
 
 			cl.queue.enqueueBarrierWithWaitList(); //Can't start writing to fftOut until copying to device from previous iteration completes
-			fftw.execute();
+			fft.execute();
 
 			//Copy fft output to device memory
-			
 			cl.queue.enqueueWriteBuffer( clIn, false, 
 				sizeof( std::complex<float> ) * hop * numBins, 
 				sizeof( std::complex<float> ) * numBins, 
-				fftw.out );
+				fft.outBuffer() );
 			}
 
 		//transform spectral buffers into phase/mag buffers

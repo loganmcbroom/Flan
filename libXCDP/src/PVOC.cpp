@@ -4,7 +4,6 @@
 #include <complex>
 #include <array>
 
-#include <fftw3.h>
 #include "xcdp/spline.h"
 
 #include "xcdp/WindowFunctions.h"
@@ -20,12 +19,87 @@ const float pi = std::acos( -1.0f );
 //	Conversions
 //========================================================================
 
+/** \cond */
+#ifdef USE_FFTW
+
+#include <fftw3.h>
+class convertToAudio_FFTHelper
+	{
+public:
+	convertToAudio_FFTHelper( size_t windowSize, size_t numBins )
+		: in_( (std::complex<float>*) fftwf_alloc_complex( numBins ) )
+		, out_( fftwf_alloc_real( windowSize ) )
+		, plan( fftwf_plan_dft_c2r_1d( int(windowSize), (fftwf_complex*) in_, out_, FFTW_MEASURE ) )
+		{}
+	~convertToAudio_FFTHelper()
+		{
+		fftwf_destroy_plan( plan );
+		fftwf_free( out_ );
+		fftwf_free( in_ );
+		}
+
+	void execute() { fftwf_execute( plan ); }
+
+	std::complex<float> * inBuffer() { return in_; }
+
+	std::complex<float> in( size_t n ) { return in_[n]; }
+	void setIn( size_t n, std::complex<float> v ) { in_[n] = v; }
+
+	float out( size_t n ) { return out_[n]; }
+	float setOut( size_t n, float v ) { out_[n] = v; }
+
+private:
+	std::complex<float> * in_;
+	float * out_;
+	fftwf_plan plan;
+	};
+
+#else
+
+#define DJ_FFT_IMPLEMENTATION // define this in exactly *one* .cpp file
+#include "xcdp/dj_fft.h";
+
+class convertToAudio_FFTHelper
+	{
+public:
+	convertToAudio_FFTHelper( size_t windowSize, size_t numBins ) 
+		: in_( windowSize )
+		, out_( windowSize, 0 )
+		{}
+
+	void execute() 
+		{ 
+		const std::vector<std::complex<float>> out_c = dj::fft1d( in_, dj::fft_dir::DIR_BWD );
+		std::transform( out_c.begin(), out_c.end(), out_.begin(), []( std::complex<float> c ){ return c.real(); } );
+		}
+
+	std::complex<float> * inBuffer() { return in_.data(); }
+
+	std::complex<float> in( size_t n ) { return in_[n]; }
+	void setIn( size_t n, std::complex<float> v ) 
+		{ 
+		in_[n] = v; 
+		in_[ in_.size() - 1 - n ] = std::conj( v ); 
+		}
+
+	float out( size_t n ) { return out_[n]; }
+	void setOut( size_t n, float v ) { out_[n] = v; }
+
+private:
+	std::vector<std::complex<float>> in_;
+	std::vector<float> out_;
+	};
+
+#endif
+
+/** \endcond */
+
 Audio convertToAudio_cpu( const PVOC & me )
 	{
 	std::cout << "Getting audio ... \n";
 	const size_t numBins = me.getNumBins();
-	const size_t frameSize = me.getWindowSize();
-	const size_t hopSize = frameSize / me.getOverlaps();
+	const size_t windowSize = me.getWindowSize();
+	const size_t hopSize = windowSize / me.getOverlaps();
 	const size_t numHops = me.getNumFrames();
 	const float binWidth_f = me.binToFrequency();
 	
@@ -35,12 +109,10 @@ Audio convertToAudio_cpu( const PVOC & me )
 	audioFormat.sampleRate = me.getSampleRate();
 	Audio out( audioFormat );
 
-	const float windowScale = frameSize * me.getOverlaps();
+	const float windowScale = windowSize * me.getOverlaps();
 
 	std::vector<float> phaseBuffer( numBins );
-	std::complex<float> *fftIn = (std::complex<float>*) fftwf_alloc_complex( numBins );
-	float * fftOut = fftwf_alloc_real( frameSize );
-	fftwf_plan plan = fftwf_plan_dft_c2r_1d( int(frameSize), (fftwf_complex*) fftIn, fftOut, FFTW_MEASURE );
+	convertToAudio_FFTHelper fft( windowSize, numBins );
 
 	for( size_t channel = 0; channel < me.getNumChannels(); ++channel )
 		{
@@ -62,64 +134,41 @@ Audio convertToAudio_cpu( const PVOC & me )
 				const float phaseDiff = deltaPhase + expectedPhaseDiff;
 				phaseBuffer[bin] += phaseDiff;
 				
-				fftIn[bin] = std::polar( magnitude, phaseBuffer[bin] );
+				fft.setIn( bin, std::polar( magnitude, phaseBuffer[bin] ) );
 				}
 
-			fftwf_execute( plan );
+			fft.execute();
 
 			//Accumulate ifft output into audio buffer
-			for( size_t relativeSample = 0; relativeSample < frameSize; ++relativeSample )
+			for( size_t relativeSample = 0; relativeSample < windowSize; ++relativeSample )
 				{
 				// - overlaps/2 is a consequency of marginal frames
 				const int actualSample = (int(hop)-int(me.getOverlaps()/2)) * int(hopSize) + int(relativeSample);
 				if( 0 <= actualSample && actualSample < out.getNumFrames() )
 					{ 
 					out.setSample( channel, actualSample, out.getSample( channel, actualSample ) +
-						window::Hann( float(relativeSample) / float(frameSize) ) / windowScale * fftOut[relativeSample] );
+						window::Hann( float(relativeSample) / float(windowSize) ) / windowScale * fft.out( relativeSample ) );
 					}
 				}
 			}
 		}
-	fftwf_destroy_plan( plan );
-	fftwf_free( fftIn );
-	fftwf_free( fftOut );
 
 	return out;
 	}
 
 Audio PVOC::convertToAudio() const
 	{
-	struct convertToAudio_FFTWHelper
-		{
-		convertToAudio_FFTWHelper( size_t frameSize, size_t numBins )
-			: in( (std::complex<float>*) fftwf_alloc_complex( numBins ) )
-			, out( fftwf_alloc_real( frameSize ) )
-			, plan( fftwf_plan_dft_c2r_1d( int(frameSize), (fftwf_complex*) in, out, FFTW_MEASURE ) )
-			{}
-		~convertToAudio_FFTWHelper()
-			{
-			fftwf_destroy_plan( plan );
-			fftwf_free( out );
-			fftwf_free( in );
-			}
-
-		void execute() { fftwf_execute( plan ); }
-
-		std::complex<float> * in;
-		float * out;
-		fftwf_plan plan;
-		};
 
 	std::cout << "PVOC::convertToAudio ... \n";
 
 #ifndef USE_OPENCL
-	return convertToAudio_cpu( *this, frameSize, overlaps );
-#else
+	return convertToAudio_cpu( *this );
+#endif
 
 	const size_t numBins = getNumBins();
 	const int numBins_i = int(numBins);
-	const size_t frameSize = getWindowSize();
-	const size_t hopSize = frameSize / getOverlaps();
+	const size_t windowSize = getWindowSize();
+	const size_t hopSize = windowSize / getOverlaps();
 	const size_t numHops = getNumFrames();
 	const float binWidth_f = binToFrequency();
 	const size_t outChannelDataCount = numBins * numHops;
@@ -132,15 +181,14 @@ Audio PVOC::convertToAudio() const
 	audioFormat.sampleRate = getSampleRate();
 	Audio out( audioFormat );
 
-	const float windowScale = float( frameSize * getOverlaps() );
+	const float windowScale = float( windowSize * getOverlaps() );
 
 	//Sample Hann window
-	std::vector<float> hannWindow( frameSize );
-	for( size_t i = 0; i < frameSize; ++i )
-		hannWindow[i] = window::Hann( float( i ) / float( frameSize ) ) / windowScale ;
+	std::vector<float> hannWindow( windowSize );
+	for( size_t i = 0; i < windowSize; ++i )
+		hannWindow[i] = window::Hann( float( i ) / float( windowSize ) ) / windowScale ;
 
-	//Prepare fftw
-	convertToAudio_FFTWHelper fftw( frameSize, numBins );
+	convertToAudio_FFTHelper fft( windowSize, numBins );
 
 	//prepare OpenCL
 	auto cl = CLContext::get();
@@ -189,22 +237,25 @@ Audio PVOC::convertToAudio() const
 
 		for( size_t hop = 0; hop < numHops; ++hop )
 			{
-			std::copy( clOutHostBuffRead, clOutHostBuffRead + numBins, fftw.in );
+			std::copy( clOutHostBuffRead, clOutHostBuffRead + numBins, fft.inBuffer() );
+//#ifndef USE_FFTW //dj_fft can only handle power of two ffts, so we need to recover hermitian symmetry here.
+			for( int i = 0; i < numBins - 1; ++i )
+				fft.setIn( i, fft.in(i) );
+//#endif
 			clOutHostBuffRead += numBins;
 
-			fftw.execute();
+			fft.execute();
 
 			//Accumulate ifft output into audio buffer
 			int actualSample = ( int(hop)-int(getOverlaps()/2) ) * int(hopSize);
 			float * inputSampleHead = out.getSamplePointer( channel, actualSample );
-			for( size_t relativeSample = 0; relativeSample < frameSize; ++relativeSample, ++actualSample )
+			for( size_t relativeSample = 0; relativeSample < windowSize; ++relativeSample, ++actualSample )
 				if( 0 <= actualSample && actualSample < out.getNumFrames() )
-					*(inputSampleHead + relativeSample) += fftw.out[relativeSample] * hannWindow[relativeSample];
+					*(inputSampleHead + relativeSample) += fft.out( relativeSample ) * hannWindow[relativeSample];
 			}
 		}
 
 	return out;
-#endif
 	}
 
 const PVOC & PVOC::graph( const std::string & fileName ) const
@@ -885,6 +936,13 @@ PVOC PVOC::modifyTime_cl( Func2x1 outPosFunc, Interpolator interp  ) const
 	cl.queue.enqueueBarrierWithWaitList();
 	return out;
 	}
+
+#else
+
+//Dummy functions for disabled opencl
+PVOC PVOC::modify_cl( Func2x2 mod, Interpolator interp  ) const { return *this; }
+PVOC PVOC::modifyFrequency_cl( Func2x1 outFreqFunc, Interpolator interp  ) const { return *this; }
+PVOC PVOC::modifyTime_cl( Func2x1 outPosFunc, Interpolator interp  ) const { return *this; }
 
 #endif
 

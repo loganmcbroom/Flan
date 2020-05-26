@@ -23,59 +23,19 @@ PVOCBuffer::PVOCBuffer( const std::string & filename )
 
 bool PVOCBuffer::save( const std::string & filename ) const
 	{
-	auto bail = []( const std::string & s )
+	//Write entire buffer to file
+	writeRIFF( filename, "PVOC", buffer->data(), buffer->size() * 2 * sizeof( float ), 
 		{
-		std::cout << s << std::endl;
-		return false;
-		};
+		(uint16_t) 1,					//Formatting
+		(uint16_t) getNumChannels(),	//Channel Count
+		(uint32_t) getNumFrames(),		//Number of frames
+		(uint32_t) getNumBins(),		//Number of bins per frame
+		(uint32_t) getSampleRate(),		//Sample Rate, note this is the sample rate of the audio
+		(uint32_t) getOverlaps(),		//Number of windows overlapping at any frame
+		(uint32_t) 24,					//Bit depth, note that each bin contains two of this
+		(uint16_t) 1					//Window type indicator. 1 = hann.
+		});
 
-	std::ofstream file( filename, std::ios::binary );
-	if( !file ) return bail( "Error opening " + filename + " to write BMP." );
-
-	const uint32_t RIFFChunkSize = 12;
-	const uint32_t FMTChunkSize = 34;
-	const uint32_t dataChunkSize = uint32_t( 8 + buffer->size() * 2 * sizeof( float ) );
-
-	//Write RIFF chunk
-	unsigned char RIFFChunk[ RIFFChunkSize ] = { 0 };
-		writeBytes( RIFFChunk + 0, "RIFF"		); //RIFF ID 
-		writeBytes( RIFFChunk + 4, (uint32_t) 4 ); //RIFF Chunk Size
-		writeBytes( RIFFChunk + 8, "PVOC"		); //File Type
-	file.write( (const char *) RIFFChunk, RIFFChunkSize );
-
-	//Write format information chunk
-	unsigned char FMTChunk[ FMTChunkSize ] = { 0 };
-		writeBytes( FMTChunk +   0, "fmt "						); //RIFF ID
-		writeBytes( FMTChunk +   4, (uint32_t) FMTChunkSize - 8	); //RIFF Chunk Size
-		writeBytes( FMTChunk +   8, (uint16_t) 1				); //Formatting
-		writeBytes( FMTChunk +  10, (uint16_t) getNumChannels()	); //Channel Count
-		writeBytes( FMTChunk +  12, (uint32_t) getNumFrames()	); //Number of frames
-		writeBytes( FMTChunk +  16, (uint32_t) getNumBins()		); //Number of bins per frame
-		writeBytes( FMTChunk +  20, (uint32_t) getSampleRate()	); //Sample Rate, note this is the sample rate of the audio, not the analysis frame rate
-		writeBytes( FMTChunk +  24, (uint32_t) getOverlaps()	); //Number of windows overlapping at any frame
-		writeBytes( FMTChunk +  28, (uint32_t) sizeof( float )	); //Bit depth, note that each bin contains two of this in magnitude frequency order
-		writeBytes( FMTChunk +  32, (uint16_t) 1				); //Window type indicator. 1 = hann.
-	file.write( (const char *) FMTChunk, FMTChunkSize );
-
-	unsigned char dataChunkInfo[ 8 ] = { 0 };
-		writeBytes( dataChunkInfo + 0, "data"						); //RIFF ID
-		writeBytes( dataChunkInfo + 4, (uint32_t) dataChunkSize - 8	); //RIFF Chunk Size
-	file.write( (const char *) dataChunkInfo, 8 );
-
-	for( int channel = 0; channel < getNumChannels(); ++channel )
-		for( int frame = 0; frame < getNumFrames(); ++frame )
-			for( int bin = 0; bin < getNumBins(); ++bin )
-				{
-				const auto mf = getMF( channel, frame, bin );
-
-				const float m = makeLittleEndian( mf.m );
-				const float f = makeLittleEndian( mf.f );
-
-				file.write( (char *) &m, sizeof( float ) ); 
-				file.write( (char *) &f, sizeof( float ) ); 
-				}
-
-	file.close();
 	return true;
 	}
 
@@ -109,8 +69,8 @@ bool PVOCBuffer::load( const std::string & filename )
 	file.read( (char * ) &int32Buffer, 4 ); format.numBins = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); format.sampleRate = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); format.overlaps = int32Buffer;
-	file.read( (char * ) &int32Buffer, 4 ); if( int32Buffer != sizeof( float ) ) return bail( "Using floats only here" ); //bit depth
-	file.read( (char * ) &int16Buffer, 2 ); if( int16Buffer != 1 ) return bail( "Just use Hann window, nerd" ); //window type
+	file.read( (char * ) &int32Buffer, 4 ); if( int32Buffer != 24 ) return bail( "Bit depth must be 24." );
+	file.read( (char * ) &int16Buffer, 2 ); if( int16Buffer != 1 ) return bail( "PVOC window must be 1 (Hann)." ); //window type
 	*this = PVOCBuffer( format );
 
 	//Read data subchunk
@@ -120,10 +80,9 @@ bool PVOCBuffer::load( const std::string & filename )
 		for( size_t frame = 0; frame < getNumFrames(); ++frame )
 			for( size_t bin = 0; bin < getNumBins(); ++bin )
 				{
-				float m, f;
-				file.read( (char *) &m, sizeof( float ) );
-				file.read( (char *) &f, sizeof( float ) );
-				setMF( channel, frame, bin, { littleEndianToCurrent(m), littleEndianToCurrent(f) } );
+				MF mf;
+				file.read( (char *) &mf, sizeof( MF ) );
+				setMF( channel, frame, bin, mf );
 				}
 	return true;
 	}

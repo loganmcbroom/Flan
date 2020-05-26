@@ -260,31 +260,32 @@ bool AudioBuffer::save( const std::string & filePath, int format ) const
 		return false;
 		}
 
-	const uint16_t bytesPerSample = 3;
+	const uint16_t byteDepth = 3;
+	const double limit = std::pow( 2.0, 8 * byteDepth - 1 );
 
 	//Convert buffer to 24bit ints
-	std::vector<uint8_t> byteBuffer( buffer->size() * bytesPerSample );
+	std::vector<uint8_t> byteBuffer( buffer->size() * byteDepth );
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
 		for( size_t frame = 0; frame < getNumFrames(); ++frame )
 			{
 			double clamped = std::clamp( getSample( channel, frame ), -1.0f, 1.0f );
-			clamped *= std::pow( 2.0, 24.0 - 1.0 );
+			clamped *= limit;
 			int32_t intSample = clamped;
 
-			byteBuffer[ ( frame * getNumChannels() + channel ) * bytesPerSample + 0 ] = (uint8_t) ( intSample >> 0  ) & 0xFF;
-			byteBuffer[ ( frame * getNumChannels() + channel ) * bytesPerSample + 1 ] = (uint8_t) ( intSample >> 8  ) & 0xFF;
-			byteBuffer[ ( frame * getNumChannels() + channel ) * bytesPerSample + 2 ] = (uint8_t) ( intSample >> 16 ) & 0xFF;
+			byteBuffer[ ( frame * getNumChannels() + channel ) * byteDepth + 0 ] = (uint8_t) ( intSample >> 0  ) & 0xFF;
+			byteBuffer[ ( frame * getNumChannels() + channel ) * byteDepth + 1 ] = (uint8_t) ( intSample >> 8  ) & 0xFF;
+			byteBuffer[ ( frame * getNumChannels() + channel ) * byteDepth + 2 ] = (uint8_t) ( intSample >> 16 ) & 0xFF;
 			}
 
 	//Write to file
 	return writeRIFF( filePath, "WAVE", byteBuffer.data(), byteBuffer.size(),
 		{
-		uint16_t( 1 ),														// Formatting
-		uint16_t( getNumChannels() ),										// Channel Count
-		uint32_t( getSampleRate() ),										// Sample rate
-		uint32_t( getSampleRate() * getNumChannels() * bytesPerSample ),	// Byte rate
-		uint16_t( getNumChannels() * bytesPerSample ),						// Blockalign
-		uint16_t( bytesPerSample * 8 )										// Bits per sample
+		uint16_t( 1 ),													// Formatting
+		uint16_t( getNumChannels() ),									// Channel Count
+		uint32_t( getSampleRate() ),									// Sample rate
+		uint32_t( getSampleRate() * getNumChannels() * byteDepth ),		// Byte rate
+		uint16_t( getNumChannels() * byteDepth ),						// Blockalign
+		uint16_t( byteDepth * 8 )										// Bits per sample
 		});
 	}
 

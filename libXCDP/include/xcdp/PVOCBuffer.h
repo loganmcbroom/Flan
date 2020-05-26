@@ -82,9 +82,7 @@ public:
 	 *		Bytes 0-3 is "data".
 	 *		Bytes 4-7 is the size of the data chunk minus the data up to and including this data (8).
 	 *		The remainder of the bytes are the pvoc data stored in channel -> frame -> bin order. 
-	 *		Each piece of PVOC data should be stored in magnitude, frequency order, using the appropriately sized IEEE compliant 
-	 *		floating point data type. Due to potential issues with non-conformance to IEEE standards, buffer data will
-	 *		likely switch to a signed integer representation before anyone bothers to use this data type.
+	 *		Each piece of PVOC data should be stored in magnitude, frequency order, using little endian floats
 	 *
 	 *	\param filePath A PVOC file to load.
 	 */
