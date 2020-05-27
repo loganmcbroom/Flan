@@ -41,6 +41,7 @@
 #define PI 3.1415926535897932384626433832795
 #endif
 
+/** \cond */
 class WDL_Resampler::WDL_Resampler_IIRFilter
 {
 public:
@@ -99,6 +100,7 @@ private:
   double m_b0,m_b1,m_b2;
   double m_hist[WDL_RESAMPLE_MAX_FILTERS*WDL_RESAMPLE_MAX_NCH][4];
 };
+/** \endcond */
 
 
 template <class T1, class T2> static void inline SincSample(T1 *outptr, const T1 *inptr, double fracpos, int nch, const T2 *filter, int filtsz, int oversize)
