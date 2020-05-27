@@ -7,7 +7,7 @@
 
 namespace xcdp {
 
-/** This is used as a base for all the vector (math vector) functions used throughout xcdp.
+/** This is used as a base for all the vector (math vector) classes used throughout xcdp.
  *	These are primarily created by passing either lambda functions or constants to Audio or PVOC methods.
  */
 template< typename I, typename O >

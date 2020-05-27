@@ -55,7 +55,7 @@ typedef float WDL_ResampleSample;
 #define WDL_RESAMPLE_MAX_NCH 64
 #endif
 
-
+/** \cond */
 class WDL_Resampler
 {
 public:
@@ -113,7 +113,7 @@ private:
   bool m_feedmode;
 
 };
-
+/** \endcond */
 
 
 #endif

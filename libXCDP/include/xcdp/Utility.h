@@ -123,6 +123,7 @@ std::array<uint8_t,3> HSVtoRGB( int H, float S, float V );
  */
 bool writeBMP( const std::string & filename, size_t width, const std::vector<std::array<uint8_t,3>> & data );
 
+/** \cond */
 struct RIFFData
     {
     RIFFData( uint32_t v ) : value( v ), numBytes( 4 ) {}
@@ -130,8 +131,10 @@ struct RIFFData
     uint32_t value;
     uint16_t numBytes; //Must be 2 or 4
     };
+/** \endcond */
 bool writeRIFF( const std::string & filename, const char type[4], const void * data, size_t dataSize, std::vector<RIFFData> format );
 
+/** \cond */
 class Timer
 {
 public:
@@ -169,5 +172,6 @@ private:
     std::chrono::time_point<std::chrono::system_clock> m_EndTime;
     bool                                               m_bRunning = false;
 };
+/** \endcond */
 
 }

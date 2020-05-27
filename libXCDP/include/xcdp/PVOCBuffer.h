@@ -59,7 +59,7 @@ public:
 	//======================================================
 
 	/** File loading. This utilizes the xcdp specific RIFF data type, PVOC, which is defined here. PVOC files should use the extension pvoc.
-	 *	Data should be saved in little-endian format in 3 chunks. 
+	 *	Data should be saved in little-endian format. 
 	 *
 	 *	Chunk one is the RIFF chunk. 
 	 *		Bytes 0-3 is "RIFF". 

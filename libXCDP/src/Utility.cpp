@@ -9,6 +9,7 @@
 
 #include <bitset> //temp include
 
+
 static float pi = std::acos( -1.0f );
 
 namespace xcdp {

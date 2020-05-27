@@ -2,9 +2,12 @@
 Creative audio processing library based on the Composers Desktop Project.
 
 # Compilation
-Depends on libsndfile, libsamplerate, fftw (the float version). 
-OpenCL is an optional dependancy that permits large optimizations in some of the main algorithms.
-Things will hopefully work out of the box via cmake.
+Optionally depends on libsndfile, FFTW (the float version), and OpenCL.
+libsndfile enables file formats besides WAVE.
+FFTW makes several main algorithms significantly faster.
+OpenCL permits large optimizations in some of the main algorithms.
+Things will hopefully work out of the box via cmake. 
+Dependencies are cmake options and enabled by default, disabling them should allow building anywhere c++14 can be used.
 The cmake find modules are fairly bare-bones, so if they can't find something make sure it is in the system PATH.
 
 # Usage

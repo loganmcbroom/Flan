@@ -44,6 +44,7 @@
 
 #include "wdltypes.h"
 
+/** \cond */
 class WDL_HeapBuf
 {
   public:
@@ -72,7 +73,7 @@ class WDL_HeapBuf
       CopyFrom(&cp,false);
       return *this;
     }
-
+/** \endcond */
 
 
   #ifndef WDL_HEAPBUF_TRACE
@@ -255,6 +256,7 @@ class WDL_HeapBuf
 
 };
 
+/** \cond */
 template<class PTRTYPE> class WDL_TypedBuf 
 {
   public:
@@ -380,6 +382,7 @@ template<class PTRTYPE> class WDL_TypedBuf
   private:
     WDL_HeapBuf m_hb;
 };
+/** \endcond */
 
 #endif // ! WDL_HEAPBUF_IMPL_ONLY
 

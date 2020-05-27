@@ -1,6 +1,7 @@
 #ifndef _WDL_DENORMAL_H_
 #define _WDL_DENORMAL_H_
 
+/** \cond */
 typedef struct 
 { 
   #ifdef __ppc__ // todo: other big endian platforms...
@@ -14,6 +15,7 @@ typedef struct
 
 typedef union { double fl; WDL_DenormalTwoInts w; } WDL_DenormalDoubleAccess;
 typedef union { float fl; unsigned int w; } WDL_DenormalFloatAccess;
+/** \endcond */
 
 
 // note: the _aggressive versions filter out anything less than around 1.0e-16 or so (approximately) to 0.0, including -0.0 (becomes 0.0)

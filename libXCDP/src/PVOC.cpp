@@ -91,7 +91,6 @@ private:
 	};
 
 #endif
-
 /** \endcond */
 
 Audio convertToAudio_cpu( const PVOC & me )

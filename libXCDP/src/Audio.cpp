@@ -154,6 +154,7 @@ Audio Audio::graph( const std::string & filename, size_t width, size_t height ) 
 // Conversions
 //========================================================
 
+/** \cond */
 #ifdef USE_FFTW
 
 #include <fftw3.h>
@@ -220,6 +221,7 @@ private:
 	};
 
 #endif
+/** \endcond */
 
 PVOC convertToPVOC_cpu( const Audio & me, const size_t windowSize, const size_t overlaps )
 	{

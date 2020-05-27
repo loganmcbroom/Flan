@@ -17,12 +17,14 @@ Improvements:
 
 Fixes:
 	Make procs uncrashable
+	check out PVOCEX
 	test all procs after so many changes
 	add interpolation to gpu methods with interpolator sampling
 	stretch data loss? 0 initial frequency artifact?
 	allow big widths in Audio::graph
-	check if \cond removed convertToAudio_FFTHelper doc
 	move spline and djfft into some other folder?
+	add cond around all the stuff we don't want documented
+	
 */
 
 #include <iostream>
