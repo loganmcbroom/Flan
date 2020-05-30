@@ -27,7 +27,7 @@ struct Function
 
 	/** Function composition */
 	template< typename P >
-	Function<P,O> operator()( const Function<P,I> g ) const { return [*this, g]( T t ){ return operator()( g(t) ); }; }
+	Function<P,O> operator()( const Function<P,I> g ) const { return [*this, g]( I t ){ return operator()( g(t) ); }; }
 
 	/** Function multiplication */
     Function<I,O> operator*( const Function<I,O> r ) const { return [*this, r](I t){ return operator()(t) * r(t); }; }
@@ -104,6 +104,7 @@ struct Func1x1 : public Function<float, float>
 {
 	template< typename Constructable >
 	Func1x1( Constructable f ) : Function( f ) {}
+	Func1x1() : Function() {}
 
 	/** Exponentiate and evaluate 
 	 *	\param t
