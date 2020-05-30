@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <complex>
+#include <type_traits>
 
 #include "Utility.h"
 
@@ -14,8 +15,8 @@ template< typename I, typename O >
 struct Function
 {
 	/** Callable constructor. This allows anything that can be called with the correct input and output type to be cast to xcdp::Function. */
-	template< typename Callable >
-	Function( Callable f_ ) : f( f_ ) {}
+	//template< typename Callable >
+	Function( std::function< O ( I ) > f_ ) : f( f_ ) {}
 	Function( float t0	  ) : f( [t0]( I ){ return O( t0 ); } ) {}
 	Function( double t0	  ) : f( [t0]( I ){ return O( t0 ); } ) {}
 	Function( int t0	  ) : f( [t0]( I ){ return O( t0 ); } ) {}
@@ -161,11 +162,13 @@ struct Func1x1 : public Function<float, float>
 /** Real function of vec2 type. */
 struct Func2x1 : public Function<vec2, float>
 {
-	template< typename Constructable >
+	template< typename Constructable,
+			  std::enable_if_t< ! std::is_convertible< Constructable, std::function< float ( float, float ) > >::value, int > = 0 >
 	Func2x1( Constructable f ) : Function( f ) {}
 
-	//Func2x1( std::function< float ( float, float ) > f ) 
-	//	: Function( [f]( vec2 v ) { return f( v.x(), v.y() ); } ) {}
+	template< typename twoArgs, 
+			  std::enable_if_t< std::is_convertible<twoArgs, std::function< float ( float, float ) >>::value, int > = 0 >
+	Func2x1( twoArgs f ) : Function( [f]( vec2 v ) { return f( v.x(), v.y() ); } ) {}
 
 	/** Func2x1 can be constructed from Func1x1 by ignoring the second argument to the constructed Func2x1.  */
 	Func2x1( Func1x1 f_ ) : Function( [f_]( vec2 v ){ return f_( v.x() ); } ) {}

@@ -61,7 +61,6 @@ public:
 	 */
 	bool save( const std::string & filePath, int format = -1 ) const;
 
-
 	/** Prints buffer dimensions and sample rate to cout.
 	 */
 	void printSummary() const;

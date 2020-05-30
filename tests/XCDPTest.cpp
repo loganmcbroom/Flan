@@ -10,21 +10,15 @@ Additions:
 	add Func1x1 spline generator
 
 Improvements:
-	see if the Funct2x1 fancy constructor can get working
 	optimize cpu audio/pvoc conversions
 	sort PVOC data by frequency, see if output improves
-	stop documentation on wdl, etc
+	add interpolation to gpu methods with interpolator sampling
+	allow big widths in Audio::graph
+	Add \mainpage with examples somewhere
+	Add window function parameter in pvoc analysis, PVOCBuffer, and pvoc file io
 
 Fixes:
-	Make procs uncrashable
-	check out PVOCEX
-	test all procs after so many changes
-	add interpolation to gpu methods with interpolator sampling
-	stretch data loss? 0 initial frequency artifact?
-	allow big widths in Audio::graph
-	move spline and djfft into some other folder?
-	add cond around all the stuff we don't want documented
-	
+	stretch 0 frame artifact
 */
 
 #include <iostream>
@@ -43,15 +37,15 @@ void graph( const std::string & f );
 
 void main()
 	{
-	Audio audio = Synthesis::sine( .3, 440 ).setVolume( .9 );
-	PVOC one = audio.convertToPVOC();
-	one.save( "one.pvoc" );
-	PVOC two( "one.pvoc" );
+	Func2x1 bar( []( float t, float f ){ return t * f; } );
 
-	std::cout << one << two;
+	std::cout << bar( 2, 3 );
+	//std::cout << s( 2, 3 );
+	//Audio meow( "Audio/meow.wav" );
+	//meow.convertToMono().save( "Audio/monoMeow.wav" );
 
-	play( audio );
-	play( two.convertToAudio().setVolume( .9 ) );
+	//PVOC meow( "Audio/meow.pvx" );
+	//play( meow.convertToAudio().setVolume( .9 ) );
 	}
 
 

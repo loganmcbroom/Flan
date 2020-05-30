@@ -21,6 +21,53 @@ PVOCBuffer::PVOCBuffer( const std::string & filename )
 	load( filename );
 	}
 
+// PVOC-EX structure
+struct WAVEFORMATPVOCEX					// 80 bytes
+	{
+	struct WAVEFORMATEXTENSIBLE				// 40 bytes
+		{
+		struct WAVEFORMATEX						// 18 bytes, info for renderer as well as for pvoc
+			{ 
+			uint16_t formatTag = 0xFFFE;			// WAVE_FORMAT_EXTENSIBLE macro
+			uint16_t numChannels;					// Number of channels
+			uint32_t sampleRate;					// Sample rate
+			uint32_t byteRate;						// Bytes per second
+			uint16_t blockAlign;					// Block align
+			uint16_t bitsPerSample;					// Bits per sample
+			uint16_t cbSize;						// Bytes after WAVEFORMATEX data
+			} waveEx; 
+		union									// 2 bytes
+			{								 
+			uint16_t bitsPerSample;					// It's bitsPerSample again
+			uint16_t samplesPerBlock;				// Unused here
+			uint16_t reserved;						// Unused here
+			} samples;
+		uint32_t channelMask;					// 4 bytes, describes which channel positions are present                             
+		struct GUID								// 16 bytes
+			{ 
+			uint32_t data1	= 0x8312b9c2;						
+			uint16_t data2	= 0x2e6e;						
+			uint16_t data3	= 0x11d4;						
+			uint8_t  data4[8] = { 0xa8, 0x24, 0xde, 0x5b, 0x96, 0xc3, 0xab, 0x21 } ;					
+			} guid;							
+		} waveExt;
+	uint32_t version  = 1;				// 4 bytes
+	uint32_t dataSize = 32;				// 4 bytes, size of PVOCDATA data block
+	struct PVOCDATA							// 32 bytes
+		{				
+		uint16_t dataType;						// 0 (float) or 1 (double)
+		uint16_t analFormat;					// 0 = Amp/Freq, 1 = Amp/Phase, 2 = Complex 
+		uint16_t sourceFormat;					// 1 = WAVE_FORMAT_PCM, 3 = WAVE_FORMAT_IEEE_FLOAT
+		uint16_t windowType;					// window type, another fucking macro
+		uint32_t analysisBins;					// implicit FFT size = (nAnalysisBins-1) * 2
+		uint32_t windowlen;						// analysis window length, samples, NB may be <> FFT size 
+		uint32_t analStep;						// audio frames per pvoc frame
+		uint32_t frameAlign;					// usually nAnalysisBins * 2 * sizeof(float) 
+		float analysisRate;						// Sample rate / overlaps
+		float windowParam;						// default 0.0f unless needed 
+		} pvocData;
+	};
+
 bool PVOCBuffer::save( const std::string & filename ) const
 	{
 	const int byteDepth = 3;
@@ -62,6 +109,79 @@ bool PVOCBuffer::save( const std::string & filename ) const
 		});
 
 	return true;
+
+	//const int bytesPerSample = sizeof( float );
+
+	//WAVEFORMATPVOCEX pvocFormat;
+
+	////Fill format structure	
+	//pvocFormat.waveExt.waveEx.numChannels		= getNumChannels(); 
+	//pvocFormat.waveExt.waveEx.sampleRate		= getSampleRate(); // Frames/Sec
+	//pvocFormat.waveExt.waveEx.byteRate			= getNumChannels() * bytesPerSample * timeToFrame(); 
+	//pvocFormat.waveExt.waveEx.blockAlign		= getNumChannels() * bytesPerSample;
+	//pvocFormat.waveExt.waveEx.bitsPerSample		= 8 * bytesPerSample; 
+	//pvocFormat.waveExt.waveEx.cbSize			= 62;
+	//pvocFormat.waveExt.samples.bitsPerSample	= 8 * bytesPerSample;
+	//pvocFormat.waveExt.channelMask				= 0; // I want nothing to do with channel masking
+	//pvocFormat.pvocData.dataType				= 0; // Float			
+	//pvocFormat.pvocData.analFormat				= 0; // Amp/Freq			
+	//pvocFormat.pvocData.sourceFormat			= 3; // WAVE_FORMAT_IEEE_FLOAT
+	//pvocFormat.pvocData.windowType				= 2; // Hanning window			
+	//pvocFormat.pvocData.analysisBins			= getNumBins();				
+	//pvocFormat.pvocData.windowlen				= getWindowSize();				
+	//pvocFormat.pvocData.analStep				= getWindowSize() / getOverlaps();				
+	//pvocFormat.pvocData.frameAlign				= getNumBins() * 2 * bytesPerSample;				
+	//pvocFormat.pvocData.analysisRate			= float( getSampleRate() ) / float( getWindowSize() / getOverlaps() );
+	//pvocFormat.pvocData.windowParam				= 0; //Other values can be used for other windows		
+	
+	//Handle window chunk?
+
+	//Write format structure to file
+	//std::ofstream file( filename, std::ios::binary );
+	//if( !file )
+	//	{
+	//	std::cout << "Error opening " + filename + " to write RIFF.\n";
+	//	return false;
+	//	}
+
+	//unsigned char * write;
+
+	////Write RIFF chunk
+	//unsigned char RIFFChunk[ RIFFChunkSize ] = { 0 };
+	//write = RIFFChunk;
+	//writeBytes( write, "RIFF"		); write += 4; //RIFF ID 
+	//	writeBytes( write, (uint32_t) 4 ); write += 4; //RIFF Chunk Size
+	//	writeBytes( write, type		    ); write += 4;  //File Type
+	//file.write( (const char *) RIFFChunk, RIFFChunkSize );
+
+	////Write format chunk
+	//std::vector<unsigned char> FMTChunk( FMTChunkSize, 0 );
+	//write = FMTChunk.data();
+	//	writeBytes( write, "fmt "						); write += 4;
+	//	writeBytes( write, (uint32_t) FMTChunkSize - 8	); write += 4;
+	//	for( int i = 0; i < format.size(); ++i )
+	//		{
+	//		if( format[i].numBytes == 2 ) writeBytes( write, uint16_t( format[i].value ) ); 
+	//		else						  writeBytes( write, uint32_t( format[i].value ) ); 
+	//		write += format[i].numBytes;
+	//		}
+	//file.write( (const char *) FMTChunk.data(), FMTChunkSize );
+
+	////Write data chunk
+	//unsigned char dataChunkInfo[ 8 ] = { 0 };
+	//write = dataChunkInfo;
+	//	writeBytes( write, "data"						); write += 4;
+	//	writeBytes( write, (uint32_t) dataChunkSize - 8	); write += 4;
+	//file.write( (const char *) dataChunkInfo, 8 );
+
+	//file.write( (const char *) data, dataSize );
+
+	//file.close();
+
+	//Write buffer to file
+
+	return true;
+
 	}
 
 bool PVOCBuffer::load( const std::string & filename )
@@ -122,6 +242,57 @@ bool PVOCBuffer::load( const std::string & filename )
 				setMF( channel, frame, bin, { getFloat( windowSize_f ), getFloat( maxFreq_f ) } );
 
 	return true;		
+
+	//auto bail = [&filename]( const std::string & s )
+	//	{
+	//	std::cout << "Error loading PVOC data from " << filename << ": " << s << std::endl;
+	//	return false;
+	//	};
+
+	//std::ifstream file( filename, std::ios::binary );
+	//if( !file ) return bail(  "Couldn't open file." );
+
+	////Read entire format chunk
+	//WAVEFORMATPVOCEX fileFormat;
+	//file.read( (char *) &fileFormat, 80 ); 
+
+	//for( int i = 0; i < 80; ++i )
+	//	std::cout << (uint16_t)((uint8_t *) &fileFormat)[i] << " ";
+
+	//// Check format chunk and create PVOCBuffer::Format
+	//PVOCBuffer::Format pvocFormat;
+	//if( fileFormat.waveExt.waveEx.formatTag != 0xFFFE ) return bail( "WAVE-EX tag wasn't 0xFFFE" );
+	//pvocFormat.numChannels = fileFormat.waveExt.waveEx.numChannels;
+	//pvocFormat.sampleRate = fileFormat.waveExt.waveEx.sampleRate;
+	//if( fileFormat.waveExt.waveEx.bitsPerSample != 32 ) return bail( "Xcdp only supports 32-bit floats (bit rate wasn't 32)." );
+	//if( fileFormat.waveExt.waveEx.cbSize != 62 ) return bail( "WAVE-EX cbSize wasn't 62." );
+	//if( fileFormat.waveExt.waveEx.cbSize != 62 ) std::cout << "Discarding channel mask when loading PVOC data (unsupported)." << std::endl;
+	//WAVEFORMATPVOCEX::WAVEFORMATEXTENSIBLE::GUID correctGUID;
+	//if( !memcmp( &fileFormat.waveExt.guid, &correctGUID, sizeof( WAVEFORMATPVOCEX::WAVEFORMATEXTENSIBLE::GUID ) ) )
+	//	return bail( "Incorrect GUID." );
+	//if( fileFormat.version != 1 ) return bail( "PVOC-EX versions above 1 aren't supported." );
+	//if( fileFormat.dataSize != 32 ) return bail( "PVOC-EX versions above 1 aren't supported." );
+
+	//if( fileFormat.pvocData.dataType != 0 ) return bail( "PVOC data type must be float." );
+	//if( fileFormat.pvocData.analFormat != 0 ) return bail( "PVOC analysis format must be Amp/Freq." );
+	//if( fileFormat.pvocData.sourceFormat != 3 ) return bail( "PVOC source format must be float." );
+	//if( fileFormat.pvocData.windowType != 2 ) return bail( "Only Hann window is currently supported." );
+	//pvocFormat.numBins = fileFormat.pvocData.analysisBins;
+	//pvocFormat.overlaps = ( float( pvocFormat.numBins ) - 1.0f ) * 2.0f / float( fileFormat.pvocData.analStep );		
+	////float windowParam; //Unneeded until other windows are implemented
+
+
+	////pvocFormat.numFrames = ;
+	//
+	////Read buffer
+	//for( size_t channel = 0; channel < getNumChannels(); ++channel )
+	//	for( size_t frame = 0; frame < getNumFrames(); ++frame )
+	//		for( size_t bin = 0; bin < getNumBins(); ++bin )
+	//			{
+	//			//setMF( channel, frame, bin, { getFloat( windowSize_f ), getFloat( maxFreq_f ) } );
+	//			}
+
+	//return true;		
 	}
 
 void PVOCBuffer::printSummary() const
