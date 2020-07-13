@@ -162,7 +162,7 @@ Audio PVOC::convertToAudio() const
 
 #ifndef USE_OPENCL
 	return convertToAudio_cpu( *this );
-#endif
+#else
 
 	const size_t numBins = getNumBins();
 	const int numBins_i = int(numBins);
@@ -237,10 +237,10 @@ Audio PVOC::convertToAudio() const
 		for( size_t hop = 0; hop < numHops; ++hop )
 			{
 			std::copy( clOutHostBuffRead, clOutHostBuffRead + numBins, fft.inBuffer() );
-//#ifndef USE_FFTW //dj_fft can only handle power of two ffts, so we need to recover hermitian symmetry here.
+#ifndef USE_FFTW //dj_fft can only handle power of two ffts, so we need to recover hermitian symmetry here.
 			for( int i = 0; i < numBins - 1; ++i )
 				fft.setIn( i, fft.in(i) );
-//#endif
+#endif
 			clOutHostBuffRead += numBins;
 
 			fft.execute();
@@ -255,6 +255,7 @@ Audio PVOC::convertToAudio() const
 		}
 
 	return out;
+#endif
 	}
 
 const PVOC & PVOC::graph( const std::string & fileName ) const
@@ -667,7 +668,7 @@ PVOC PVOC::modifyTime( Func2x1 outPosFunc, Interpolator interp ) const
 					const MF & currentMF = getMF( channel, frame, bin );
 					const MF & prevMF = getMF( channel, frame - 1, bin );
 
-					const float mix = interp( ( modFrame - prevModFrame ) / ( outFrame - prevModFrame ) );
+					const float mix = interp( ( outFrame - prevModFrame ) / ( modFrame - prevModFrame ) );
 					const float w0 = ( 1.0f -  mix ) * prevMF.m;
 					const float w1 = mix * currentMF.m;
 
@@ -939,9 +940,9 @@ PVOC PVOC::modifyTime_cl( Func2x1 outPosFunc, Interpolator interp  ) const
 #else
 
 //Dummy functions for disabled opencl
-PVOC PVOC::modify_cl( Func2x2 mod, Interpolator interp  ) const { return *this; }
-PVOC PVOC::modifyFrequency_cl( Func2x1 outFreqFunc, Interpolator interp  ) const { return *this; }
-PVOC PVOC::modifyTime_cl( Func2x1 outPosFunc, Interpolator interp  ) const { return *this; }
+PVOC PVOC::modify_cl( Func2x2 mod, Interpolator interp  ) const { std::cout << "Warning: modify_cl called but OpenCL is disabled.\n"; return *this; }
+PVOC PVOC::modifyFrequency_cl( Func2x1 outFreqFunc, Interpolator interp  ) const { std::cout << "Warning: modifyFrequency_cl called but OpenCL is disabled.\n"; return *this; }
+PVOC PVOC::modifyTime_cl( Func2x1 outPosFunc, Interpolator interp  ) const { std::cout << "Warning: modifyTime_cl called but OpenCL is disabled.\n"; return *this; }
 
 #endif
 

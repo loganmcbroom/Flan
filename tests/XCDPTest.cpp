@@ -37,15 +37,11 @@ void graph( const std::string & f );
 
 void main()
 	{
-	Func2x1 bar( []( float t, float f ){ return t * f; } );
+	//Func2x1 f( []( float t ){ return t; } );
+	//std::cout << f( 10, 0 );
 
-	std::cout << bar( 2, 3 );
-	//std::cout << s( 2, 3 );
-	//Audio meow( "Audio/meow.wav" );
-	//meow.convertToMono().save( "Audio/monoMeow.wav" );
-
-	//PVOC meow( "Audio/meow.pvx" );
-	//play( meow.convertToAudio().setVolume( .9 ) );
+	auto audio = Audio( "Audio/meow.wav" ).convertToPVOC().removeNLoudestPartials( 50 ).convertToAudio();
+	play( audio );
 	}
 
 

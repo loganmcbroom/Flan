@@ -19,11 +19,17 @@ using Interpolator = std::function< float ( float ) >;
 
 namespace Interpolators 
 {
-/** Zero returning function. */
-extern const Interpolator constant;
+/** Constantly 0.5. */
+extern const Interpolator midpoint;
 
-/** Input returning function. */
-extern const Interpolator linear;
+/** Returns nearest integer. */
+extern const Interpolator nearest;
+
+/** Constantly 0.0. */
+extern const Interpolator floor;
+
+/** Constantly 1.0. */
+extern const Interpolator ceil;
 
 /** Input returning function. */
 extern const Interpolator linear;

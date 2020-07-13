@@ -163,8 +163,9 @@ struct Func1x1 : public Function<float, float>
 /** Real function of vec2 type. */
 struct Func2x1 : public Function<vec2, float>
 {
-	template< typename Constructable,
-			  std::enable_if_t< ! std::is_convertible< Constructable, std::function< float ( float, float ) > >::value, int > = 0 >
+	template< typename Constructable, std::enable_if_t< 
+			   ! std::is_convertible< Constructable, std::function< float ( float, float ) > >::value
+			&& ! std::is_convertible< Constructable, std::function< float ( float        ) > >::value, int > = 0 >
 	Func2x1( Constructable f ) : Function( f ) {}
 
 	template< typename twoArgs, 
@@ -172,7 +173,9 @@ struct Func2x1 : public Function<vec2, float>
 	Func2x1( twoArgs f ) : Function( [f]( vec2 v ) { return f( v.x(), v.y() ); } ) {}
 
 	/** Func2x1 can be constructed from Func1x1 by ignoring the second argument to the constructed Func2x1.  */
-	Func2x1( Func1x1 f_ ) : Function( [f_]( vec2 v ){ return f_( v.x() ); } ) {}
+	template< typename oneArg, 
+			  std::enable_if_t< std::is_convertible<oneArg, std::function< float ( float ) >>::value, int > = 0 >
+	Func2x1( oneArg f_ ) : Function( [f_]( vec2 v ){ return f_( v.x() ); } ) {}
 
 	/** Helper for calling without converting parameters to vec2 */
 	float operator()( float t, float f ) const { return Function::operator()( vec2{ t, f } ); }

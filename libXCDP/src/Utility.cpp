@@ -14,9 +14,24 @@ static float pi = std::acos( -1.0f );
 
 namespace xcdp {
 
-const Interpolator Interpolators::constant = []( float x ) 
+const Interpolator Interpolators::midpoint = []( float x ) 
+	{ 
+	return 0.5f;
+	};
+
+const Interpolator Interpolators::nearest = []( float x ) 
+	{ 
+	return std::round( x );
+	};
+
+const Interpolator Interpolators::floor = []( float x ) 
 	{ 
 	return 0.0f;
+	};
+
+const Interpolator Interpolators::ceil = []( float x ) 
+	{ 
+	return 1.0f;
 	};
 
 const Interpolator Interpolators::linear = []( float x ) 
