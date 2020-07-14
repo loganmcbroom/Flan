@@ -361,41 +361,34 @@ PVOC PVOC::freeze( const std::vector<std::array<float,2>> & timing ) const
 	std::sort( timingFrames.begin(), timingFrames.end(), []( std::array<size_t,2> & a, std::array<size_t,2> & b )
 		{ return a[0] < b[0]; } );
 
-	float totalFreezeTime = 0;
-	for( auto & i : timing ) totalFreezeTime += i[1];
+	float totalFreezeFrames = 0;
+	for( auto & i : timingFrames ) totalFreezeFrames += i[1];
 
 	auto format = getFormat();
-	format.numFrames += ceil( totalFreezeTime * timeToFrameConst );
+	format.numFrames += totalFreezeFrames;
 	PVOC out( format );
 
 	for( size_t channel = 0; channel < getNumChannels(); ++channel )
 		{
-		bool holding = false;
-		size_t numFramesHeld = 0;
 		size_t timingIndex = 0;
-		for( size_t inFrame = 0, outFrame = 0; inFrame < getNumFrames(); ++outFrame )
+		for( size_t inFrame = 0, outFrame = 0; inFrame < getNumFrames(); ++inFrame )
 			{
-			if( holding )
+			//If it's time to freeze, freeze
+			if( inFrame == timingFrames[timingIndex][0] )
 				{
-				++numFramesHeld;
-				if( numFramesHeld > timingFrames[timingIndex][1] )
+				for( size_t freezeFrame = 0; freezeFrame < timingFrames[timingIndex][1]; ++freezeFrame )
 					{
-					holding = false;
-					++timingIndex;
-					numFramesHeld = 0;
+					for( size_t bin = 0; bin < getNumBins(); ++bin )
+						out.setMF( channel, outFrame, bin, getMF( channel, inFrame, bin ) );
+					++outFrame;
 					}
 				}
-			else
+			else //It's not time to freeze
 				{
-				++inFrame;
-				if( inFrame > timingFrames[timingIndex][0] )
-					{
-					holding = true;
-					}
+				for( size_t bin = 0; bin < getNumBins(); ++bin )
+					out.setMF( channel, outFrame, bin, getMF( channel, inFrame, bin ) );
+				++outFrame;
 				}
-
-			for( size_t bin = 0; bin < getNumBins(); ++bin )
-				out.setMF( channel, outFrame, bin, getMF( channel, inFrame, bin ) );
 			}
 		}
 

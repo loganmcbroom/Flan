@@ -19,6 +19,13 @@ Improvements:
 
 Fixes:
 	stretch 0 frame artifact
+
+
+
+random Functions
+freeze different spectra at different times?
+texture engine
+
 */
 
 #include <iostream>
@@ -40,7 +47,7 @@ void main()
 	//Func2x1 f( []( float t ){ return t; } );
 	//std::cout << f( 10, 0 );
 
-	auto audio = Audio( "Audio/meow.wav" ).convertToPVOC().removeNLoudestPartials( 50 ).convertToAudio();
+	auto audio = Audio( "Audio/meow.wav" ).convertToPVOC().freeze({{0.1,1}}).convertToAudio();
 	play( audio );
 	}
 
