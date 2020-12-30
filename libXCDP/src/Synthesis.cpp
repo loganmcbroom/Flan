@@ -6,55 +6,64 @@
 
 #include "WDL/resample.h"
 
-static const float pi = std::acos( -1.0f );
-
 namespace xcdp {
+
+static const float pi = std::acos( -1.0f );
+static const float pi2 = 2.0f * pi;
+
 namespace Synthesis {
 
-Audio waveform( Func1x1 wave, float length, Func1x1 freq, size_t samplerate, size_t oversample )
+Audio waveform( Func1x1 wave, Time length, Func1x1 freq, size_t samplerate, size_t oversample )
 	{
-	length = std::max( length, 0.0f );
+	if( length <= 0 ) return Audio();
 
+	// Set up output
 	Audio::Format format;
 	format.numChannels = 1;
 	format.numFrames = length * samplerate;
 	format.sampleRate = samplerate;
 	Audio out( format );
+
+	// Set up resampler
 	WDL_Resampler rs;
-	rs.SetMode(true, 1, true, 512); // CPU-heavy but pretty good sinc interpolation
-	double overrate = samplerate * oversample;
+	rs.SetMode( true, 1, true, 512 ); // CPU-heavy but pretty good sinc interpolation
+	const double overrate = samplerate * oversample;
 	rs.SetRates( overrate, double( samplerate ) );
 	WDL_ResampleSample * rsinbuf = nullptr;
-	int wanted = rs.ResamplePrepare( format.numFrames, 1, &rsinbuf );
-	float phase = 0.0;
-	
-	for( size_t sample = 0; sample < wanted; ++sample )
+	const int wanted = rs.ResamplePrepare( format.numFrames, 1, &rsinbuf );
+
+	float phase = 0.0f;
+	for( Frame frame = 0; frame < wanted; ++frame )
 		{
-		float s = wave(phase);
-		rsinbuf[sample] = s * 0.9; // lower the gain a bit in case the resampling causes overshoots
-		phase += freq( float(sample) / overrate ) * ( 2.0f * pi / overrate );
-		phase = std::fmod( phase, 2 * pi );
-		
+		const float s = wave( phase );
+		rsinbuf[frame] = s * 0.9; // Lower the gain a bit in case the resampling causes overshoots
+		phase += freq( float(frame) / overrate ) / overrate;
+		phase = std::fmod( phase, 1.0f );
 		}
+
 	rs.ResampleOut( out.getSamplePointer( 0, 0 ), wanted, format.numFrames, 1 );
+
 	return out;
 	}
 
-Audio sine( float length, Func1x1 freq )
+Audio sine( Time length, Func1x1 freq )
 	{
-	return waveform( []( float t ){ return std::sin( t ); }, length, freq );
+	return waveform( []( float t ){ return std::sin( pi2 * t ); }, length, freq );
 	}
-Audio square( float length, Func1x1 freq )
+
+Audio square( Time length, Func1x1 freq )
 	{
-	return waveform( []( float t ){ return t < pi ? -1.0 : 1.0; }, length, freq );
+	return waveform( []( float t ){ return t < 0.5f ? -1.0f : 1.0f; }, length, freq );
 	}
-Audio saw( float length, Func1x1 freq )
+
+Audio saw( Time length, Func1x1 freq )
 	{
-	return waveform( []( float t ){ return -1.0 + 1.0 / pi * t; }, length, freq );
+	return waveform( []( float t ){ return -1.0f + 2.0f * t; }, length, freq );
 	}
-Audio triangle( float length, Func1x1 freq )
+
+Audio triangle( Time length, Func1x1 freq )
 	{
-	return waveform( []( float t ){ return t < pi? -1.0 + 2.0 / pi * t : 3.0 - 2.0 / pi * t; }, length, freq );
+	return waveform( []( float t ){ return t < 0.5f ? -1.0f + 4.0f * t : 3.0f - 4.0f * t; }, length, freq );
 	}
 }
 }

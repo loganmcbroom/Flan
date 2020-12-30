@@ -4,6 +4,8 @@
 #include <string>
 #include <memory>
 
+#include "defines.h"
+
 namespace xcdp {
 
 /** AudioBuffer stores audio data and provides basic buffer access, conversion constants, loading, and saving.
@@ -18,6 +20,7 @@ namespace xcdp {
 class AudioBuffer
 {
 public:
+
 	/** AudioBuffer::Format stores all required information outside of the buffer. 
 	 *	This is used to easily transfer the way an AudioBuffer is stored on disk to a new AudioBuffer without copying the buffer.
 	 *	In practice, a function transforming an AudioBuffer will call AudioBuffer::getFormat(), modify members as needed, and
@@ -25,9 +28,9 @@ public:
 	 */
 	struct Format 
 		{
-		size_t numChannels = 0;
-		size_t numFrames = 0;
-		size_t sampleRate = 48000;
+		Channel numChannels = 0;
+		Frame numFrames = 0;
+		uint32_t sampleRate = 48000;
 		};
 	
 	/** Default constructor
@@ -43,6 +46,15 @@ public:
 	 *	\param filePath File to load. Accepts any format accepted by libsndfile. Notably cannot load mp3.
 	 */
 	AudioBuffer( const std::string & filePath );
+
+	/** Returns a deep copy of the AudioBuffer.
+	 */
+	AudioBuffer deepCopy() const;
+
+	/** Return true if the Audio is in a state which cannot be processed. This includes a 0-channel buffer,
+	 *	a 0-frame buffer, or a buffer with a 0 sample rate.
+	 */
+	bool isNull() const;
 
 	//======================================================
 	//	I/O
@@ -73,7 +85,13 @@ public:
 	 *	\param channel
 	 *	\param frame
 	 */
-	float getSample( size_t channel, size_t frame ) const;
+	Sample getSample( Channel channel, Frame frame ) const;
+
+	/** Buffer-safe sample access method.
+	 *	\param channel
+	 *	\param frame
+	 */
+	Sample getSample_s( Channel channel, Frame frame ) const;
 	
 	/** Returns the format being used.
 	 */
@@ -81,23 +99,25 @@ public:
 
 	/** Returns the number of channels.
 	 */
-	size_t getNumChannels() const;
+	Channel getNumChannels() const;
 
 	/** Returns the number of frames.
 	 */
-	size_t getNumFrames() const;
+	Frame getNumFrames() const;
 
 	/** Returns the sample rate.
 	 */
-	size_t getSampleRate() const;
+	uint32_t getSampleRate() const;
 
 	/** Returns length in seconds.
 	 */
-	float getLength() const;
+	Time getLength() const;
 
-	/** Returns the magnitude of whichever sample has the largest magnitude.
+	/** Returns the magnitude of whichever sample has the largest magnitude in the given range.
+	 *	\param startTime Start of range.
+	 *	\param endTime End of range. Passing 0 will use the maximum time.
 	 */
-	float getMaxSampleMagnitude() const;
+	Sample getMaxSampleMagnitude( Time startTime = 0, Time endTime = 0 ) const;
 
 	/** Returns a unit fraction for converting frames to seconds.
 	 */
@@ -117,13 +137,13 @@ public:
 	 *	\param frame
 	 *	\param sample The value to write.
 	 */
-	void setSample( size_t channel, size_t frame, float sample );
+	void setSample( Channel channel, Frame frame, Sample sample );
 
 	/** Additional sample setter method. It is occasionally syntactically easier to assign samples by reference access.
 	 *	\param channel
 	 *	\param frame
 	 */
-	float & getSample( size_t channel, size_t frame );
+	Sample & getSample( Channel channel, Frame frame );
 	
 	/** This zero fills the buffer.
 	 */
@@ -134,21 +154,26 @@ public:
 	 *	\param channel
 	 *	\param frame
 	 */
-	float * getSamplePointer( size_t channel, size_t frame );
+	Sample * getSamplePointer( Channel channel, Frame frame );
 
 	/** Read-only raw buffer access. Inderect access is preferred, but for computationally expensive 
 	 *	transformations, raw access usually provides an optimization.
 	 *	\param channel
 	 *	\param frame
 	 */
-	const float * getSamplePointer( size_t channel, size_t frame ) const;
+	const Sample * getSamplePointer( Channel channel, Frame frame ) const;
+
+	std::vector<Sample>::iterator begin();
+	std::vector<Sample>::iterator end();
+	std::vector<Sample>::const_iterator begin() const;
+	std::vector<Sample>::const_iterator end() const;
 
 private://=================================================================================================
 
-	inline size_t getBufferPos( size_t, size_t ) const;
+	inline uint32_t getBufferPos( Channel, Frame ) const;
 
 	Format format;
-	std::shared_ptr<std::vector<float>> buffer;
+	std::shared_ptr<std::vector<Sample>> buffer;
 };
 
 /** Serialization.

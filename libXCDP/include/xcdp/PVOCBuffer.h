@@ -4,6 +4,8 @@
 #include <string>
 #include <memory>
 
+#include "defines.h"
+
 namespace xcdp {
 
 /** PVOCBuffer stores PVOC data and provides basic buffer access, conversion constants, loading, and saving.
@@ -27,7 +29,11 @@ public:
 
 	/** This is the data type stored at each buffer position. It represents a frequency, and the magnitude of that frequency.
 	*/
-	struct MF { float m, f; };
+	struct MF 
+		{ 
+		Magnitude m;
+		Frequency f; 
+		};
 
 	/** PVOCBuffer::Format stores all required information outside of the buffer. 
 	 *	This is used to easily transfer the way an PVOCBuffer is stored on disk to a new PVOCBuffer without copying the buffer.
@@ -38,13 +44,20 @@ public:
 	 */
 	struct Format 
 		{ 
-		size_t numChannels = 0, numFrames = 0, numBins = 0;
-		size_t sampleRate = 48000; 
-		size_t overlaps = 32;
+		Channel numChannels = 0;
+		Frame numFrames = 0;
+		Bin numBins = 0;
+		uint32_t sampleRate = 48000; 
+		Frame hopSize = 0;
+		Frame windowSize = 0;
 		//window type?
 		};
 
-	/** Format copy constructor, constructs an PVOCBuffer with the given format and an uninitialized buffer.
+	/** Default constructor
+	 */
+	PVOCBuffer();
+
+	/** Format copy constructor, constructs a PVOCBuffer with the given format and an uninitialized buffer.
 	 *	\param format Format to use in construction.
 	 */
 	PVOCBuffer( const Format & );
@@ -53,6 +66,15 @@ public:
 	 *	\param filePath A PVOC file to load.
 	 */
 	PVOCBuffer( const std::string & filename );
+
+	/** Returns a deep copy of the PVOCBuffer.
+	 */
+	PVOCBuffer deepCopy() const;
+
+	/** Return true if the PVOC is in a state which cannot be processed. This includes a 0-channel buffer,
+	 *	a 0-frame buffer, a 0-bin buffer, or a buffer with a 0 sample rate.
+	 */
+	bool isNull() const;
 
 	//======================================================
 	//	I/O
@@ -74,7 +96,7 @@ public:
 	 *		Bytes 12-15 is the number of frames (uint32_t).
 	 *		Bytes 16-19 is the number of bins per frame (uint32_t).
 	 *		Bytes 20-23 is the audio sample rate used to create the PVOC data. This is used because the PVOC frame rate can be a non-integer value.
-	 *		Bytes 24-27 is the overlaps used in the phase vocoder (uint32_t).
+	 *		Bytes 24-27 is the hop size used in the phase vocoder (uint32_t).
 	 *		Bytes 28-31 is the number of bytes used to store buffer information (uint32_t). Each MF pair stores twice this number of bytes.
 	 *		Bytes 32-33 is a phase vocoder window function id. Currently only 1 is defined and represents a Hann window.
 	 *	
@@ -95,7 +117,7 @@ public:
 	 */
 	bool save( const std::string & filename ) const;
 
-	/** Prints buffer dimensions, frames per second, bins per frequency, and overlaps.
+	/** Prints format data.
 	 */
 	void printSummary() const;
 
@@ -108,12 +130,12 @@ public:
 	 *	\param frame
 	 *	\param bin
 	 */
-	MF getMF( size_t channel, size_t frame, size_t bin ) const;
+	MF getMF( Channel channel, Frame frame, Bin bin ) const;
 
 	/** Returns a single frame PVOCBuffer with data from the given input frame.
 	 * \param frame
 	 */
-	PVOCBuffer getFrame( size_t frame ) const;
+	PVOCBuffer getFrame( Frame frame ) const;
 
 	/** Returns the format being used.
 	 */
@@ -121,37 +143,53 @@ public:
 
 	/** Returns the number of channels.
 	 */
-	size_t getNumChannels() const;
+	Channel getNumChannels() const;
 
 	/** Returns the number of frames.
 	 */
-	size_t getNumFrames() const;
+	Frame getNumFrames() const;
 
 	/** Returns the number of bins.
 	 */
-	size_t getNumBins() const;
+	Bin getNumBins() const;
 
 	/** Returns the frames per second of the audio from which this PVOCBuffer came.
 	 *	If the frames per second of the PVOC data is needed, use PVOCBuffer::timeToFrame.
 	 */
-	size_t getSampleRate() const;
+	uint32_t getSampleRate() const;
 
-	/** Returns the number of overlaps used in the phase vocoder to create this PVOCBuffer.
+	/** Returns the hop size used in the phase vocoder to create this PVOCBuffer.
 	 */
-	size_t getOverlaps() const;
+	Frame getHopSize() const;
 
-	/** Returns the size of the window used in the phase vocoder to create this PVOCBuffer.
-	 *	This also describes the number of audio samples processed in each fft during the phase vocoder transform.
+	/** Returns the size of the transform used in the phase vocoder to create this PVOCBuffer.
 	 */
-	size_t getWindowSize() const;
+	Frame getDFTSize() const;
+
+	/** Returns the size of the input data window used in the phase vocoder to create this PVOCBuffer.
+	 */
+	Frame getWindowSize() const;
 
 	/** Returns length in seconds.
 	 */
-	float getLength() const;
+	Time getLength() const;
+
+	/** Returns height in hz.
+	 */
+	Frequency getHeight() const;
 
 	/** Returns the magnitude of whichever MF has the largest magnitude.
 	 */
-	float getMaxPartialMagnitude() const;
+	Magnitude getMaxPartialMagnitude() const;
+
+	/** Returns the magnitude of whichever MF has the largest magnitude in the given range.
+	 * \param startFrame The start of the time range.
+	 * \param endFrame The end of the time range. Passing 0 will use the maximum time.
+	 * \param startBin The start of the frequency range.
+	 * \param endBin The end of the frequency range. Passing 0 will use the maximum frequency.
+	 */
+	Magnitude getMaxPartialMagnitude( uint32_t startFrame, uint32_t endFrame = 0, 
+		uint32_t startBin = 0, uint32_t endBin = 0 ) const;
 
 	/** Returns a unit fraction for converting seconds to frames
 	 */
@@ -169,6 +207,10 @@ public:
 	 */
 	float binToFrequency() const;
 
+	/** Returns how far the frequency recorded at the given position is from the bin frequency.
+	 */
+	float getFrequencyOffset( Channel c, Frame f, Bin b ) const;
+
 	//======================================================
 	//	Setters
 	//======================================================
@@ -179,14 +221,14 @@ public:
 	 *	\param bin
 	 *	\param mf The value to write.
 	 */
-	void setMF( size_t channel, size_t frame, size_t bin, MF mf );
+	void setMF( Channel channel, Frame frame, Bin bin, MF mf );
 
 	/** Additional MF setter method. It is occasionally syntactically easier to assign MFs by reference access.
 	 *	\param channel
 	 *	\param frame
 	 *	\param bin
 	 */
-	MF & getMF( size_t channel, size_t frame, size_t bin );
+	MF & getMF( Channel channel, Frame frame, Bin bin );
 
 	/** This zero fills the buffer.
 	 */
@@ -198,7 +240,7 @@ public:
 	 *	\param frame
 	 *	\param bin
 	 */
-	MF * getMFPointer( size_t channel, size_t frame, size_t bin );
+	MF * getMFPointer( Channel channel, Frame frame, Bin bin );
 
 	/** Read-only raw buffer access. Inderect access is preferred, but for computationally expensive 
 	 *	transformations, raw access usually provides an optimization.
@@ -206,11 +248,18 @@ public:
 	 *	\param frame
 	 *	\param bin
 	 */
-	const MF * getMFPointer( size_t channel, size_t frame, size_t bin  ) const;
+	const MF * getMFPointer( Channel channel, Frame frame, Bin bin  ) const;
+
+	std::vector<MF>::iterator begin();
+	std::vector<MF>::iterator end();
+	std::vector<MF>::const_iterator begin() const;
+	std::vector<MF>::const_iterator end() const;
+
+	/** This converts from a channel, frame, and bin, to the appropriate position in the buffer.
+	 */
+	size_t getBufferPos( Channel, Frame, Bin ) const;
 
 private: //=================================================================================================
-
-	size_t getBufferPos( size_t, size_t, size_t ) const;
 	
 	Format format;
 	std::shared_ptr<std::vector< MF >> buffer;

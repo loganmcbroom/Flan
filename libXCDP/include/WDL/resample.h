@@ -39,7 +39,7 @@ typedef double WDL_SincFilterSample;
 typedef float WDL_SincFilterSample;
 #endif
 
-// default to doubles for audio samples
+// default to doubles for audio samples - Modified to float for xcdp
 #ifdef WDL_RESAMPLE_TYPE
 typedef WDL_RESAMPLE_TYPE WDL_ResampleSample;
 #else

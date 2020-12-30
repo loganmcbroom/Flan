@@ -1,22 +1,30 @@
 add_library( libXCDP 
-	src/Audio.cpp 
-	src/AudioBuffer.cpp 
-	src/PVOC.cpp 
-	src/PVOCBuffer.cpp 
-	src/Spectrum.cpp
-	src/SpectrumBuffer.cpp
+	src/Audio/Audio.cpp
+	src/Audio/AudioBuffer.cpp 
+	src/Audio/AudioTexture.cpp
+	src/Audio/AudioConversions.cpp
+	src/Audio/AudioInformation.cpp
+	src/Audio/YIN.cpp
+	
+	src/PVOC/PVOC.cpp
+	src/PVOC/PVOCBuffer.cpp 
+	src/PVOC/PVOCConversions.cpp 
+	src/PVOC/PVOCInformation.cpp
 
 	src/WindowFunctions.cpp 
 	src/Function.cpp
-	src/Utility.cpp
+	
 	src/Synthesis.cpp
-	src/CLContext.cpp
-
-	src/CDPMapPVOC.cpp
-	src/CLProgs.cpp
-
+	src/Graph.cpp
+	src/Wavetable.cpp
+	src/DSPUtility.cpp 
+	
 	src/WDL/resample.cpp
-	)
+	include/r8brain/r8bbase.cpp 
+	src/CLContext.cpp
+	src/CLProgs.cpp
+	src/FFTHelper.cpp 
+	  "include/xcdp/Utility/Rect.h" "include/xcdp/Utility/Interval.h" "include/xcdp/Utility/vec2.h" "src/Utility/Color.cpp" "src/Utility/Bytes.cpp" "src/Utility/Interpolator.cpp" "include/xcdp/Utility/View.h" "src/Utility/View.cpp" "src/Utility/Interval.cpp" "src/Utility/Rect.cpp" "src/PVOC/PVOCModify.cpp")
 
 target_include_directories( libXCDP 
 	PUBLIC 
@@ -24,13 +32,11 @@ target_include_directories( libXCDP
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 	)
 
-option( USE_FFTW "Build using FFTW" ON )
-if( USE_FFTW )
-	add_definitions( -DUSE_FFTW )
-	find_package( FFTWF REQUIRED ) # FFTWF::fftwf
-	target_link_libraries( libXCDP PRIVATE FFTWF::fftwf )
-endif( USE_FFTW )
-unset( USE_FFTW CACHE )
+find_package( FFTWF REQUIRED ) # FFTWF::fftwf
+target_link_libraries( libXCDP PRIVATE FFTWF::fftwf )
+
+find_package( Boost REQUIRED ) # Boost::boost
+target_link_libraries( libXCDP PRIVATE Boost::boost )
 
 option( USE_SNDFILE "Build using libsndfile" ON )
 if( USE_SNDFILE )
