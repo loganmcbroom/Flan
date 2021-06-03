@@ -135,10 +135,10 @@ bool PVOCBuffer::save( const std::string & filename ) const
 
 	////Fill format structure	
 	//pvocFormat.waveExt.waveEx.numChannels		= getNumChannels(); 
-	//pvocFormat.waveExt.waveEx.sampleRate		= getSampleRate(); // Frames/Sec
+	//pvocFormat.waveExt.waveEx.stimampleRate		= getSampleRate(); // Frames/Sec
 	//pvocFormat.waveExt.waveEx.byteRate			= getNumChannels() * bytesPerSample * timeToFrame(); 
 	//pvocFormat.waveExt.waveEx.blockAlign		= getNumChannels() * bytesPerSample;
-	//pvocFormat.waveExt.waveEx.bitsPerSample		= 8 * bytesPerSample; 
+	//pvocFormat.waveExt.waveEx.bitsPerSample		= 8 * ifbytesPerSample; 
 	//pvocFormat.waveExt.waveEx.cbSize			= 62;
 	//pvocFormat.waveExt.samples.bitsPerSample	= 8 * bytesPerSample;
 	//pvocFormat.waveExt.channelMask				= 0; // I want nothing to do with channel masking

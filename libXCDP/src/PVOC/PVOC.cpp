@@ -239,6 +239,40 @@ PVOC PVOC::subtractAmplitudes( const PVOC & ampSource, Func2x1 amount, XCDP_CANC
 	return out;
 	}
 
+
+//========================================================================
+// Generation
+//========================================================================
+
+PVOC PVOC::generate( Time length, Func1x1 freq, Func2x1 harmonicWeights, XCDP_CANCEL_ARG_CPP )
+	{
+	PVOC::Format format;
+	format.hopSize = 128;
+	format.numBins = 2049;
+	format.numChannels = 1;
+	format.numFrames = length * 48000 / 128; // Sample rate over hop size
+	format.sampleRate = 48000;
+	format.windowSize = 2048;
+
+	PVOC out( format );
+	out.clearBuffer();
+
+	for( Frame frame = 0; frame < out.getNumFrames(); ++frame )
+		{
+		const Frequency freq_c = freq( frame * out.frameToTime() );
+		if( freq_c <= 1.0 ) continue;
+		for( int harmonic = 0; harmonic < std::floor( out.getHeight() / freq_c ); ++harmonic )
+			{
+			const float mag = harmonicWeights( frame * out.frameToTime(), harmonic );
+			const Frequency harmonicFreq = freq_c * ( harmonic + 1 );
+			const Bin bin = harmonicFreq * out.frequencyToBin();
+			out.getMF( 0, frame, bin ) = { mag, harmonicFreq };
+			}
+		}
+	
+	return out;
+	}
+
 //========================================================================
 // Uncategorized
 //========================================================================

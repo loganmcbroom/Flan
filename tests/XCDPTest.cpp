@@ -45,12 +45,14 @@ void main()
 	auto sine = Synthesis::sine( 1, []( float t ){ return 220 + 220 * t; } );
 	auto saw = Synthesis::saw( .5, []( float t ){ return 220; } );
 
-	auto p = yeahh.convertToPVOC();
+	auto p = bah.convertToPVOC();
 
-	auto b = p.prism( []( Time t, int i, Frequency f, const std::vector<Magnitude> & ms ) 
-		{ 
-		return PVOC::MF{ ms[i], f * (i+1) * ( 1 + atan( t*3 ) * 0.1f * sin( t * 80 ) ) }; 
-		}, true );
+	auto b = PVOC::generate( 1, 220, []( float t, float i ){ return 1 / ( 1 + i ); } );
+
+	//auto b = p.prism( []( Time t, int i, Frequency f, const std::vector<Magnitude> & ms ) 
+	//	{ 
+	//	return PVOC::MF{ ms[i], f * (i+1) * ( 1 + atan( t*3 ) * 0.1f * sin( t * 80 ) ) }; 
+	//	}, true );
 
 	graph( b.convertToGraph() );
 	play( b.convertToAudio().setVolume( .7 ) );
