@@ -31,5 +31,4 @@ float mean( std::vector<float> data );
 vec2 meanAndStandardDeviation( std::function< float ( int ) > data, int n );
 vec2 meanAndStandardDeviation( std::vector<float> data );
 
-
 }

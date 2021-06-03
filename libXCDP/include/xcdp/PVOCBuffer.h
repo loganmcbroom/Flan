@@ -211,6 +211,18 @@ public:
 	 */
 	float getFrequencyOffset( Channel c, Frame f, Bin b ) const;
 
+	/** Returns the input channel clamped to the buffer bounds
+	 */
+	Channel boundChannel( Channel c ) const;
+
+	/** Returns the input frame clamped to the buffer bounds
+	 */
+	Frame boundFrame( Frame c ) const;
+
+	/** Returns the input bin clamped to the buffer bounds
+	 */
+	Bin boundBin( Bin c ) const;
+
 	//======================================================
 	//	Setters
 	//======================================================

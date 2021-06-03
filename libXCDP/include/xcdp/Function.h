@@ -233,7 +233,7 @@ struct Func2x2 : public Function<vec2, vec2>
 	Func2x2( Constructable f ) : Function( f ) {}
 
 	/** Helper for calling without converting parameters to vec2 */
-	vec2 operator()( float x, float y ) { return Function::operator()( { x, y } ); }
+	vec2 operator()( float x, float y ) const { return Function::operator()( { x, y } ); }
 };
 
 } // End namespace xcdp

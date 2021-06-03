@@ -330,8 +330,8 @@ PVOC PVOC::modify_cl( Func2x2 mod, Interpolator interp, XCDP_CANCEL_ARG_CPP  ) c
 	const int outNumFrames_i = format.numFrames;
 
 	//Prepare OpenCL
-	auto cl = CLContext::get();
-	static ProgramHelper programHelper( CLProgs::PVOC_modify );
+	CLContext cl;
+	ProgramHelper programHelper( cl, CLProgs::PVOC_modify );
 	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( PVOCBuffer::MF ) * inChannelDataCount );
 	cl::Buffer clModPointSamples( cl.context, CL_MEM_READ_ONLY, sizeof( float2 ) * inChannelDataCount );
 	cl::Buffer clOut( cl.context, CL_MEM_WRITE_ONLY, sizeof( PVOCBuffer::MF ) * outChannelDataCount );
@@ -404,8 +404,8 @@ PVOC PVOC::modifyFrequency_cl( Func2x1 outFreqFunc, Interpolator interp, XCDP_CA
 			outBinBuffer[ frame * numBins + bin ] = outFreqFunc( frame * frameToTime(), bin * binToFrequency() ) * frequencyToBin();
 
 	//Prepare OpenCL
-	auto cl = CLContext::get();
-	static ProgramHelper programHelper( CLProgs::PVOC_modifyFrequency );
+	CLContext cl;
+	ProgramHelper programHelper( cl, CLProgs::PVOC_modifyFrequency );
 	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( PVOCBuffer::MF ) * inChannelDataCount );
 	cl::Buffer clMappedFrequencies( cl.context, CL_MEM_READ_ONLY, sizeof( float ) * inChannelDataCount );
 	cl::Buffer clF( cl.context, CL_MEM_READ_ONLY, sizeof( float ) * inChannelDataCount );
@@ -491,8 +491,8 @@ PVOC PVOC::modifyTime_cl( Func2x1 outPosFunc, Interpolator interp, XCDP_CANCEL_A
 	const uint32_t outChannelDataCount = out.getNumFrames() * out.getNumBins();
 
 	//prepare OpenCL
-	auto cl = CLContext::get();
-	static ProgramHelper programHelper( CLProgs::PVOC_modifyTime );
+	CLContext cl;
+	ProgramHelper programHelper( cl, CLProgs::PVOC_modifyTime );
 	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( PVOCBuffer::MF ) * inChannelDataCount );
 	cl::Buffer clF( cl.context, CL_MEM_READ_ONLY, sizeof( float ) * inChannelDataCount );
 	cl::Buffer clOut( cl.context, CL_MEM_WRITE_ONLY, sizeof( PVOCBuffer::MF ) * outChannelDataCount );

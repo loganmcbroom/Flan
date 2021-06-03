@@ -3,6 +3,7 @@
 #include <iostream>
 #include <complex>
 #include <array>
+#include <numeric>
 
 namespace xcdp {
 
@@ -241,6 +242,53 @@ PVOC PVOC::subtractAmplitudes( const PVOC & ampSource, Func2x1 amount, XCDP_CANC
 //========================================================================
 // Uncategorized
 //========================================================================
+
+PVOC harmonicScaler( const PVOC & me, Func2x1 series, std::function< Frequency ( Frequency, int )> harmonicFunc, int numSamples, XCDP_CANCEL_ARG_CPP )
+	{
+	PVOC out( me.getFormat() );
+	out.clearBuffer();
+
+	for( Channel channel = 0; channel < me.getNumChannels(); ++channel )
+		for( Frame frame = 0; frame < me.getNumFrames(); ++frame )
+			{
+			// Samples for this frame - note this could take the time-freq pos and an index for added flexibility. I don't think it's needed.
+			std::vector<float> seriesSamples( numSamples );
+			for( int i = 0; i < seriesSamples.size(); ++i )
+				seriesSamples[i] = series( frame * me.frameToTime(), i );
+
+			for( Bin bin = 0; bin < me.getNumBins(); ++bin )
+				{
+				XCDP_CANCEL_POINT( PVOC() );
+				const PVOC::MF & source = me.getMF( channel, frame, bin );
+				if( source.f <= 1.0f ) continue;
+				int i = 0;
+				for( Frequency freq = source.f; freq < me.getHeight() && i < seriesSamples.size(); freq = harmonicFunc( source.f, i ) )
+					{
+					PVOC::MF & dest = out.getMF( channel, frame, freq * me.frequencyToBin() );
+					if( dest.m < source.m * seriesSamples[i] )
+						{
+						dest.m = source.m * seriesSamples[i];
+						dest.f = freq;
+						}
+					++i;
+					}
+				}
+			}
+
+	return out;
+	}
+
+PVOC PVOC::addOctaves( Func2x1 series, XCDP_CANCEL_ARG_CPP ) const
+	{
+	XCDP_PROCESS_START( PVOC() );
+	return harmonicScaler( *this, series, []( Frequency f, int i ){ return f * std::pow( 2, i ); }, std::ceil( std::log2( getHeight() ) ), canceller );
+	}
+
+PVOC PVOC::addHarmonics( Func2x1 series, XCDP_CANCEL_ARG_CPP ) const
+	{
+	XCDP_PROCESS_START( PVOC() );
+	return harmonicScaler( *this, series, []( Frequency f, int i ){ return f * i; }, getNumBins(), canceller );
+	}
 
 PVOC PVOC::shape( Func2x2 shaper, XCDP_CANCEL_ARG_CPP ) const
 	{

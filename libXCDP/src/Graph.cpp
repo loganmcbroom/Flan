@@ -61,7 +61,7 @@ std::vector<std::pair<int,View>> Graph::getIntersectingViews( Rect U, int plane 
 // Waveforms
 //======================================================================================================================================================
 
-void Graph::drawWaveform( Func1x1 data, Rect rect, int plane, WaveformMode mode, XCDP_CANCEL_ARG_CPP )
+void Graph::drawWaveform( Func1x1 data, Rect rect, int plane, Color c, WaveformMode mode, XCDP_CANCEL_ARG_CPP )
 	{
 	XCDP_FUNCTION_LOG;
 
@@ -92,11 +92,10 @@ void Graph::drawWaveform( Func1x1 data, Rect rect, int plane, WaveformMode mode,
 
 			const Pixel yOffsetPixels = view.hUToV( std::clamp( sum, -1.0f, 1.0f ) * rect.h() / 2.0f );
 
-			auto setPixelWithColor = [this, yMidPixel, &rect, &view]( Pixel x, Pixel y )
+			auto setPixelWithColor = [this, yMidPixel, &rect, &view, c]( Pixel x, Pixel y )
 				{ 
 				if( y < view.V.y1() ||  view.V.y2() <= y ) return;
-				const float r = std::abs( y - yMidPixel ) / view.hUToV( rect.h() / 2.0f );
-				const Color c = Color::fromHSV( 90.0f * r + hue, .8f, .65 ); 
+				//const float r = std::abs( y - yMidPixel ) / view.hUToV( rect.h() / 2.0f );
 				setPixel( x, y, c );
 				};
 
@@ -114,31 +113,33 @@ void Graph::drawWaveform( Func1x1 data, Rect rect, int plane, WaveformMode mode,
 		}
 	}
 
-void Graph::drawWaveform( const float * data, int n, Rect area, int plane, WaveformMode mode, XCDP_CANCEL_ARG_CPP )
+void Graph::drawWaveform( const float * data, int n, Rect rect, int plane, Color c, WaveformMode mode, XCDP_CANCEL_ARG_CPP )
 	{
-	drawWaveforms( { data }, n, area, plane, mode, canceller );
+	drawWaveform( [data, n, &rect]( float x )
+		{ 
+		const int i = std::floor( ( x - rect.x1() ) / rect.w() * n );
+		//if( i < 0 || i >= n ) return 0.0f;
+		return data[i]; 
+		}, 
+		rect, plane, c, mode, canceller );
 	}
 
 void Graph::drawWaveforms( std::vector<Func1x1> fs, Rect rect, int startPlane, WaveformMode mode, XCDP_CANCEL_ARG_CPP )
 	{
 	for( int f = 0; f < fs.size(); ++f )
 		{
-		hue = 360.0f * f / fs.size();
-		drawWaveform( fs[f], rect, startPlane + f, mode, canceller );
+		const Color c = Color::fromHSV( 360.0f * f / fs.size(), .8, .65 );
+		drawWaveform( fs[f], rect, startPlane + f, c, mode, canceller );
 		}
 	}
 
-void Graph::drawWaveforms( std::vector<const float *> datas, int n, Rect rect, int startPlane, WaveformMode mode, XCDP_CANCEL_ARG_CPP )
+void Graph::drawWaveforms( std::vector<const float *> fs, int n, Rect rect, int startPlane, WaveformMode mode, XCDP_CANCEL_ARG_CPP )
 	{
-	std::vector<Func1x1> fs;
-	for( auto & d : datas ) 
-		fs.push_back( [&d, n, &rect]( float x )
-			{ 
-			const int i = std::floor( ( x - rect.x1() ) / rect.w() * n );
-			//if( i < 0 || i >= n ) return 0.0f;
-			return d[i]; 
-			} );
-	drawWaveforms( fs, rect, startPlane, mode, canceller );
+	for( int f = 0; f < fs.size(); ++f )
+		{
+		const Color c = Color::fromHSV( 360.0f * f / fs.size(), .8, .65 );
+		drawWaveform( fs[f], n, rect, startPlane + f, c, mode, canceller );
+		}
 	}
 
 
@@ -146,7 +147,7 @@ void Graph::drawWaveforms( std::vector<const float *> datas, int n, Rect rect, i
 // Spectrograms
 //======================================================================================================================================================
 
-void Graph::drawSpectrogram( Func2x1 data, Rect rect, int plane, XCDP_CANCEL_ARG_CPP )
+void Graph::drawSpectrogram( Func2x1 data, Rect rect, int plane, float hue, XCDP_CANCEL_ARG_CPP )
 	{
 	XCDP_FUNCTION_LOG;
 
@@ -187,32 +188,34 @@ void Graph::drawSpectrogram( Func2x1 data, Rect rect, int plane, XCDP_CANCEL_ARG
 		}
 	}
 
-void Graph::drawSpectrogram( const float * data, int n, int m, Rect rect, int plane, XCDP_CANCEL_ARG_CPP )
+void Graph::drawSpectrogram( const float * data, int n, int m, Rect rect, int plane, float hue, XCDP_CANCEL_ARG_CPP )
 	{
-	drawSpectrograms( { data }, n, m, rect, plane, canceller );
+	drawSpectrogram( [&data, n, m, &rect]( float x, float y )
+		{ 
+		const int i = std::floor( ( x - rect.x1() ) / rect.w() * n );
+		const int j = std::floor( ( y - rect.y1() ) / rect.h() * m );
+		//if( i < 0 || i >= n || j < 0 || j >= m ) return 0.0f;
+		return data[ i * m + j ]; 
+		}, 
+		rect, plane, hue, canceller );
 	}
 
 void Graph::drawSpectrograms( std::vector<Func2x1> fs, Rect rect, int startPlane, XCDP_CANCEL_ARG_CPP )
 	{
 	for( int f = 0; f < fs.size(); ++f )
 		{
-		hue = 360.0f * f / fs.size();
-		drawSpectrogram( fs[f], rect, startPlane + f, canceller );
+		const float hue = 360.0f * f / fs.size();
+		drawSpectrogram( fs[f], rect, startPlane + f, hue, canceller );
 		}
 	}
 
-void Graph::drawSpectrograms( std::vector<const float *> datas, int n, int m, Rect rect, int startPlane, XCDP_CANCEL_ARG_CPP )
+void Graph::drawSpectrograms( std::vector<const float *> fs, int n, int m, Rect rect, int startPlane, XCDP_CANCEL_ARG_CPP )
 	{
-	std::vector<Func2x1> fs;
-	for( auto & d : datas ) 
-		fs.push_back( [&d, n, m, &rect]( float x, float y )
-			{ 
-			const int i = std::floor( ( x - rect.x1() ) / rect.w() * n );
-			const int j = std::floor( ( y - rect.y1() ) / rect.h() * m );
-			//if( i < 0 || i >= n || j < 0 || j >= m ) return 0.0f;
-			return d[ i * m + j ]; 
-			} );
-	drawSpectrograms( fs, rect, canceller );
+	for( int f = 0; f < fs.size(); ++f )
+		{
+		const float hue = 360.0f * f / fs.size();
+		drawSpectrogram( fs[f], n, m, rect, startPlane + f, hue, canceller );
+		}
 	}
 
 
@@ -269,7 +272,7 @@ void Graph::drawFunctions( const std::vector<Func1x1> & fs, std::vector<Interval
 	// Draw waveforms
 	for( int f = 0; f < fs.size(); ++f )
 		{
-		hue = 360.0f * f / fs.size();
+		const float hue = 360.0f * f / fs.size();
 		drawFunction( fs[f], domains[f], plane, Color::fromHSV( hue, 1, 1 ), canceller );
 		}
 	}
@@ -367,7 +370,7 @@ void Graph::drawLinearGrid( float xJumpSize, float yJumpSize, int plane, Color c
 		}
 	}
 
-void Graph::drawXTicks( float jump, float y, Pixel offsetDown, Pixel offsetUp, int plane, Color c, bool showNumbers )
+void Graph::drawXTicks( float jump, float y, Pixel offsetDown, Pixel offsetUp, int plane, Color c, float numberScale )
 	{
 	if( jump <= 0 ) return;
 
@@ -387,12 +390,12 @@ void Graph::drawXTicks( float jump, float y, Pixel offsetDown, Pixel offsetUp, i
 		for( float x = xStart; x <= xEnd; x += jump ) 
 			{
 			drawVerticalLine( view, draw, yStart, yEnd, x );
-			if( showNumbers ) drawFloat( { x, yStart - view.hVToU( 12 ) }, 8, 10, x, plane, c );
+			if( numberScale > 0 ) drawFloat( { x, yStart - view.hVToU( 12 ) }, numberScale * 4 / 5, numberScale, x, plane, c );
 			}
 		}
 	}
 
-void Graph::drawYTicks( float jump, float x, Pixel offsetLeft, Pixel offsetRight, int plane, Color c, bool showNumbers )
+void Graph::drawYTicks( float jump, float x, Pixel offsetLeft, Pixel offsetRight, int plane, Color c, float numberScale )
 	{
 	if( jump <= 0 ) return;
 
@@ -412,7 +415,7 @@ void Graph::drawYTicks( float jump, float x, Pixel offsetLeft, Pixel offsetRight
 		for( float y = yStart; y <= yEnd; y += jump ) 
 			{
 			drawHorizontalLine( view, draw, xStart, xEnd, y );
-			if( showNumbers ) drawFloat( { xEnd, y - .5f * view.hVToU( 10 ) }, 8, 10, y, plane, c );
+			if( numberScale > 0 ) drawFloat( { xEnd, y - .5f * view.hVToU( 10 ) }, numberScale * 4 / 5, numberScale, y, plane, c );
 			}
 		}
 	}

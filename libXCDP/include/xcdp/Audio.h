@@ -20,7 +20,7 @@ class Graph;
 /** This is a wrapper of xcdp::AudioBuffer which contains all relevant algorithms and utilities available
  *	in xcdp for manipulating Audio buffers.
  *
- *	All methods are const and have no side effects outside of Audio::graph, which saves a bmp file.
+ *	All Audio methods are const and have no side effects.
  */
 class Audio : public AudioBuffer
 {
@@ -85,8 +85,9 @@ public:
 	 *  \param tEnd The graph end time. Passing -1 will graph up to the end of the data.
 	 *  \param width The bmp width.
 	 *  \param height The bmp height.
+	 *	\param timelineScale Size of tick marks. Zero for none.
 	 */
-	Graph convertToGraph( Interval I = Interval( 0, -1 ), Pixel width = -1, Pixel height = -1, XCDP_CANCEL_ARG ) const;
+	Graph convertToGraph( Interval I = Interval( 0, -1 ), Pixel width = -1, Pixel height = -1, float timelineScale = 0, XCDP_CANCEL_ARG ) const;
 
 	/** Converts the Autio to a waveform bmp and saves it at filename.
 	 *	\param filename A filename at which to save the generated bmp.
@@ -351,11 +352,11 @@ public:
 	 *		eventsPerSecond will cause scatter to have less of an effect.
 	 *  \param repitch Pitch scaling.
 	 *  \param gain Volume scaling.
-	 *	\param cutEnd Event length.
+	 *	\param eventLength Event length.
 	 *	\param pan Pan amount. Zero gives no panning.
 	 */
 	Audio textureSimple( Time length, Func1x1 eventsPerSecond, Func1x1 scatter, 
-		Func1x1 repitch, Func1x1 gain, Func1x1 cutEnd, Func1x1 pan = 0, XCDP_CANCEL_ARG ) const;
+		Func1x1 repitch, Func1x1 gain, Func1x1 eventLength, Func1x1 pan = 0, XCDP_CANCEL_ARG ) const;
 
 	/** This is a traditional granular synthesis tool.
 	 *  \param length Grains will generate until this time.
@@ -378,7 +379,7 @@ public:
 	 */
 	std::vector<Audio> chop( Time sliceLength, Time fade = 0.05, XCDP_CANCEL_ARG ) const;
 
-	/** This performs chop, randomizes the order of the chopped pieces, and joins.
+	/** This performs chop, randomizes the order of the chopped pieces, and joins, crossfading.
 	 *  \param sliceLength The length of each output.
 	 *  \param fade The start and end fade time of each slice.
 	 */

@@ -13,7 +13,9 @@
 
 namespace xcdp {
 
-/** Graph is a general graphing object. */
+/** Graph is a general graphing object. 
+	This class stores image data in a std::shared_ptr.
+*/
 class Graph : public bitmap_image
 	{
 	public:
@@ -28,6 +30,12 @@ class Graph : public bitmap_image
 			};
 
 		Graph( Pixel width = -1, Pixel height = -1, Rect view = Rect( 0, 0, 1, 1 ) );
+
+		//Graph & operator=( const Graph & other )
+		//	{
+		//	std::cout << "fuck you";
+		//	return *this;
+		//	}
 
 		/** Add a view to the view list.
 		 * \param view The view to add. This maps plane space to pixel space.
@@ -62,6 +70,7 @@ class Graph : public bitmap_image
 		 */
 		std::vector<std::pair<int,View>> getIntersectingViews( Rect U, int plane ) const;
 
+
 		//======================================================================================================================================================
 		// Waveforms
 		//======================================================================================================================================================
@@ -70,14 +79,14 @@ class Graph : public bitmap_image
 		 * \param f The function to sample over [0,1]. Outputs will be clamped to [-1,1].
 		 * \param rect The plane space to graph within.
 		 */
-		void drawWaveform( Func1x1 f, Rect rect = Rect(), int plane = -1, WaveformMode mode = WaveformMode::Direct, XCDP_CANCEL_ARG );
+		void drawWaveform( Func1x1 f, Rect rect = Rect(), int plane = -1, Color c = Color::White, WaveformMode mode = WaveformMode::Direct, XCDP_CANCEL_ARG );
 
 		/** Buffer waveform graph.
 		 * \param data The buffer to sample. Outputs will be clamped to [-1,1].
 		 * \param n The buffer size.
 		 * \param rect The plane space to graph within.
 		 */
-		void drawWaveform( const float * data, int n, Rect rect = Rect(), int plane = -1, WaveformMode mode = WaveformMode::Direct, XCDP_CANCEL_ARG );
+		void drawWaveform( const float * data, int n, Rect rect = Rect(), int plane = -1, Color c = Color::White, WaveformMode mode = WaveformMode::Direct, XCDP_CANCEL_ARG );
 
 		/** Functional waveform graph. Functions will be graphed from bottom to top, splitting the rect evenly, and with maximally distant hues.
 		 * \param fs The functions to sample over [0,1]. Outputs will be clamped to [-1,1].
@@ -100,8 +109,9 @@ class Graph : public bitmap_image
 		/** Functional spectrum over time graph.
 		 * \param f The function to sample over [0,1]X[0,1]. Outputs will be clamped to [0,1].
 		 * \param rect The plane space to graph within.
+		 * \param plane The plane to graph within.
 		 */
-		void drawSpectrogram( Func2x1 f, Rect rect = Rect(), int plane = -1, XCDP_CANCEL_ARG );
+		void drawSpectrogram( Func2x1 f, Rect rect = Rect(), int plane = -1, float hue = 0, XCDP_CANCEL_ARG );
 
 		/** Buffer spectrum over time graph.
 		 * \param data The buffer to sample. This should have a time-major ordering. Outputs will be clamped to [-1,1].
@@ -109,7 +119,7 @@ class Graph : public bitmap_image
 		 * \param numBins The number of frequency steps in the buffer.
 		 * \param rect The plane space to graph within.
 		 */
-		void drawSpectrogram( const float * data, int numFrames, int numBins, Rect rect = Rect(), int plane = -1, XCDP_CANCEL_ARG );
+		void drawSpectrogram( const float * data, int numFrames, int numBins, Rect rect = Rect(), int plane = -1, float hue = 0, XCDP_CANCEL_ARG );
 
 		/** Functional spectrum over time graph. Functions will be graphed from bottom to top, splitting the rect evenly, and with maximally distant hues.
 		 * \param fs The functions to sample over [0,1]X[0,1]. Outputs will be clamped to [0,1].
@@ -168,8 +178,8 @@ class Graph : public bitmap_image
 
 		void drawAxes( int plane = -1, Color c = Color::Black );
 		void drawLinearGrid( float xJumpSize = 1, float yJumpSize = 1, int plane = -1, Color c = Color::fromHSV( 0, 0, .7 ) );
-		void drawXTicks( float jump, float y, Pixel offsetDown = 4, Pixel offsetUp = 4, int plane = -1, Color c = Color::Black, bool showNumbers = false );
-		void drawYTicks( float jump, float x, Pixel offsetLeft = 4, Pixel offsetRight = 4, int plane = -1, Color c = Color::Black, bool showNumbers = false );
+		void drawXTicks( float jump, float y, Pixel offsetDown = 4, Pixel offsetUp = 4, int plane = -1, Color c = Color::Black, float numberScale = 0 );
+		void drawYTicks( float jump, float x, Pixel offsetLeft = 4, Pixel offsetRight = 4, int plane = -1, Color c = Color::Black, float numberScale = 0 );
 
 		/** Draw a single filled circular point, which has a size and shape independant of the view.
 		 * \param p The point.
@@ -183,18 +193,20 @@ class Graph : public bitmap_image
 		 */
 		void drawPoints( const std::vector<vec2> & ps, Pixel radius = 6, int plane = -1, Color c = Color::Black );
 
-		/** Very primitive text rendering. Seriously, I manually pathed out 0-9, dash, and dot and draw it using lines. Looks cool though.
+		/** Very primitive text rendering. Seriously, I manually pathed out 0-9, dash, and dot, and draw it using lines. Looks cool though.
 		 */
 		void drawFloat( vec2 pos, Pixel digitWidth, Pixel digitHeight, float number,  int plane = -1, Color c = Color::Black, XCDP_CANCEL_ARG );
 
 	private:
 		std::vector<std::pair<int, View>> views;
-		const uint32_t oversample = 4;
-		float hue = 0;
+		//float hue = 0;
 
+		static uint32_t oversample;
 		static Pixel DefaultWidth, DefaultHeight;
 	};
 
+
+inline uint32_t Graph::oversample = 4;
 inline Pixel Graph::DefaultWidth = 1920;
 inline Pixel Graph::DefaultHeight = 1080;
 

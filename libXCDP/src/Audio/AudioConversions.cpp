@@ -91,7 +91,7 @@ Audio Audio::convertToMono( XCDP_CANCEL_ARG_CPP ) const
 	return out;
 	}
 
-Graph Audio::convertToGraph( Interval I, Pixel width, Pixel height, XCDP_CANCEL_ARG_CPP ) const
+Graph Audio::convertToGraph( Interval I, Pixel width, Pixel height, float timelineScale, XCDP_CANCEL_ARG_CPP ) const
 	{
 	XCDP_PROCESS_START( Graph( width, height ) );
 
@@ -103,15 +103,19 @@ Graph Audio::convertToGraph( Interval I, Pixel width, Pixel height, XCDP_CANCEL_
 	Graph g( width, height );
 	g.fillImage( Color::fromHSV( 0, 0, .04 ) );
 	g.addFullSplitViewY( I * Interval( -1, 1 ), getNumChannels() );
-	
-	const float bigJump = std::pow( 4.0f, std::floor( std::log2( I.w() ) / 2 - 0.5f ) );
-	g.drawXTicks( bigJump / 4.0f, 1, 8, 0, -1, Color::fromHSV( 0, 0, .6 ), false );
-	g.drawXTicks( bigJump, 1, 20, 0, -1, Color::fromHSV( 0, 0, 1 ), true );
 		
 	std::vector<const float *> channelStarts( getNumChannels() );
 	for( int i = 0; i < getNumChannels(); ++i )
 		channelStarts[i] = getSamplePointer( i, 0 );
-	g.drawWaveforms( channelStarts, getNumFrames(), { 0, -1, getLength(), 1 }, 0, Graph::WaveformMode::Direct, canceller );
+	g.drawWaveforms( channelStarts, getNumFrames(), { 0, -1, getLength(), 1 }, 0, Graph::WaveformMode::Symmetric, canceller );
+
+	if( timelineScale > 0 )
+		{
+		const float bigJump = std::pow( 4.0f, std::floor( std::log2( I.w() ) / 2 - 0.5f ) );
+		g.drawXTicks( bigJump / 4.0f, 1, timelineScale / 2, 0, -1, Color::fromHSV( 0, 0, .6 ), 0 );
+		g.drawXTicks( bigJump, 1, timelineScale, 0, -1, Color::fromHSV( 0, 0, 1 ), timelineScale );
+		}
+
 	return g;
 	}
 
@@ -150,7 +154,7 @@ PVOC Audio::convertToPVOC_cpu( Frame windowSize, Frame hopSize, Frame dftSize, s
 
 	//Allocate fft buffers and phase buffer
 	std::vector<float> phaseBuffer( numBins );
-	if( ! fft  ) fft = std::make_shared<FFTHelper>( dftSize, true, false, false );
+	if( ! fft ) fft = std::make_shared<FFTHelper>( dftSize, true, false, false );
 
 	//For each channel, do the whole thing
 	for( Channel channel = 0; channel < getNumChannels(); ++channel )
@@ -160,7 +164,7 @@ PVOC Audio::convertToPVOC_cpu( Frame windowSize, Frame hopSize, Frame dftSize, s
 			phaseBuffer[bin] = 0;
 
 		//For each hop, fft and save into buffer
-		for( uint32_t hop = 0; hop < numHops; ++hop )
+		for( int hop = 0; hop < numHops; ++hop )
 			{
 			XCDP_CANCEL_POINT( out );
 
@@ -170,18 +174,18 @@ PVOC Audio::convertToPVOC_cpu( Frame windowSize, Frame hopSize, Frame dftSize, s
 			const Frame inFrameStart_s = std::max( inFrameStart, 0 );
 			const Frame inFrameEnd_s   = std::min( inFrameEnd, int( numFrames ) );
 
-			const int32_t dataStart = inFrameStart_s - inFrameStart;
-			const int32_t dataEnd = inFrameEnd_s - inFrameStart;
+			const int32_t fftStart = inFrameStart_s - inFrameStart;
+			const int32_t fftEnd = inFrameEnd_s - inFrameStart;
 
 			// Clear any fft buffer frames that won't be written to
 			if( inFrameStart != inFrameStart_s )
-				std::fill( fft->realBegin(), fft->realBegin() + dataStart, 0 );
+				std::fill( fft->realBegin(), fft->realBegin() + fftStart, 0 );
 			if( inFrameEnd != inFrameEnd_s )
-				std::fill( fft->realBegin() + dataEnd, fft->realEnd(), 0 );
+				std::fill( fft->realBegin() + fftEnd, fft->realEnd(), 0 );
 
 			// Write input frames to fft buffer
 			const Sample * inFrameRead = getSamplePointer( channel, inFrameStart_s );
-			for( Frame fftFrame = dataStart; fftFrame < dataEnd; ++fftFrame )
+			for( Frame fftFrame = fftStart; fftFrame < fftEnd; ++fftFrame )
 				{
 				fft->realBuffer[fftFrame] = *inFrameRead * hannWindow[fftFrame];
 				++inFrameRead;
@@ -207,26 +211,20 @@ PVOC Audio::convertToPVOC_cpu( Frame windowSize, Frame hopSize, Frame dftSize, s
 				//    times the width of a single bin.
 				const float bin_f = float( bin );
 
-				const float phase = std::arg( fft->complexBuffer[bin] ); // Current phase
-				const float phaseDiff = phase - phaseBuffer[bin]; // Change in phase from previous frame
-				phaseBuffer[bin] = phase; // Update phase buffer
-				const float expectedPhaseDiff = bin_f * pi2 * hopSize / dftSize; // The expected change in phase, given that the sinusoid being measured aligns with the bin frequency
-				const float deltaPhase = phaseDiff - expectedPhaseDiff; // The difference between the actual and the expected phase changes
-				const float wrappedDeltaPhase = deltaPhase - pi2 * std::round( deltaPhase / pi2 ); // Wrap delta phase into [-pi,pi]
-				const float binDeviation = dftSize / ( pi2 * hopSize ) * wrappedDeltaPhase;
-				const float iFrequency = ( bin_f + binDeviation ) * binWidth;
-
 				const float magnitude = std::abs( fft->complexBuffer[bin] );
-				//const float iMagnitude = magnitude / Windows::HannDFT2( binDeviation * windowSize / dftSize );
 
-				out.setMF( channel, hop, bin, { magnitude, iFrequency } );
+				const float phase = std::arg( fft->complexBuffer[bin] ); // Current phase
+				const float phaseDiff = phase - phaseBuffer[bin]; // Actual change in radians per hop
+				phaseBuffer[bin] = phase; // Update phase buffer
+				const float expectedPhaseDiff = bin_f * pi2 * hopSize / dftSize; // Expected change in radians per hop for this bin.
+				const float deltaPhase = phaseDiff - expectedPhaseDiff; // The difference between the actual and the expected phase changes, aka how far off was our sinusoid from the expected.
+				const float wrappedDeltaPhase = deltaPhase - pi2 * std::round( deltaPhase / pi2 ); // Wrap delta phase into [-pi,pi]
+				const float binDeviation = wrappedDeltaPhase / pi2 * dftSize / hopSize;
+				const float frequency = ( bin_f + binDeviation ) * binWidth;
+
+				out.setMF( channel, hop, bin, { magnitude, frequency } );
 				}
 			}
-
-			// Initial phase error correction. Copy frame 1 frequency to frame 0.
-			if( out.getNumFrames() > 1 )
-				for( Bin bin = 0; bin < out.getNumBins(); ++bin )
-					out.getMF( channel, 0, bin ).f = out.getMF( channel, 1, bin ).f;
 		}
 
 	return out;
@@ -236,8 +234,11 @@ PVOC Audio::convertToPVOC( Frame windowSize, Frame hopSize, Frame dftSize, std::
 	{
 	XCDP_PROCESS_START( PVOC() );
 
+	if( dftSize < windowSize )
+		dftSize = windowSize;
+
 #ifndef USE_OPENCL
-	return convertToPVOC_cpu( windowSize, hopSize, fftSize, fft, canceller );
+	return convertToPVOC_cpu( windowSize, hopSize, dftSize, fft, canceller );
 #else
 
 	const Bin numBins = dftSize / 2 + 1;
@@ -245,6 +246,7 @@ PVOC Audio::convertToPVOC( Frame windowSize, Frame hopSize, Frame dftSize, std::
 	//+1 since we analyze at start and end times
 	const uint32_t numHops = uint32_t( ceil( numFrames / hopSize ) ) + 1; 
 	const Frequency binWidth = float( getSampleRate() ) / float( dftSize );
+	const float overlaps = float( dftSize ) / hopSize; // Used in cl code
 	
 	// Set up output
 	PVOCBuffer::Format PVOCFormat;
@@ -266,14 +268,13 @@ PVOC Audio::convertToPVOC( Frame windowSize, Frame hopSize, Frame dftSize, std::
 	if( ! fft  ) fft = std::make_shared<FFTHelper>( dftSize, true, false, false );
 	
 	// Prepare OpenCL
-	auto cl = CLContext::get();
+	CLContext cl;
+	ProgramHelper programHelper( cl, CLProgs::Audio_convertToPVOC );
 	const uint32_t outChannelDataCount = numBins * numHops;
-	static ProgramHelper programHelper( CLProgs::Audio_convertToPVOC );
 	cl::Buffer clIn( cl.context, CL_MEM_READ_WRITE, sizeof( std::complex<float> ) * outChannelDataCount );
 	cl::Buffer clOut( cl.context, CL_MEM_WRITE_ONLY, sizeof( PVOCBuffer::MF ) * outChannelDataCount );
 	cl::KernelFunctor< cl::Buffer > cl_fftToPhase( programHelper.program, "fftToPhase" );
-	cl::KernelFunctor< cl::Buffer, cl::Buffer, float, float, int > 
-		cl_phaseToFreq( programHelper.program, "phaseToFreq" );
+	cl::KernelFunctor< cl::Buffer, cl::Buffer, float, float, int > cl_phaseToFreq( programHelper.program, "phaseToFreq" );
 	
 	for( uint32_t channel = 0; channel < getNumChannels(); ++channel )
 		{
@@ -324,7 +325,7 @@ PVOC Audio::convertToPVOC( Frame windowSize, Frame hopSize, Frame dftSize, std::
 		cl_phaseToFreq( cl::EnqueueArgs( cl.queue, cl::NDRange( outChannelDataCount ) ), 
 			clIn, 
 			clOut,
-			float( dftSize ) / hopSize,
+			overlaps,
 			binWidth,
 			numBins );
 
@@ -332,11 +333,6 @@ PVOC Audio::convertToPVOC( Frame windowSize, Frame hopSize, Frame dftSize, std::
 		cl.queue.enqueueBarrierWithWaitList();
 		cl::copy( cl.queue, clOut, outBufferWriteHead, outBufferWriteHead + outChannelDataCount );
 		outBufferWriteHead += outChannelDataCount;
-
-		// Initial phase error correction. Copy frame 1 frequency to frame 0.
-		if( out.getNumFrames() > 1 )
-			for( Bin bin = 0; bin < out.getNumBins(); ++bin )
-				out.getMF( channel, 0, bin ).f = out.getMF( channel, 1, bin ).f;
 		};
 
 	XCDP_CANCEL_POINT( PVOC() );

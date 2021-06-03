@@ -90,35 +90,35 @@ public:
       create_bitmap();
    }
 
-   bitmap_image(const bitmap_image& image)
-   : file_name_(image.file_name_),
-     width_    (image.width_    ),
-     height_   (image.height_   ),
-     row_increment_  (0),
-     bytes_per_pixel_(3),
-     channel_mode_(bgr_mode),
-     data_(new std::vector<unsigned char>)
-   {
-      create_bitmap();
-      data_ = image.data_;
-   }
+   //bitmap_image(const bitmap_image& image)
+   //: file_name_(image.file_name_),
+   //  width_    (image.width_    ),
+   //  height_   (image.height_   ),
+   //  row_increment_  (0),
+   //  bytes_per_pixel_(3),
+   //  channel_mode_(bgr_mode),
+   //  data_(new std::vector<unsigned char>)
+   //{
+   //   create_bitmap();
+   //   data_ = image.data_;
+   //}
 
-   bitmap_image& operator=(const bitmap_image& image)
-   {
-      if (this != &image)
-      {
-         file_name_       = image.file_name_;
-         bytes_per_pixel_ = image.bytes_per_pixel_;
-         width_           = image.width_;
-         height_          = image.height_;
-         row_increment_   = 0;
-         channel_mode_    = image.channel_mode_;
-         create_bitmap();
-         data_ = image.data_;
-      }
+   //bitmap_image& operator=(const bitmap_image& image)
+   //{
+   //   if (this != &image)
+   //   {
+   //      file_name_       = image.file_name_;
+   //      bytes_per_pixel_ = image.bytes_per_pixel_;
+   //      width_           = image.width_;
+   //      height_          = image.height_;
+   //      row_increment_   = 0;
+   //      channel_mode_    = image.channel_mode_;
+   //      create_bitmap();
+   //      data_ = image.data_;
+   //   }
 
-      return *this;
-   }
+   //   return *this;
+   //}
 
    inline bool operator!()
    {

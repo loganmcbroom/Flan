@@ -425,7 +425,8 @@ Audio Audio::convolve( const Audio & ir, XCDP_CANCEL_ARG_CPP ) const
 Audio Audio::iterate( uint32_t n, Audio::Mod mod, bool feedback, XCDP_CANCEL_ARG_CPP ) const
 	{
 	XCDP_PROCESS_START( Audio() );
-	return texture( getLength() * n, 1.0f / getLength(), 0, mod, feedback, canceller );
+	// Half a length is removed to avoid length rounding changing the number of events generated
+	return texture( getLength() * ( float( n ) - 0.5f ), 1.0f / getLength(), 0, mod, feedback, canceller );
 	}
 
 Audio Audio::delay( Time length, Func1x1 delayTime, Func1x1 decay, Audio::Mod mod, XCDP_CANCEL_ARG_CPP ) const
@@ -464,11 +465,11 @@ Audio Audio::fadeFrames( Frame start, Frame end, Interpolator interp, XCDP_CANCE
 	// Input validation
 	start = std::max( 0, start );
 	end   = std::max( 0, end   );
-	if( start + end > getLength() )
+	if( start + end > getNumFrames() )
 		{
-		const float scale = getLength() / ( start + end );
-		start *= scale;
-		end	*= scale;
+		const float scale = float( getNumFrames() ) / ( start + end );
+		start = std::floor( start * scale );
+		end	= std::floor( end * scale );
 		}
 	if( start == 0 && end == 0 ) return *this;
 
@@ -482,7 +483,7 @@ Audio Audio::fadeFrames( Frame start, Frame end, Interpolator interp, XCDP_CANCE
 			const float fadeAmt = interp( float( frame ) / start );
 			out.getSample( channel, frame ) *= fadeAmt;
 			}
-		for( uint32_t frame = 0; frame < end; ++frame )
+		for( Frame frame = 0; frame < end; ++frame )
 			{
 			XCDP_CANCEL_POINT( Audio() );
 			const float fadeAmt = interp( float( frame ) / end );
@@ -558,7 +559,10 @@ Audio Audio::rearrange( Time sliceLength, Time fade, XCDP_CANCEL_ARG_CPP ) const
 	{
 	XCDP_PROCESS_START( Audio() );
 
-	auto chops = chop( sliceLength, fade, canceller );
+	// + fade here accounts for + fade / 2 at both ends
+	auto chops = chop( sliceLength + fade, fade, canceller );
+	if( chops.size() < 2 )
+		return Audio();
 
 	chops.pop_back(); // Final slice usually isn't the correct length
 
@@ -631,7 +635,7 @@ Audio Audio::join( const std::vector<Audio> & ins, float fade, XCDP_CANCEL_ARG_C
 
 	// Sum lengths to get mix positions
 	std::vector<float> times( ins.size() );
-	std::partial_sum( jumps.begin(), jumps.end(), times.begin(), [fade]( float a, float b ){ return a + b - fade; } );
+	std::partial_sum( jumps.begin(), jumps.end(), times.begin(), [fade]( float a, float b ){ return a + b - fade / 2.0f; } );
 
 	return mix( ins, std::vector<Func1x1>(), times, canceller );
 	}

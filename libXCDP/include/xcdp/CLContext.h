@@ -14,8 +14,6 @@ class CLContext
 public:
 	CLContext();
 
-	static CLContext & get();
-
 	cl::Platform platform;
 	std::vector<cl::Device> devices;
 	cl::Context context;
@@ -24,7 +22,7 @@ public:
 
 struct ProgramHelper
 {
-	ProgramHelper( const std::string & source );
+	ProgramHelper( CLContext & context, const std::string & source );
 
 	cl::Program program;
 };

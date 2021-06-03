@@ -54,6 +54,8 @@ struct vec2
 	/** Component-wise negation */
 	vec2 operator-() const { return vec2{ -x(), -y() }; }
 
+	float mag() const { return std::sqrt( x() * x() + y() * y() ); }
+
 	std::array<float,2> v;
 	};
 

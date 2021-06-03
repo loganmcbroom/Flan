@@ -126,8 +126,14 @@ static std::vector<float> compute_dPrime( const float * in, Frame n, std::shared
 //	return bestFrame;
 //	}
 
+
+float Audio::getTotalEnergy( XCDP_CANCEL_ARG_CPP ) const
+	{
+	return std::accumulate( begin(), end(), 0.0f, []( float x, Sample s ){ return x + s * s; } );
+	}
+
 //============================================================================================================================================================
-// wavelengths
+// Wavelengths
 //============================================================================================================================================================
 
 float Audio::getLocalWavelength( Channel channel, Frame start, Frame windowSize, std::shared_ptr<FFTHelper> fft, XCDP_CANCEL_ARG_CPP ) const

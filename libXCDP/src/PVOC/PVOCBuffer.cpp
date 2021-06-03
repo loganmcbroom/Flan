@@ -401,10 +401,11 @@ Magnitude PVOCBuffer::getMaxPartialMagnitude( uint32_t startFrame, uint32_t endF
 	for( uint32_t channel = 0; channel < getNumChannels(); ++channel )
 		for( uint32_t frame = startFrame; frame < endFrame; ++frame )
 			for( uint32_t bin = startBin; bin < endBin; ++bin )
-				{
+			    {
 				const float trueMag = std::abs( getMF( channel, frame, bin ).m );
 				if( trueMag > maxMagnitude )
 					maxMagnitude = trueMag;
+
 				}
 
 	return maxMagnitude;
@@ -433,6 +434,21 @@ float PVOCBuffer::binToFrequency() const
 float PVOCBuffer::getFrequencyOffset( Channel c, Frame f, Bin b ) const
 	{
 	return getMF( c, f, b ).f - b * binToFrequency();
+	}
+
+Channel PVOCBuffer::boundChannel( Channel c ) const
+	{
+	return std::clamp( c, 0, getNumChannels() - 1 );
+	}
+
+Frame PVOCBuffer::boundFrame( Frame f ) const
+	{
+	return std::clamp( f, 0, getNumFrames() - 1 );
+	}
+
+Bin PVOCBuffer::boundBin( Bin b ) const
+	{
+	return std::clamp( b, 0, getNumBins() - 1 );
 	}
 
 //======================================================

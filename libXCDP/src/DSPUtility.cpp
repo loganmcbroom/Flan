@@ -63,13 +63,27 @@ std::vector<vec2> findPeaks( std::function< float ( int ) > data, int size, int 
     int i = 0;
 
     // first check the boundaries:
-    if (i+1 < size && data( i + 1 ) > data( i + 1 ) ) 
-            peaks.push_back( vec2( i*scale, data( i ) ) );        
+    if( i+1 < size && data( 0 ) > data( 1 ) ) 
+          peaks.push_back( vec2( i*scale, data( i ) ) );        
 
     while(true) 
         {
-        while( i+1 < size-1 && data( i ) >= data( i + 1 ) ) ++i; // going down
-        while( i+1 < size-1 && data( i ) <  data( i + 1 ) ) ++i; // now we're climbing
+        float prevData = data( i );
+        float currentData;
+        while( i+2 < size )  // going down
+            {
+            currentData = data( i + 1 );
+            if( prevData < currentData ) break;
+            prevData = currentData;
+            ++i;
+            }
+        while( i+2 < size ) // now we're climbing
+            {
+            currentData = data( i + 1 );
+            if( prevData >= currentData ) break;
+            prevData = currentData;
+            ++i;
+            }
 
         int j = i;
         while( j+1 < size-1 && ( data( j ) == data( j + 1 ) ) ) ++j; // not anymore, go through the plateau

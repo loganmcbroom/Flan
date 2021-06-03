@@ -43,13 +43,7 @@ CLContext::CLContext()
 	std::cout << "OpenCL Initialized \n\n";
 	}
 
-CLContext & CLContext::get()
-	{
-	static CLContext instance;
-	return instance;
-	}
-
-ProgramHelper::ProgramHelper( const std::string & source )
+ProgramHelper::ProgramHelper( CLContext & context, const std::string & source )
 	{
 	cl_int err;
 
@@ -62,18 +56,17 @@ ProgramHelper::ProgramHelper( const std::string & source )
 	//std::stringstream source;
 	//source << t.rdbuf();
 
-	auto & cl = CLContext::get();
-	program = cl::Program( cl.context, source, false, &err );
+	program = cl::Program( context.context, source, false, &err );
 	if( err != CL_SUCCESS )
 		{
 		std::cout << "OpenCL error " << err << " while parsing:\n" << source << std::endl;
 		exit( err );
 		}
 
-	err = program.build( cl.devices, "-cl-denorms-are-zero" );
+	err = program.build( context.devices, "-cl-denorms-are-zero" );
 	if( err != CL_SUCCESS )
 		{
-		std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>( cl.devices[0] ) << "\n";
+		std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>( context.devices[0] ) << "\n";
 		exit( err );
 		}
 	}

@@ -10,6 +10,8 @@
 using namespace xcdp;
 
 static const float pi = std::acos( -1.0f );
+static const float pi2 = pi * 2.0f;
+
 
 Audio PVOC::convertToAudio_cpu( std::shared_ptr<FFTHelper> fft, XCDP_CANCEL_ARG_CPP ) const
 	{
@@ -19,7 +21,7 @@ Audio PVOC::convertToAudio_cpu( std::shared_ptr<FFTHelper> fft, XCDP_CANCEL_ARG_
 	const Frame dftSize = getDFTSize();
 	const Frame windowSize = getWindowSize();
 	const Frame hopSize = getHopSize();
-	const uint32_t numHops = getNumFrames();
+	const int numHops = getNumFrames();
 	const Frequency binWidth = binToFrequency();
 	
 	AudioBuffer::Format audioFormat;
@@ -30,9 +32,9 @@ Audio PVOC::convertToAudio_cpu( std::shared_ptr<FFTHelper> fft, XCDP_CANCEL_ARG_
 
 	//Sample Hann window
 	std::vector<float> hannWindow( windowSize );
-	const float windowScale = dftSize * dftSize / hopSize;
+	const float windowScale = 2.67f / ( dftSize * windowSize / hopSize ); // I don't know why, converting audio->pvoc->audio reduces volume by an input specific amount, usually about 2.67
 	for( Frame i = 0; i < windowSize; ++i )
-		hannWindow[i] = Windows::Hann( float( i ) / float( windowSize - 1 ) ) / windowScale;
+		hannWindow[i] = Windows::Hann( float( i ) / float( windowSize - 1 ) ) * windowScale;
 
 	std::vector<float> phaseBuffer( numBins );
 	if( ! fft ) fft = std::make_shared<FFTHelper>( dftSize, false, true, false );
@@ -49,15 +51,15 @@ Audio PVOC::convertToAudio_cpu( std::shared_ptr<FFTHelper> fft, XCDP_CANCEL_ARG_
 			//It's the same as in the analysis but backwards so I'm not writing up every step
 			for( Bin bin = 0; bin < numBins; ++bin )
 				{
-				const float frequency = getMF( channel, hop, bin ).f;
-				const float binDeviation = frequency / binWidth - float(bin);
-				const float deltaPhase = 2.0 * pi * binDeviation * hopSize / dftSize;
-				const float expectedPhaseDiff = float(bin) * ( 2.0f * pi * hopSize / dftSize );
-				const float phaseDiff = deltaPhase + expectedPhaseDiff;
-				phaseBuffer[bin] += phaseDiff;
+				const float bin_f = float( bin );
 
-				const float iMagnitude = getMF( channel, hop, bin ).m;
-				const float magnitude = iMagnitude * Windows::HannDFT2( float( windowSize ) / dftSize * binDeviation );
+				const float magnitude = getMF( channel, hop, bin ).m;
+				const float frequency = getMF( channel, hop, bin ).f;
+				const float binDeviation = frequency / binWidth - bin_f;
+				//const float deltaPhase = binDeviation * pi2 * hopSize / dftSize;
+				//const float expectedPhaseDiff = bin_f * pi2 * hopSize / dftSize;
+				const float phaseDiff = ( binDeviation + bin_f ) * pi2 * hopSize / dftSize;
+				phaseBuffer[bin] += phaseDiff;
 				
 				fft->complexBuffer[bin] = std::polar( magnitude, phaseBuffer[bin] );
 				}
@@ -65,7 +67,7 @@ Audio PVOC::convertToAudio_cpu( std::shared_ptr<FFTHelper> fft, XCDP_CANCEL_ARG_
 			fft->c2rExecute();
 
 			//Accumulate ifft output into audio buffer
-			const Frame outFrameStart = hopSize * ( hop - int( dftSize / hopSize / 2 ) );
+			const Frame outFrameStart = hopSize * hop - windowSize / 2;
 			const Frame outFrameEnd = outFrameStart + windowSize;
 			const Frame outFrameStart_s = std::max( outFrameStart, 0 );
 			const Frame outFrameEnd_s   = std::min( outFrameEnd, out.getNumFrames() );
@@ -79,9 +81,7 @@ Audio PVOC::convertToAudio_cpu( std::shared_ptr<FFTHelper> fft, XCDP_CANCEL_ARG_
 				*writeHead += fft->realBuffer[fftFrame] * hannWindow[fftFrame];
 				++writeHead;
 				}
-			
 			}
-			
 		}
 
 	return out;
@@ -101,6 +101,7 @@ Audio PVOC::convertToAudio( std::shared_ptr<FFTHelper> fft, XCDP_CANCEL_ARG_CPP 
 	const Frame hopSize = getHopSize();
 	const uint32_t numHops = getNumFrames();
 	const Frequency binWidth = binToFrequency();
+	const float overlaps = float( dftSize ) / hopSize;
 	const uint32_t outChannelDataCount = numBins * numHops;
 	const MF * inBufferReadHead = getMFPointer( 0, 0, 0 );
 	
@@ -112,15 +113,15 @@ Audio PVOC::convertToAudio( std::shared_ptr<FFTHelper> fft, XCDP_CANCEL_ARG_CPP 
 
 	//Sample Hann window
 	std::vector<float> hannWindow( windowSize );
-	const float windowScale = float( dftSize ) * dftSize / hopSize;
+	const float windowScale = 2.67f / ( dftSize * windowSize / hopSize ); // I don't know why, converting audio->pvoc->audio reduces volume by an input specific amount, usually about 2.67
 	for( uint32_t i = 0; i < windowSize; ++i )
-		hannWindow[i] = Windows::Hann( float( i ) / float( windowSize - 1 ) ) / windowScale ;
+		hannWindow[i] = Windows::Hann( float( i ) / float( windowSize - 1 ) ) * windowScale;
 
 	if( ! fft ) fft = std::make_shared<FFTHelper>( dftSize, false, true, false );
 
 	//prepare OpenCL
-	auto cl = CLContext::get();
-	static ProgramHelper programHelper( CLProgs::PVOC_convertToAudio );
+	CLContext cl;
+	ProgramHelper programHelper( cl, CLProgs::PVOC_convertToAudio );
 	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( PVOCBuffer::MF ) * outChannelDataCount );
 	cl::Buffer clOut( cl.context, CL_MEM_READ_WRITE, sizeof( std::complex<float> ) * outChannelDataCount );
 	cl::Buffer clPhase( cl.context, CL_MEM_READ_WRITE, sizeof( float ) * numBins );
@@ -134,13 +135,13 @@ Audio PVOC::convertToAudio( std::shared_ptr<FFTHelper> fft, XCDP_CANCEL_ARG_CPP 
 		{
 		cl.queue.enqueueFillBuffer( clPhase, 0, 0, sizeof( float ) * numBins );
 
-		//Copy buffer into OpenCL device
+		// Copy channel into OpenCL device
 		cl::copy( cl.queue, inBufferReadHead, inBufferReadHead + outChannelDataCount, clIn );
 		inBufferReadHead += outChannelDataCount;
 		XCDP_CANCEL_POINT( Audio() );
 		cl.queue.enqueueBarrierWithWaitList();
 
-		//Convert frequencies into phases, copy polar into clOut
+		// Convert frequencies into phases, copy polar into clOut
 		//	This must be ordered due to the phase accumulator
 		for( uint32_t hop = 0; hop < numHops; ++hop )
 			{
@@ -148,11 +149,11 @@ Audio PVOC::convertToAudio( std::shared_ptr<FFTHelper> fft, XCDP_CANCEL_ARG_CPP 
 				clIn, 
 				clOut, 
 				clPhase,
-				float( dftSize ) / hopSize,
+				overlaps,
 				binWidth,
 				numBins );
 			XCDP_CANCEL_POINT( Audio() );
-		cl.queue.enqueueBarrierWithWaitList();
+			cl.queue.enqueueBarrierWithWaitList();
 			}
 
 		//Convert polar to rectangular in-place
@@ -160,7 +161,7 @@ Audio PVOC::convertToAudio( std::shared_ptr<FFTHelper> fft, XCDP_CANCEL_ARG_CPP 
 		XCDP_CANCEL_POINT( Audio() );
 		cl.queue.enqueueBarrierWithWaitList();
 
-		//copy cl out to host mem (faster than copying out of device many times)
+		// Copy cl out to host mem (faster than copying out of device many times)
 		cl::copy( cl.queue, clOut, clOutHostBuff.begin(), clOutHostBuff.end() );
 		XCDP_CANCEL_POINT( Audio() );
 		cl.queue.enqueueBarrierWithWaitList();
@@ -176,12 +177,13 @@ Audio PVOC::convertToAudio( std::shared_ptr<FFTHelper> fft, XCDP_CANCEL_ARG_CPP 
 
 			fft->c2rExecute();
 
-			//Accumulate ifft output into audio buffer
-			const Frame outFrameStart = hopSize * ( hop - int( dftSize / hopSize / 2 ) );
+			// Accumulate ifft output into audio buffer
+			const Frame outFrameStart = hopSize * hop - windowSize / 2;
 			const Frame outFrameEnd = outFrameStart + windowSize;
 			const Frame outFrameStart_s = std::max( outFrameStart, 0 );
 			const Frame outFrameEnd_s   = std::min( outFrameEnd, out.getNumFrames() );
 
+			// Where in the fft buffer we are reading from
 			const Frame fftStart = outFrameStart_s - outFrameStart;
 			const Frame fftEnd = outFrameEnd_s - outFrameStart;
 
@@ -198,7 +200,7 @@ Audio PVOC::convertToAudio( std::shared_ptr<FFTHelper> fft, XCDP_CANCEL_ARG_CPP 
 #endif
 	}
 	
-Graph PVOC::convertToGraph( Rect D, Pixel width, Pixel height, XCDP_CANCEL_ARG_CPP ) const
+Graph PVOC::convertToGraph( Rect D, Pixel width, Pixel height, float timelineScale, XCDP_CANCEL_ARG_CPP ) const
 	{
 	XCDP_PROCESS_START( Graph( width, height ) );
 
@@ -227,10 +229,13 @@ Graph PVOC::convertToGraph( Rect D, Pixel width, Pixel height, XCDP_CANCEL_ARG_C
 		g.drawSpectrograms( fs, { 0, 0, getLength(), getHeight() }, canceller );
 	
 	// Tick drawing
-	const float bigTimeJump = std::pow( 4.0f, std::floor( std::log2( D.w() ) / 2 - 0.5f ) );
-	g.drawXTicks( bigTimeJump / 4.0f, D.y2(), 8, 0, -1, Color::fromHSV( 0, 0, .6 ), false );
-	g.drawXTicks( bigTimeJump, D.y2(), 20, 0, -1, Color::fromHSV( 0, 0, 1 ), true );
-	//g.drawYTicks( 2000, 0, 0, 14, -1, Color::fromHSV( 0, 0, 1 ), true );
+	if( timelineScale > 0 )
+		{
+		const float bigTimeJump = std::pow( 4.0f, std::floor( std::log2( D.w() ) / 2 - 0.5f ) );
+		g.drawXTicks( bigTimeJump / 4.0f, D.y2(), timelineScale / 2, 0, -1, Color::fromHSV( 0, 0, .6 ), 0 );
+		g.drawXTicks( bigTimeJump, D.y2(), timelineScale, 0, -1, Color::fromHSV( 0, 0, 1 ), timelineScale );
+		//g.drawYTicks( 2000, 0, 0, 14, -1, Color::fromHSV( 0, 0, 1 ), true );
+		}
 
 	return g;
 	}

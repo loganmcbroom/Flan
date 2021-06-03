@@ -73,7 +73,7 @@ public:
 	 *  \param width The bmp width.
 	 *  \param height The bmp height.
 	 */
-	Graph convertToGraph( Rect domain = { 0, 0, -1, -1 }, Pixel width = -1, Pixel height = -1, XCDP_CANCEL_ARG ) const;
+	Graph convertToGraph( Rect domain = { 0, 0, -1, -1 }, Pixel width = -1, Pixel height = -1, float timelineScale = 0, XCDP_CANCEL_ARG ) const;
 
 	/** Creates and saves a bmp spectrograph of the PVOC, then returns this.
 	 *	\param filename A filename at which to save the generated bmp.
@@ -86,9 +86,33 @@ public:
 
 
 	//============================================================================================================================================================
-	// Information
+	// Contours
 	//============================================================================================================================================================
 
+	/** Container for salience (percieved volume) extracted by PVOC::getSalience.
+	 */
+	struct Salience
+		{
+		float & get( Frame f, Bin b ) { return buffer[ f * numBins + b ]; }
+		Frame numFrames;
+		Bin numBins;
+		std::vector<float> buffer;
+		};
+
+	/** This attempts to find the percieved volume at every tenth of a note over time. Meant to be used by PVOC::getContours.
+	 *    Note this doesn't use a percieved volume filter like it maybe should. I didn't want to deal with it.
+	 *	\param channel The channel to analyze.
+	 *	\param minFreq Frequency of the lowest pitch bin.
+	 *	\param maxFreq Frequency of the highest pitch bin.
+	 */
+	Salience getSalience( Channel channel, Frequency minFreq = 55, Frequency maxFreq = 1760, XCDP_CANCEL_ARG ) const;
+
+	/** See PVOC::getSalience.
+	 */
+	Salience getSalience_gpu( Channel channel, Frequency minFreq = 55, Frequency maxFreq = 1760, XCDP_CANCEL_ARG ) const;
+
+	/** Container for a contour (note) extracted by PVOC::getContours, with some commonly needed details.
+	 */
 	struct Contour
 		{
 		float pitchMean;
@@ -97,12 +121,26 @@ public:
 		float salienceSD;
 
 		Frame startFrame;
-		std::vector<vec2> bins;
+		std::vector<vec2> bins; // Each vec2 contains { pitchBin, mag (?) }
 		};
 
-	/** This should, in general, not be used. It is an unoptimized implementation of the first half of the melodia melody finding algorithm. 
+	/** This is a piece of the melodia melody finding algorithm, which attempts to extract note information from PVOC data.
+	 *  \param channel The channel to analyze.
+	 *  \param minFreq
+	 *  \param maxFreq
+	 *  \param filterShort Contours with lengths less than this will be removed.
+	 *  \param filterQuiet Contours with salienceMean less than the largest salienceMean divided by this are removed
 	 */
-	std::vector<Contour> getContours( Channel channel, Frequency minFreq = 55, Frequency maxFreq = 1760 ) const;
+	std::vector<Contour> getContours( Channel channel, Frequency minFreq = 55, Frequency maxFreq = 1760, Frame filterShort = 30, float filterQuiet = 20, XCDP_CANCEL_ARG ) const;
+
+	/** Functuon type exclusive to PVOC::prism. */
+	using PrismFunc = std::function<MF ( Time, int harmonic, Frequency contourFreq, const std::vector<Magnitude> & harmonicMagnitudes )>;
+
+	/** Prism, in theory, allows complete control over the frequency and magnitude of every harmonic of every note in the input.
+	 *  \param harmonicFunction This takes the global or local time (see perNote), the harmonic index (starting at 1), the base frequency and the magnitudes of all harmonics
+	 *  \param perNote This decides if the time passed to harmonicFunction should be the time elapsed since the start of the PVOC (false), or the start of the contour (true).
+	 */
+	PVOC prism( PrismFunc harmonicFunction, bool perNote = true, XCDP_CANCEL_ARG ) const;
 
 	//============================================================================================================================================================
 	// Utility
@@ -118,6 +156,8 @@ public:
 	MF getBinInterpolated( Channel channel, float frame, float bin, Interpolator interp = Interpolators::linear ) const;
 	MF getBinInterpolated( Channel channel, float frame, Bin bin, Interpolator interp = Interpolators::linear ) const;
 	MF getBinInterpolated( Channel channel, Frame frame, float bin, Interpolator interp = Interpolators::linear ) const;
+
+
 
 	//============================================================================================================================================================
 	// Selection
@@ -139,6 +179,7 @@ public:
 	 *		how long it should be frozen, in that order
 	 */
 	PVOC freeze( const std::vector<std::array<Time,2>> & timing, XCDP_CANCEL_ARG ) const;
+
 
 
 	//============================================================================================================================================================
@@ -233,9 +274,21 @@ public:
 	PVOC timeExtrapolate( Time startTime, Time endTime, Time extrapDuration, 
 		Interpolator interp = Interpolators::linear, XCDP_CANCEL_ARG ) const;
 
+
+
 	//============================================================================================================================================================
 	// Extras
 	//============================================================================================================================================================
+
+	/** For all frequencies, every octave above it is set to a copy of the base, scaled by seriesScale
+	 *	\param seriesScale The scaling function. The inputs to this are time and harmonic index starting at 0.
+	 */
+	PVOC addOctaves( Func2x1 seriesScale, XCDP_CANCEL_ARG ) const;
+
+	/** For all frequencies, every harmonic above it is set to a copy of the base, scaled by seriesScale
+	 *	\param seriesScale The scaling function. The inputs to this are time and harmonic index starting at 0.
+	 */
+	PVOC addHarmonics( Func2x1 seriesScale, XCDP_CANCEL_ARG ) const;
 
 	/** Replaces the Amplitudes (Magnitudes) of bins in the input with those in ampSource
 	 *	\param ampSource Source PVOC from which to draw amplitudes
@@ -285,6 +338,14 @@ public:
 	 *	\param length Because the decay is exponential, an output length is needed. 
 	 */
 	PVOC resonate( Func2x1 decay, Time length, XCDP_CANCEL_ARG ) const;
+
+
+
+	//============================================================================================================================================================
+	// Backend
+	//============================================================================================================================================================
+
+
 };
 
 } // End namespace xcdp

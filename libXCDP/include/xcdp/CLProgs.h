@@ -8,5 +8,6 @@ extern const char * PVOC_convertToAudio;
 extern const char * PVOC_modify;
 extern const char * PVOC_modifyTime;
 extern const char * PVOC_modifyFrequency;
+extern const char * PVOC_getSalience;
 
 };};

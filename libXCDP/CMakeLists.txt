@@ -24,7 +24,17 @@ add_library( libXCDP
 	src/CLContext.cpp
 	src/CLProgs.cpp
 	src/FFTHelper.cpp 
-	  "include/xcdp/Utility/Rect.h" "include/xcdp/Utility/Interval.h" "include/xcdp/Utility/vec2.h" "src/Utility/Color.cpp" "src/Utility/Bytes.cpp" "src/Utility/Interpolator.cpp" "include/xcdp/Utility/View.h" "src/Utility/View.cpp" "src/Utility/Interval.cpp" "src/Utility/Rect.cpp" "src/PVOC/PVOCModify.cpp")
+	  "include/xcdp/Utility/Rect.h" 
+	  "include/xcdp/Utility/Interval.h" 
+	  "include/xcdp/Utility/vec2.h" 
+	  "src/Utility/Color.cpp" 
+	  "src/Utility/Bytes.cpp" 
+	  "src/Utility/Interpolator.cpp" 
+	  "include/xcdp/Utility/View.h" 
+	  "src/Utility/View.cpp" 
+	  "src/Utility/Interval.cpp" 
+	  "src/Utility/Rect.cpp" 
+	  "src/PVOC/PVOCModify.cpp")
 
 target_include_directories( libXCDP 
 	PUBLIC 
@@ -34,9 +44,6 @@ target_include_directories( libXCDP
 
 find_package( FFTWF REQUIRED ) # FFTWF::fftwf
 target_link_libraries( libXCDP PRIVATE FFTWF::fftwf )
-
-find_package( Boost REQUIRED ) # Boost::boost
-target_link_libraries( libXCDP PRIVATE Boost::boost )
 
 option( USE_SNDFILE "Build using libsndfile" ON )
 if( USE_SNDFILE )

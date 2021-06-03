@@ -253,5 +253,130 @@ kernel void modifyFrequency( global read_only float2 * in,
 		}
 	}
 	)";
+	
+extern const char * PVOC_getSalience = R"(
+float HannDFT2( float f )
+	{
+	if( f == 0 ) return 1.0f;
+	if( fabs( f ) == 1.0f ) return 0.5f;
+	return sin( M_PI * f ) / ( M_PI * f * ( 1.0f - f * f ) );
+	}
+
+float getMaxPartialMag( global read_only float2 * in, int numPVOCBins )
+	{
+	float a_M = 0;
+	for( int j = 0; j < numPVOCBins; ++j )
+		{
+		if( in[j].x > a_M )
+			a_M = in[j].x;
+		}
+	return a_M;
+	}
+
+void findPeaks( float2 peaks[], int * peakIndex, global read_only float2 * in, int numPVOCBins )
+	{
+    int i = 0;
+	const int arraySize = *peakIndex;
+	*peakIndex = 0;
+
+    // first check the boundaries:
+    if( i+1 < numPVOCBins && in[ 0 ].x > in[ 1 ].x ) 
+		{
+		peaks[*peakIndex].x = i; 
+		peaks[*peakIndex].y = in[ i ].x;
+        ++*peakIndex;
+		if( *peakIndex >= arraySize ) return;
+		}
+
+    while( true ) 
+        {
+        while( i+2 < numPVOCBins && in[ i ].x > in[ i + 1 ].x )  // going down
+            ++i;
+            
+        while( i+2 < numPVOCBins && in[ i ].x < in[ i + 1 ].x ) // now we're climbing
+            ++i;
+
+        int j = i;
+        while( j+1 < numPVOCBins - 1 && ( in[ j ].x == in[ j + 1 ].x ) ) ++j; // not anymore, go through the plateau
+
+        // end of plateau, do we go up or down?
+        if( j + 1 < numPVOCBins - 1 && in[ j + 1 ].x < in[ j ].x ) 
+            { // going down again
+            if( i >= numPVOCBins )  break;
+            peaks[*peakIndex].x = i; 
+			peaks[*peakIndex].y = in[ i ].x;
+			++*peakIndex;
+			if( *peakIndex >= arraySize ) return;
+            }
+
+        // nothing found, start loop again
+        i = j;
+
+        if( i + 1 >= numPVOCBins - 1 ) 
+            { // check the one just before the last position
+            if( i == numPVOCBins - 2 && in[ i - 1 ].x < in[ i ].x && in[ i + 1 ].x < in[ i ].x ) 
+                {   
+				peaks[*peakIndex].x = i; 
+				peaks[*peakIndex].y = in[ i ].x;
+				++*peakIndex;
+				if( *peakIndex >= arraySize ) return;
+                }
+            break;
+            }
+        }
+	}
+
+kernel void getSalience( global read_only float2 * in,
+						 global read_write float * out,
+						 global read_only float * alphas,
+						 global read_only float * cosines,
+						 int numPVOCBins,
+						 int numSalienceBins, 
+						 float minFreq, 
+						 float freqToBin,
+						 float windowOverDFT )
+	{
+	const int i = get_global_id( 0 );
+	global read_only float2 * framePtr = in + i * numPVOCBins;
+
+	const int binEffectDist = 10;
+	const int Nh = 20;
+	const float gamma = 40.0f;
+	const float eTestFactor = pow( 10.0f, gamma / 20.0f );
+	const float a_M = getMaxPartialMag( framePtr, numPVOCBins );
+	const float aiLimit = a_M / eTestFactor; // Checking a_i > limit is equivalent to checking 10log_20(aM/ai) < gamma
+
+	int numPeaks = 256;
+	float2 peaks[256];
+	findPeaks( peaks, &numPeaks, framePtr, numPVOCBins );
+
+	for( int j = 0; j < numPeaks; ++j )
+		{
+		float2 p = peaks[j];
+		if( p.y < aiLimit ) 
+			continue;
+
+		// Instantaneous amplitude correction
+		const int bin = p.x; // PVOC bin
+		const float iF = framePtr[bin].y;
+		const float binOffset = iF * freqToBin - p.x;
+		const float kernelFactor = HannDFT2( binOffset * windowOverDFT );
+		const float iM = kernelFactor >= 0.5f? p.y / kernelFactor : 0;
+				
+		for( int h = 0; h < Nh; ++h ) // For each subharmonic the current peak could be a harmonic of:
+			{
+			const int B_c = round( 10.0f * 12.0f * log2( iF / ( h + 1 ) / minFreq ) ); // Get subharmonic pitch bin
+			if( B_c < 0 ) break;
+
+			// Contribute to the salience of the subharmonic for all nearby bins
+			// Delta checking is handled in loop bounds
+			for( int b = max( 0, B_c - binEffectDist ); b <= min( numSalienceBins - 1, B_c + binEffectDist ); ++b )
+				out[ i * numSalienceBins + b ] += cosines[abs(B_c - b)] * alphas[h] * iM;
+			}
+		}
+	}
+	)";
+
+
 
 };};
