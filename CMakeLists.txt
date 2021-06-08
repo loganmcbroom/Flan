@@ -1,6 +1,6 @@
 ﻿cmake_minimum_required( VERSION 3.8 )
 
-project( XCDP )
+project( flan )
 
 set( CMAKE_CXX_STANDARD 17 )
 set( CMAKE_CXX_STANDARD_REQUIRED True )
@@ -28,5 +28,5 @@ if( CMAKE_BUILD_TYPE STREQUAL "Release" AND BUILD_DOC )
 	endif( DOXYGEN_FOUND )
 endif()
 
-add_subdirectory( libXCDP )
+add_subdirectory( libflan )
 add_subdirectory( tests )
