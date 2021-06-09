@@ -13,6 +13,15 @@ static const float pi = std::acos( -1.0f );
 
 namespace flan {
 
+// Check if a and b are within a half note of one another
+static bool notesClose( Frequency a, Frequency b )
+	{
+	static const float lo = std::pow( 2.0f, -1.0f / 24.0f );
+	static const float hi = std::pow( 2.0f,  1.0f / 24.0f );
+	const float r = a / b;
+	return lo < r && r < hi; 
+	}
+
 // Returns normalized pitch salience
 PVOC::Salience PVOC::getSalience( Channel channel, Frequency minFreq, Frequency maxFreq, flan_CANCEL_ARG_CPP ) const
 	{
@@ -326,15 +335,9 @@ PVOC PVOC::prism( PrismFunc f, bool perNote, flan_CANCEL_ARG_CPP ) const
 
 	PVOC out = deepCopy();
 
-	auto notesClose = [lo = std::pow( 2.0f, -1.0f / 24.0f ), hi = std::pow( 2.0f, 1.0f / 24.0f )]( Frequency a, Frequency b ) 
-		{ 
-		const float r = a / b;
-		return lo < r && r < hi; 
-		};
-
 	auto pitchBinToFreq = [minFreq]( float bin ){ return minFreq * std::pow( 2.0f, bin / 120.0f); };
 
-	auto getAccurateFreq = [this, notesClose]( Channel channel, Frame frame, Frequency approxFreq )
+	auto getAccurateFreq = [this]( Channel channel, Frame frame, Frequency approxFreq )
 		{
 		std::vector<Frequency> approxBaseFreqs;
 		float totalMag = 0;

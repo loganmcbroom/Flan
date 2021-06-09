@@ -9,37 +9,39 @@ namespace flan {
  */
 struct vec2
 	{
+	float _x,_y;
+
 	/** Default constructor, 0 initializes elements. */
-	vec2() : v({0,0}) {}
+	vec2() : _x( 0 ), _y( 0 ) {}
 
 	/** Copy constructor */
-	vec2( const vec2 & _v ) : v( _v.v ) {}
+	vec2( const vec2 & _v ) : _x( _v.x() ), _y( _v.y() ) {}
 
 	/** Secondary copy constructor for easier syntax */
-	vec2( float x, float y ) : v( { x, y } ) {}
+	vec2( float x, float y ) : _x( x ), _y( y ) {}
 
 	/** Construct from std::complex */
-	vec2( std::complex<float> c ) : v({ c.real(), c.imag() }) {}
+	vec2( std::complex<float> c ) : _x( c.real() ), _y( c.imag() ) {}
 	/** Convert to std::complex */
 	operator std::complex<float>() const { return std::complex<float>( x(), y() ); }
 
 	/** Construct from std::array */
-	vec2( std::array<float,2> c ) : v({ c[0], c[1] }) {}
+	vec2( std::array<float,2> c ) : _x( c[0] ), _y( c[1] ) {}
 	/** Convert to std::array */
 	operator std::array<float,2>() const { return std::array<float,2>{ x(), y() }; }
  
-	float & x() { return v[0]; }
-	float & y() { return v[1]; }
-	const float & x() const { return v[0]; }
-	const float & y() const { return v[1]; }
+	float & x() { return _x; }
+	float & y() { return _y; }
+	const float & x() const { return _x; }
+	const float & y() const { return _y; }
 	/** Identical to x() */
-	float & t() { return v[0]; }
+	float & t() { return _x; }
 	/** Identical to y() */
-	float & f() { return v[1]; }
+	float & f() { return _y; }
 	/** Identical to x() */
-	const float & t() const { return v[0]; }
+	const float & t() const { return _x; }
 	/** Identical to y() */
-	const float & f() const { return v[1]; }
+	const float & f() const { return _y; }
 	
 	/** Scalar multiplication */
 	vec2 operator*( const float s ) const  { return vec2{ x() * s, y() * s }; }
@@ -55,8 +57,6 @@ struct vec2
 	vec2 operator-() const { return vec2{ -x(), -y() }; }
 
 	float mag() const { return std::sqrt( x() * x() + y() * y() ); }
-
-	std::array<float,2> v;
 	};
 
 };

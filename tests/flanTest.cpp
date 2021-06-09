@@ -8,10 +8,11 @@
 	Audio::removeSilence
 	Audio::cut uses an extra buffer copy when calling fades, remove it
 	contour pitch mean should be magnitude weighted
-	PVOC::alignHarmonics
-	only generate docs for my stuff
+	only generate docs for flan stuff
+	pvoc::alignHarmonics
 
 Todo:
+
 Task:
 */
 
@@ -47,16 +48,16 @@ void main()
 
 	auto p = bah.convertToPVOC();
 
-	auto b = PVOC::generate( 1, 111, []( float t, float i ){ return 1 / ( 1 + i ); } );
+	//auto b = PVOC::generate( 1, 111, []( float t, float i ){ return 1 / ( 1 + i ); } );
 
 	//auto b = p.prism( []( Time t, int i, Frequency f, const std::vector<Magnitude> & ms ) 
 	//	{ 
-	//	return PVOC::MF{ ms[i], 75.0f * (i+1) }; 
+	//	return PVOC::MF{ ms[i], (75.0f + 40 * t ) * (i+1) }; 
 	//	}, false );
 
-	auto c = b.convertToAudio();
-	//play( c );
-	graph( c.convertToGraph() );
+	//play( b.convertToAudio() );
+	play( p.convertToAudio() );
+	//graph( c.convertToGraph() );
 	}
 
 
