@@ -289,6 +289,12 @@ PVOC PVOC::modify_cl( Func2x2 mod, Interpolator interp, flan_CANCEL_ARG_CPP  ) c
 	{
 	flan_PROCESS_START( PVOC() );
 
+	if( ! isOpenCLAvailable() )
+		{
+		std::cout << "OpenCL Unavailable, using cpu backup routine";
+		return modify( mod, interp, canceller );
+		}
+
 	using float2 = std::array<float,2>;
 
 	const uint32_t numBins = getNumBins();
@@ -388,6 +394,12 @@ PVOC PVOC::modifyFrequency_cl( Func2x1 outFreqFunc, Interpolator interp, flan_CA
 	{
 	flan_PROCESS_START( PVOC() );
 
+	if( ! isOpenCLAvailable() )
+		{
+		std::cout << "OpenCL Unavailable, using cpu backup routine";
+		return modifyTime( outFreqFunc, interp, canceller );
+		}
+
 	PVOC out( getFormat() );
 	out.clearBuffer();
 
@@ -466,6 +478,12 @@ PVOC PVOC::modifyFrequency_cl( Func2x1 outFreqFunc, Interpolator interp, flan_CA
 PVOC PVOC::modifyTime_cl( Func2x1 outPosFunc, Interpolator interp, flan_CANCEL_ARG_CPP ) const
 	{
 	flan_PROCESS_START( PVOC() );
+
+	if( ! isOpenCLAvailable() )
+		{
+		std::cout << "OpenCL Unavailable, using cpu backup routine";
+		return modifyTime( outPosFunc, interp, canceller );
+		}
 
 	const uint32_t numBins = getNumBins();
 	const uint32_t numFrames = getNumFrames();

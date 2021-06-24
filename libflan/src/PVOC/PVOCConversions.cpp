@@ -92,8 +92,14 @@ Audio PVOC::convertToAudio( std::shared_ptr<FFTHelper> fft, flan_CANCEL_ARG_CPP 
 	flan_PROCESS_START( Audio() );
 
 #ifndef USE_OPENCL
-	return convertToAudio_cpu( *this, fft, canceller );
+	return convertToAudio_cpu( fft, canceller );
 #else
+
+	if( ! isOpenCLAvailable() )
+		{
+		std::cout << "OpenCL Unavailable, using cpu backup routine";
+		return convertToAudio_cpu( fft, canceller );
+		}
 
 	const Bin numBins = getNumBins();
 	const Frame dftSize = getDFTSize();

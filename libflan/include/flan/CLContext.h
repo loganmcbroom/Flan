@@ -31,3 +31,7 @@ struct ProgramHelper
 
 #endif
 
+namespace flan
+{
+bool isOpenCLAvailable();
+}

@@ -43,8 +43,8 @@ void main()
 	auto meow = Audio( "Audio/meow.wav" );
 	auto slaw = Audio( "Audio/slaw.wav" );
 	auto yeahh = Audio( "Audio/feel.wav" );
-	auto sine = Synthesis::sine( 1, []( float t ){ return 220 + 220 * t; } );
-	auto saw = Synthesis::saw( .5, []( float t ){ return 220; } );
+	auto sine = Synthesis::sine( 5, []( float t ){ return 220 + 220 * t; } );
+	auto saw = Synthesis::saw( 5, []( float t ){ return 220 + 220 * t; } );
 
 	auto p = bah.convertToPVOC();
 
@@ -56,8 +56,8 @@ void main()
 	//	}, false );
 
 	//play( b.convertToAudio() );
-	play( p.convertToAudio() );
-	//graph( c.convertToGraph() );
+	//play( irr );
+	//graph( irr.convertToPVOC().convertToGraph() );
 	}
 
 

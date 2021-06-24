@@ -104,6 +104,12 @@ PVOC::Salience PVOC::getSalience_gpu( Channel channel, Frequency minFreq, Freque
 	if( isNull() )
 		return Salience();
 
+	if( ! isOpenCLAvailable() )
+		{
+		std::cout << "OpenCL Unavailable, using cpu backup routine";
+		return getSalience( channel, minFreq, maxFreq, canceller );
+		}
+
 	// Suggested optimal parameters from Salamon & Gomez
 	const int binEffectDist = 10;
 	const int Nh = 20;
@@ -380,7 +386,7 @@ PVOC PVOC::prism( PrismFunc f, bool perNote, flan_CANCEL_ARG_CPP ) const
 
 				for( int harmonic = 0; harmonic < std::floor( getHeight() / baseFreq ); ++harmonic ) // For each harmonic
 					{
-					Frequency freq = baseFreq * ( harmonic + 1 );
+					const Frequency freq = baseFreq * ( harmonic + 1 );
 					flan_CANCEL_POINT( PVOC() );
 
 					// For bins near the harmonic, we find all bins with a freq close to the harmonic

@@ -18,7 +18,7 @@ CLContext::CLContext()
 	if( all_platforms.size() == 0 )
 		{
 		std::cout<< "No platforms found\n";
-		std::exit( 1 );
+		return;
 		}
 	platform = all_platforms[0];
 	std::cout << "Using platform: " << platform.getInfo<CL_PLATFORM_NAME>() << "\n";
@@ -28,7 +28,7 @@ CLContext::CLContext()
 	if( devices.size() == 0 )
 		{
 		std::cout<<" No devices found. Check OpenCL installation!\n";
-		exit(1);
+		return;
 		}
 	std::cout<< "Using device: " << devices[0].getInfo<CL_DEVICE_NAME>() << "\n";
 	
@@ -69,6 +69,14 @@ ProgramHelper::ProgramHelper( CLContext & context, const std::string & source )
 		std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>( context.devices[0] ) << "\n";
 		exit( err );
 		}
+	}
+
+
+bool flan::isOpenCLAvailable()
+	{
+	std::vector<cl::Platform> all_platforms;
+	cl::Platform::get( &all_platforms );
+	return ! all_platforms.empty();
 	}
 
 #endif

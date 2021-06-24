@@ -241,6 +241,12 @@ PVOC Audio::convertToPVOC( Frame windowSize, Frame hopSize, Frame dftSize, std::
 	return convertToPVOC_cpu( windowSize, hopSize, dftSize, fft, canceller );
 #else
 
+	if( ! isOpenCLAvailable() )
+		{
+		std::cout << "OpenCL Unavailable, using cpu backup routine";
+		return convertToPVOC_cpu( windowSize, hopSize, dftSize, fft, canceller );
+		}
+
 	const Bin numBins = dftSize / 2 + 1;
 	const Frame numFrames = getNumFrames();
 	//+1 since we analyze at start and end times
