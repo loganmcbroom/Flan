@@ -130,8 +130,9 @@ public:
 	 *  \param maxFreq
 	 *  \param filterShort Contours with lengths less than this will be removed.
 	 *  \param filterQuiet Contours with salienceMean less than the largest salienceMean divided by this are removed
+	 *  \param useGPU 
 	 */
-	std::vector<Contour> getContours( Channel channel, Frequency minFreq = 55, Frequency maxFreq = 1760, Frame filterShort = 30, float filterQuiet = 20, flan_CANCEL_ARG ) const;
+	std::vector<Contour> getContours( Channel channel, Frequency minFreq = 55, Frequency maxFreq = 1760, Frame filterShort = 30, float filterQuiet = 20, bool useGPU = true, flan_CANCEL_ARG ) const;
 
 	/** Functuon type exclusive to PVOC::prism. */
 	using PrismFunc = std::function<MF ( Time, int harmonic, Frequency contourFreq, const std::vector<Magnitude> & harmonicMagnitudes )>;
@@ -140,7 +141,7 @@ public:
 	 *  \param harmonicFunction This takes the global or local time (see perNote), the harmonic index (starting at 1), the base frequency and the magnitudes of all harmonics
 	 *  \param perNote This decides if the time passed to harmonicFunction should be the time elapsed since the start of the PVOC (false), or the start of the contour (true).
 	 */
-	PVOC prism( PrismFunc harmonicFunction, bool perNote = true, flan_CANCEL_ARG ) const;
+	PVOC prism( PrismFunc harmonicFunction, bool perNote = true, bool useGPU = true, flan_CANCEL_ARG ) const;
 
 	//============================================================================================================================================================
 	// Utility

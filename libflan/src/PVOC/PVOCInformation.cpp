@@ -185,7 +185,7 @@ PVOC::Salience PVOC::getSalience_gpu( Channel channel, Frequency minFreq, Freque
 	}
 
 std::vector<PVOC::Contour> PVOC::getContours( Channel channel, Frequency minFreq, Frequency maxFreq, 
-	Frame filterShort, float filterQuiet, flan_CANCEL_ARG_CPP ) const
+	Frame filterShort, float filterQuiet, bool useGPU, flan_CANCEL_ARG_CPP ) const
 	{
 	const float TPlus = 0.9f;
 	const float TSigma = 0.9f;
@@ -193,7 +193,9 @@ std::vector<PVOC::Contour> PVOC::getContours( Channel channel, Frequency minFreq
 	const float maxdeltaPitch = 80; // cents
 	const Frame maxGapLength = .1f * timeToFrame();
 
-	Salience salience = getSalience_gpu( channel, minFreq, maxFreq, canceller );
+	const Salience salience = useGPU && isOpenCLAvailable() ? 
+		getSalience_gpu( channel, minFreq, maxFreq, canceller ):
+		getSalience( channel, minFreq, maxFreq, canceller );
 
 	// Get S+ and S-. SPlus is first used to store all peaks, then peaks are moved to S- as needed.
 	// Each vec2 contains float representations of pitch bin and amplitude. Intepolation during peak finding means these can take non-integer values.
@@ -332,7 +334,7 @@ std::vector<PVOC::Contour> PVOC::getContours( Channel channel, Frequency minFreq
 	return contoursFiltered;
 	}
 
-PVOC PVOC::prism( PrismFunc f, bool perNote, flan_CANCEL_ARG_CPP ) const
+PVOC PVOC::prism( PrismFunc f, bool perNote, bool useGPU, flan_CANCEL_ARG_CPP ) const
 	{
 	flan_PROCESS_START( PVOC() );
 
@@ -364,7 +366,7 @@ PVOC PVOC::prism( PrismFunc f, bool perNote, flan_CANCEL_ARG_CPP ) const
 
 	for( Channel channel = 0; channel < getNumChannels(); ++channel )
 		{
-		std::vector<Contour> contours = getContours( channel, minFreq, maxFreq, 60, 20, canceller );
+		std::vector<Contour> contours = getContours( channel, minFreq, maxFreq, 60, 20, useGPU, canceller );
 		for( auto & c : contours )
 			{
 			for( Frame contourIndex = 0; contourIndex < c.bins.size(); ++contourIndex )
