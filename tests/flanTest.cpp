@@ -46,18 +46,17 @@ void main()
 	auto sine = Synthesis::sine( 5, []( float t ){ return 220 + 220 * t; } );
 	auto saw = Synthesis::saw( 5, []( float t ){ return 220 + 220 * t; } );
 
-	auto p = bah.convertToPVOC();
+	auto b = yeahh.convertToPVOC().desample( []( float t ){ return 10*t; } );
 
-	//auto b = PVOC::generate( 1, 111, []( float t, float i ){ return 1 / ( 1 + i ); } );
+	//std::cout << yeahh.getLength() << std::endl << b.convertToAudio().getLength();
 
 	//auto b = p.prism( []( Time t, int i, Frequency f, const std::vector<Magnitude> & ms ) 
 	//	{ 
 	//	return PVOC::MF{ ms[i], (75.0f + 40 * t ) * (i+1) }; 
 	//	}, false );
 
-	//play( b.convertToAudio() );
-	//play( irr );
-	//graph( irr.convertToPVOC().convertToGraph() );
+	play( b.convertToAudio() );
+	//graph( b.convertToGraph() );
 	}
 
 

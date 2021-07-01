@@ -644,19 +644,82 @@ PVOC PVOC::stretch_spline( Func1x1 interpolation, flan_CANCEL_ARG_CPP ) const
 	return out;
 	}
 
+//PVOC PVOC::desample( Func2x1 factor, Interpolator interp, flan_CANCEL_ARG_CPP ) const
+//	{
+//	flan_PROCESS_START( PVOC() );
+//
+//	auto safeFactor = [&factor]( vec2 tf )
+//		{
+//		return std::max( 1.0f, factor( tf.x(),tf.y() ) );
+//		};
+//	auto downsample = stretch( [&safeFactor]( vec2 tf )
+//		{
+//		return 1.0f / safeFactor( tf ); 
+//		}, interp, canceller );
+//	return downsample.stretch( safeFactor, interp, canceller );
+//	}
+
+
 PVOC PVOC::desample( Func2x1 factor, Interpolator interp, flan_CANCEL_ARG_CPP ) const
 	{
+	auto factorSafe = [factor]( float t, float f )
+		{
+		return std::max( 1.0f, factor( t, f ) );
+		};
+
 	flan_PROCESS_START( PVOC() );
 
-	auto safeFactor = [&factor]( vec2 tf )
+	PVOC out( getFormat() );
+	out.clearBuffer();
+
+	for( Channel channel = 0; channel < getNumChannels(); ++channel )
 		{
-		return std::max( 1.0f, factor( tf.x(),tf.y() ) );
-		};
-	auto downsample = stretch( [&safeFactor]( vec2 tf )
-		{
-		return 1.0f / safeFactor( tf ); 
-		}, interp, canceller );
-	return downsample.stretch( safeFactor, interp, canceller );
+		for( Bin bin = 0; bin < getNumBins(); ++bin )
+			{
+			float accum = 1; // Start at one to trigger interp from starting frame
+
+			// Factor is integrated, when the accumulator passes 1 the output mf is set to 1. Starting at 1 avoids first frame phase errors
+			for( Frame frame = 0; frame < getNumFrames(); ++frame )
+				{
+				const float factor_c = 1.0 / factorSafe( frame * frameToTime(), bin * binToFrequency() );
+				accum += factor_c;
+				if( accum >= 1.0f )
+					{
+					// Set the mf to 1, interp in the second loop
+					out.setMF( channel, frame, bin, { 1, 0 } );
+					accum = std::fmod( accum, 1.0f );
+					}
+				}
+
+			// Interpolate
+			Frame prevFrame = 0;
+			for( Frame frame = 1; frame < getNumFrames(); ++frame )
+				{
+				if( out.getMF( channel, frame, bin ).m == 1 )
+					{
+					const MF & mf0 = getMF( channel, prevFrame, bin );
+					const MF & mf1 = getMF( channel, frame, bin );
+					for( Frame writeFrame = prevFrame; writeFrame < frame; ++writeFrame )
+						{
+						const float v = interp( float( writeFrame - prevFrame ) / ( frame - prevFrame ) ); 
+						const float w0 = ( 1.0f - v ) * mf0.m;
+						const float w1 = v * mf1.m;
+						const MF mf = 
+							{
+							w0 + w1,
+							w0 > w1 ? mf0.f : mf1.f
+							};
+						out.setMF( channel, writeFrame, bin, mf );
+						}
+					prevFrame = frame;
+					}
+				}
+				// Final frame will still be set to 1, so copy
+				out.getMF( channel, prevFrame, bin ) = getMF( channel, prevFrame, bin );
+			}
+		}
+
+	return out;
 	}
 
 PVOC PVOC::timeExtrapolate( float startTime, float endTime, float extrapolationTime, 
