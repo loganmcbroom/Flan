@@ -135,7 +135,7 @@ public:
 	std::vector<Contour> getContours( Channel channel, Frequency minFreq = 55, Frequency maxFreq = 1760, Frame filterShort = 30, float filterQuiet = 20, bool useGPU = true, flan_CANCEL_ARG ) const;
 
 	/** Functuon type exclusive to PVOC::prism. */
-	using PrismFunc = std::function<MF ( Time, int harmonic, Frequency contourFreq, const std::vector<Magnitude> & harmonicMagnitudes )>;
+	using PrismFunc = std::function<MF ( int note, Time, int harmonic, Frequency contourFreq, const std::vector<Magnitude> & harmonicMagnitudes )>;
 
 	/** Prism, in theory, allows complete control over the frequency and magnitude of every harmonic of every note in the input.
 	 *  \param harmonicFunction This takes the global or local time (see perNote), the harmonic index (starting at 1), the base frequency and the magnitudes of all harmonics

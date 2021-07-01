@@ -367,8 +367,10 @@ PVOC PVOC::prism( PrismFunc f, bool perNote, bool useGPU, flan_CANCEL_ARG_CPP ) 
 	for( Channel channel = 0; channel < getNumChannels(); ++channel )
 		{
 		std::vector<Contour> contours = getContours( channel, minFreq, maxFreq, 60, 20, useGPU, canceller );
-		for( auto & c : contours )
+		for( int contour = 0; contour < contours.size(); ++contour )
 			{
+			Contour & c = contours[contour];
+
 			for( Frame contourIndex = 0; contourIndex < c.bins.size(); ++contourIndex )
 				{
 				const Frame frame = contourIndex + c.startFrame;
@@ -435,7 +437,7 @@ PVOC PVOC::prism( PrismFunc f, bool perNote, bool useGPU, flan_CANCEL_ARG_CPP ) 
 					Frequency freq = baseFreq * ( harmonic + 1 );
 					flan_CANCEL_POINT( PVOC() );                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 
-					const MF modifiedHarmonic = f( ( perNote? contourIndex : frame ) * frameToTime(), harmonic, baseFreq, harmonicMaxMags );
+					const MF modifiedHarmonic = f( contour, ( perNote? contourIndex : frame ) * frameToTime(), harmonic, baseFreq, harmonicMaxMags );
 					if( modifiedHarmonic.f < 0 ) 
 						continue;
 					
