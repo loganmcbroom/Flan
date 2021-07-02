@@ -367,6 +367,7 @@ PVOC PVOC::prism( PrismFunc f, bool perNote, bool useGPU, flan_CANCEL_ARG_CPP ) 
 	for( Channel channel = 0; channel < getNumChannels(); ++channel )
 		{
 		std::vector<Contour> contours = getContours( channel, minFreq, maxFreq, 60, 20, useGPU, canceller );
+		std::sort( contours.begin(), contours.end(), []( const Contour & a, const Contour & b ){ return a.startFrame < b.startFrame; } );
 		for( int contour = 0; contour < contours.size(); ++contour )
 			{
 			Contour & c = contours[contour];
