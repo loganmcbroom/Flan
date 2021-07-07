@@ -14,6 +14,8 @@
 Todo:
 
 Task:
+	select seems slow, check it out
+	select/mix/join should consider bitrate conversion when needed
 */
 
 #include <iostream>
@@ -46,16 +48,10 @@ void main()
 	auto sine = Synthesis::sine( 5, []( float t ){ return 220 + 220 * t; } );
 	auto saw = Synthesis::saw( 5, []( float t ){ return 220 + 220 * t; } );
 
-	auto b = yeahh.convertToPVOC().desample( []( float t ){ return 10*t; } );
+	auto b = bah.convertToPVOC().resonate( 0, .5 ).convertToAudio();
 
-	//std::cout << yeahh.getLength() << std::endl << b.convertToAudio().getLength();
 
-	//auto b = p.prism( []( Time t, int i, Frequency f, const std::vector<Magnitude> & ms ) 
-	//	{ 
-	//	return PVOC::MF{ ms[i], (75.0f + 40 * t ) * (i+1) }; 
-	//	}, false );
-
-	play( b.convertToAudio() );
+	play( b );
 	//graph( b.convertToGraph() );
 	}
 

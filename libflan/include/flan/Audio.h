@@ -102,12 +102,11 @@ public:
 	 *	This algorithm is implemented using OpenCL by default. 
 	 *	If you are building without OpenCL, this will call a cpu implementation.
 	 *
-	 *	\param windowSize This is the number of Frames used for each fft. 
+	 *	\param windowSize This is the number of Frames copied into each fft input. 
 	 *		Defined behaviour is only guaranteed for power-of-two inputs, but it may work for other input sizes.
 	 *		The number of bins in the output PVOC is given by frameSize / 2 + 1.
-	 *	\param overlaps Taking frameSize / overlaps gives the forward jump in the input Audio per fft step.
-	 *		This can be thought of as a time-oversampling factor. 
-	 *		The size (total data) of the output PVOC is the product of the input audio size, two, and overlaps.
+	 *	\param hop This is the forward jump in the input Audio per fft step.
+	 *  \param fftSize The size of the fft. 
 	 *  \param fftwInBuffer When fftw is used this allows allocating the fftw input buffer used in the transform
 	 *		on the main thread, as fftw buffer allocations aren't thread safe.
 	 *  \param fftwOutBuffer When fftw is used this allows allocating the fftw output buffer used in the transform
@@ -137,7 +136,7 @@ public:
 	 */
 	Audio convertToMidSide( flan_CANCEL_ARG ) const;
 
-	/** This converts back to Left/Right from Mid/Size. See Audio::convertToMidSide. 
+	/** This converts back to Left/Right from Mid/Side. See Audio::convertToMidSide. 
 	 */
 	Audio convertToLeftRight( flan_CANCEL_ARG ) const;
 
@@ -313,8 +312,7 @@ public:
 	 */
 	Audio lowPass( Func1x1 cutoff, uint32_t taps = 64, flan_CANCEL_ARG ) const;
 
-	/** This repeats the input n times. Each iteration is first fed into mod along with which 
-	 *	iteration is being sent.
+	/** This repeats the input n times.
 	 *	\param n The number of desired iterations
 	 *	\param mod This allows user-defined processing of each iteration.
 	 *	\param feedback When enabled, the previous iteration is sent to mod, rather than the original Audio.

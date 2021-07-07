@@ -433,16 +433,17 @@ PVOC PVOC::removeNLoudestPartials( Func1x1 numBins, flan_CANCEL_ARG_CPP ) const
 	return predicateNLoudestPartials( *this, numBins, []( uint32_t a, uint32_t b ){ return a >= b; }, canceller );
 	}
 
-PVOC PVOC::resonate( Func2x1 decay, float length, flan_CANCEL_ARG_CPP ) const
+PVOC PVOC::resonate( Time length, Func2x1 decay, flan_CANCEL_ARG_CPP ) const
 	{
 	flan_PROCESS_START( PVOC() );
 
 	// Input validation
-	if( length <= 0 ) return PVOC();
+	if( length < 0 ) 
+		length = 0;
 	Func2x1 decay_s = Func2x1::max( 0, decay );
 
 	auto format = getFormat();
-	format.numFrames = ceil( timeToFrame() * length );
+	format.numFrames = getNumFrames() + ceil( timeToFrame() * length );
 	PVOC out( format );
 
 	//Copy first frame into out

@@ -351,7 +351,7 @@ public:
 	 *		For example, a constant decay of .5 applied to an impulse will lose half it's magnitude every second.
 	 *	\param length Because the decay is exponential, an output length is needed. 
 	 */
-	PVOC resonate( Func2x1 decay, Time length, flan_CANCEL_ARG ) const;
+	PVOC resonate( Time length, Func2x1 decay, flan_CANCEL_ARG ) const;
 
 
 

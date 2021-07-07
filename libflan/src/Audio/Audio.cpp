@@ -437,11 +437,13 @@ Audio Audio::delay( Time length, Func1x1 delayTime, Func1x1 decay, Audio::Mod mo
 	return texture( length, 
 		[&delayTime, this]( float t )
 			{ 
-			if( delayTime( t ) <= 0 ) return float( getSampleRate() );
+			if( delayTime( t ) <= 0 ) return 1.0f / float( getSampleRate() );
 			return 1.0f / delayTime( t );
 			},
 		0, [&decay, &mod, &canceller]( const Audio & in, float t )
 			{ 
+			if( t == 0 ) 
+				return in;
 			const float currentDecay = decay( t );
 			return Audio( mod ? mod( in, t ) : in ).modifyVolume( currentDecay, canceller );
 			},
