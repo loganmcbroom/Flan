@@ -14,7 +14,8 @@ The classes Audio and PVOC represent all the main algorithms in flan. They inher
 The Function class and its children allow a great deal of freedom in passing functions (usually in the form of lambdas) in place of constants 
 when calling Audio and PVOC methods. Some basic Audio synthesis functions are found in Synthesis.h. 
 Most other usages can be found in the documentation, here: https://codedocs.xyz/loganmcbroom/flan/
-Codedocs is having trouble updating
+
+Codedocs is having trouble updating at the moment.
 
 Any questions on installation or usage can be directed to:
 
