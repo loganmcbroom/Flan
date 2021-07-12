@@ -76,13 +76,13 @@ target_include_directories( flan
 	)
 
 find_package( FFTWF REQUIRED ) # FFTWF::fftwf
-target_link_libraries( flan PRIVATE FFTWF::fftwf )
+target_link_libraries( flan PUBLIC FFTWF::fftwf )
 
 option( USE_SNDFILE "Build using libsndfile" ON )
 if( USE_SNDFILE )
 	add_definitions( -DUSE_SNDFILE )
 	find_package( SndFile REQUIRED ) # SndFile::sndfile
-	target_link_libraries( flan PRIVATE SndFile::sndfile )
+	target_link_libraries( flan PUBLIC SndFile::sndfile )
 endif( USE_SNDFILE )
 unset( USE_SNDFILE CACHE )
 
@@ -90,7 +90,7 @@ option( USE_OPENCL "Build using OpenCL" ON )
 if( USE_OPENCL )
 	add_definitions( -DUSE_OPENCL )
 	find_package( OpenCL REQUIRED ) # OpenCL::OpenCL
-	target_link_libraries( flan PRIVATE OpenCL::OpenCL )
+	target_link_libraries( flan PUBLIC OpenCL::OpenCL )
 endif( USE_OPENCL )
 unset( USE_OPENCL CACHE )
 
@@ -106,4 +106,3 @@ endif()
 if( EXISTS ${PROJECT_SOURCE_DIR}/tests )
 	add_subdirectory( tests )
 endif()
-
