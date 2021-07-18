@@ -1,6 +1,5 @@
 .git/
 .vs/
 out/
-lib/
-CMakeSettings.json
 tests/
+CMakeSettings.json

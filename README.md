@@ -1,13 +1,26 @@
-# flan
+# Flan
 Creative audio processing library.
 
-# Compilation
-Depends on libsndfile, FFTWF, and OpenCL.
-libsndfile enables file formats besides WAVE.
-FFTW makes several main algorithms significantly faster.
-OpenCL permits large optimizations in some of the main algorithms.
-Things will hopefully work out of the box via cmake. 
-The cmake find modules are fairly bare-bones, so if they can't find something make sure it is in the system PATH.
+# Building
+libsndfile:
+	git clone https://github.com/libsndfile/libsndfile.git
+	cd libsndfile
+	cmake -S . -B build
+	cmake --build build --target install
+	There is also a windows installer available here: http://www.mega-nerd.com/libsndfile/#Download
+
+FFTWF:
+	https://www.fftw.org/
+	I wish you luck.
+
+OpenCL: 
+	This should exist on modern computers already.
+
+Flan:
+	git clone https://github.com/loganmcbroom/flan
+	cd flan
+	cmake -S . -B build
+	cmake --build build --target install
 
 # Usage
 The classes Audio and PVOC represent all the main algorithms in flan. They inherit buffer functionality from AudioBuffer and PVOCBuffer. 
