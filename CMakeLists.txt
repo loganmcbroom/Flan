@@ -2,11 +2,6 @@
 
 project( Flan VERSION 1.0.0 LANGUAGES CXX )
 
-set( CMAKE_CXX_STANDARD 17 )
-set( CMAKE_CXX_STANDARD_REQUIRED True )
-#set( CMAKE_DISABLE_IN_SOURCE_BUILD True )
-#set( CMAKE_DEBUG_POSTFIX d )
-
 # Doxygen building
 option( BUILD_DOC "Build documentation" ON )
 if( CMAKE_BUILD_TYPE STREQUAL "Release" AND BUILD_DOC )
@@ -69,6 +64,7 @@ add_library( Flan::Flan ALIAS Flan )
 target_compile_features( Flan PUBLIC cxx_std_17 )
 set_target_properties( Flan PROPERTIES CXX_EXTENSIONS OFF )
 
+# Set includes
 target_include_directories( Flan 
 	PUBLIC 
 		$<INSTALL_INTERFACE:include>    
@@ -81,24 +77,16 @@ target_include_directories( Flan
 
 set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/" )
 
+target_compile_definitions( Flan PUBLIC USE_SNDFILE USE_OPENCL )
+
 find_package( FFTWF REQUIRED ) # FFTWF::fftwf
 target_link_libraries( Flan PUBLIC FFTWF::fftwf )
 
-#option( USE_SNDFILE "Build using libsndfile" ON )
-#if( USE_SNDFILE )
-	add_definitions( -DUSE_SNDFILE )
-	find_package( SndFile REQUIRED ) # SndFile::sndfile
-	target_link_libraries( Flan PUBLIC SndFile::sndfile )
-#endif( USE_SNDFILE )
-#unset( USE_SNDFILE CACHE )
+find_package( SndFile REQUIRED ) # SndFile::sndfile
+target_link_libraries( Flan PUBLIC SndFile::sndfile )
 
-#option( USE_OPENCL "Build using OpenCL" ON )
-#if( USE_OPENCL )
-	add_definitions( -DUSE_OPENCL )
-	find_package( OpenCL REQUIRED ) # OpenCL::OpenCL
-	target_link_libraries( Flan PUBLIC OpenCL::OpenCL )
-#endif( USE_OPENCL )
-#unset( USE_OPENCL CACHE )
+find_package( OpenCL REQUIRED ) # OpenCL::OpenCL
+target_link_libraries( Flan PUBLIC OpenCL::OpenCL )
 
 #==================================================================================================
 # Installation
@@ -141,8 +129,7 @@ write_basic_package_version_file(
 configure_package_config_file(	
 	${CMAKE_CURRENT_SOURCE_DIR}/cmake/FlanConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/FlanConfig.cmake
-    INSTALL_DESTINATION 
-		${INSTALL_CONFIGDIR}
+    INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
     )
 
 # Install files: config, configversion, find modules
@@ -161,15 +148,15 @@ install(
 #==================================================================================================
 
 # Generate a *Targets.cmake into the build folder
-export( 
-	EXPORT FlanTargets
-    FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/FlanTargets.cmake"
-    NAMESPACE Flan::
-    )
+#export( 
+#	EXPORT FlanTargets
+#    FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/FlanTargets.cmake"
+#    NAMESPACE Flan::
+#    )
 
 # Register package in the User Package Registry
-set( CMAKE_EXPORT_PACKAGE_REGISTRY True )
-export( PACKAGE Flan )
+#set( CMAKE_EXPORT_PACKAGE_REGISTRY True )
+#export( PACKAGE Flan )
 
 
 #==================================================================================================
