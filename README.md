@@ -3,25 +3,27 @@ Creative audio processing library.
 
 # Building
 Dependencies:
-	libsndfile:
-		git clone https://github.com/libsndfile/libsndfile.git
-		cd libsndfile
-		cmake -S . -B build
-		cmake --build build --target install
-		There is also a windows installer available here: http://www.mega-nerd.com/libsndfile/#Download
 
-	FFTWF:
-		https://www.fftw.org/
-		I wish you luck.
+libsndfile:
+```
+git clone https://github.com/libsndfile/libsndfile.git
+cd libsndfile
+cmake -S . -B build
+cmake --build build --target install
+There is also a windows installer available here: http://www.mega-nerd.com/libsndfile/#Download
+```
 
-	OpenCL: 
-		This should exist on modern computers already.
+FFTWF: https://www.fftw.org/
+
+OpenCL: This should exist on modern computers already.
 
 Flan:
-	git clone https://github.com/loganmcbroom/flan
-	cd flan
-	cmake -S . -B build
-	cmake --build build --target install --config Release
+```
+git clone https://github.com/loganmcbroom/flan
+cd flan
+cmake -S . -B build
+cmake --build build --target install --config Release
+```
 
 # Usage
 The classes Audio and PVOC represent all the main algorithms in flan. They inherit buffer functionality from AudioBuffer and PVOCBuffer. 
