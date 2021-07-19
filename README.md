@@ -3,7 +3,7 @@ Creative audio processing library.
 
 # Building
 
-### Dependencies
+### Dependencies:
 
 #### libsndfile:
 ```
@@ -15,13 +15,13 @@ cmake --build build --target install
 There is also a windows installer available here: http://www.mega-nerd.com/libsndfile/#Download
 
 
-#### FFTWF
+#### FFTWF:
 https://www.fftw.org/
 
-#### OpenCL 
+#### OpenCL:
 This should exist on modern computers already.
 
-### Flan
+### Flan:
 ```
 git clone https://github.com/loganmcbroom/flan
 cd flan
