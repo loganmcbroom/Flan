@@ -2,7 +2,7 @@
 Creative audio processing library.
 
 # Building
-Dependancies:
+Dependencies:
 	libsndfile:
 		git clone https://github.com/libsndfile/libsndfile.git
 		cd libsndfile
