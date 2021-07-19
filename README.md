@@ -1,5 +1,5 @@
 # Flan
-Creative audio processing library.
+A non-real-time audio processing library based on the phase vocoder transform.
 
 # Building
 
