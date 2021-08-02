@@ -21,7 +21,7 @@ if( CMAKE_BUILD_TYPE STREQUAL "Release" AND BUILD_DOC )
 			)
 
 	else( DOXYGEN_FOUND )
-	  message( "Doxygen need to be installed to generate the doxygen documentation" )
+		message( "Doxygen need to be installed to generate the doxygen documentation" )
 	endif( DOXYGEN_FOUND )
 endif()
 
@@ -128,8 +128,8 @@ write_basic_package_version_file(
 # Generate Config file
 configure_package_config_file(	
 	${CMAKE_CURRENT_SOURCE_DIR}/cmake/FlanConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/FlanConfig.cmake
-    INSTALL_DESTINATION ${INSTALL_CONFIGDIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/cmake/FlanConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Flan
     )
 
 # Install files: config, configversion, find modules
@@ -148,15 +148,26 @@ install(
 #==================================================================================================
 
 # Generate a *Targets.cmake into the build folder
-#export( 
-#	EXPORT FlanTargets
-#    FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/FlanTargets.cmake"
-#    NAMESPACE Flan::
-#    )
+export( EXPORT FlanTargets
+    FILE "${CMAKE_CURRENT_BINARY_DIR}/cmake/FlanTargets.cmake"
+    NAMESPACE Flan::
+    )
 
 # Register package in the User Package Registry
-#set( CMAKE_EXPORT_PACKAGE_REGISTRY True )
-#export( PACKAGE Flan )
+set( CMAKE_EXPORT_PACKAGE_REGISTRY True )
+export( PACKAGE Flan )
+
+# Copy find modules into build
+add_custom_command(
+    TARGET Flan POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+            ${CMAKE_SOURCE_DIR}/cmake/FindFFTWF.cmake
+            ${CMAKE_CURRENT_BINARY_DIR}/cmake/ )
+add_custom_command(
+    TARGET Flan POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+            ${CMAKE_SOURCE_DIR}/cmake/Findsndfile.cmake
+            ${CMAKE_CURRENT_BINARY_DIR}/cmake/ )
 
 
 #==================================================================================================

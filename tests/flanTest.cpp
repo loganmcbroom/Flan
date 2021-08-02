@@ -17,8 +17,14 @@ Task:
 	select seems slow, check it out
 	select/mix/join should consider bitrate conversion when needed
 	delete and rebuild sndfile to make sure it's in release mode
-
-	add "list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/")" to cmake.in
+		build in both modes
+ 
+    export options
+		don't do it - it's a waste of time
+		yeah
+		remove from NodeEditor
+		upload both
+		test Loton build
 */
 
 #include <iostream>
