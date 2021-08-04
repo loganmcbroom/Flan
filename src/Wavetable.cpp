@@ -110,7 +110,7 @@ std::vector<Frame> Wavetable::getWaveformStarts( const Audio & source, Wavetable
 	const int acGranularity = 128;
 	const int acWindowSize = 4096;
 	std::vector<float> localWavelengths;
-	Frame globalWavelength;
+	Frame globalWavelength = 0;
 	if( pitchMode != Wavetable::PitchMode::None )
 		{
 		localWavelengths = monoSource.getLocalWavelengths( 0 );
@@ -141,7 +141,7 @@ std::vector<Frame> Wavetable::getWaveformStarts( const Audio & source, Wavetable
 	while( true ) // Eat until we run out of buffer
 		{
 		// Guess how many frames the next wavelength will be
-		Frame expectedNumFrames;
+		Frame expectedNumFrames = 0;
 		if( pitchMode ==  Wavetable::PitchMode::Local )
 			{
 			const int localWavelengthIndex = std::floor( waveformStarts.back() / acGranularity );
@@ -314,7 +314,7 @@ void Wavetable::removeDC( Waveform w )
 	auto singleTransform = [this]( Waveform w )
 		{
 		auto startIter = table.begin() + wavelength * w;
-		const float dc = std::accumulate( startIter, startIter + wavelength, 0 ) / float( wavelength );
+		const float dc = std::accumulate( startIter, startIter + wavelength, 0.0f ) / float( wavelength );
 		std::for_each( startIter, startIter + wavelength, [dc]( Sample & s ){ s -= dc; } );
 		};
 

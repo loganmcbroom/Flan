@@ -516,8 +516,8 @@ std::ostream & operator<<( std::ostream & os, const PVOCBuffer & flan )
 	   << "\nBins:\t"					<< flan.getNumBins() 
 	   << "\nFrames/second:\t"			<< flan.timeToFrame() 
 	   << "\nBins/Frequency:\t"			<< flan.frequencyToBin() 
-	   << "\Hop size:\t"				<< flan.getHopSize() 
-	   << "\DFT size:\t"				<< flan.getDFTSize() 
+	   << "\nHop size:\t"				<< flan.getHopSize() 
+	   << "\nDFT size:\t"				<< flan.getDFTSize() 
 	   << "\n=======================================================================" 
 	   << "\n\n";
 	return os;

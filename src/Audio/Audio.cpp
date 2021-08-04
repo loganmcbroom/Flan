@@ -173,6 +173,8 @@ Audio Audio::shift( Time shift, flan_CANCEL_ARG_CPP ) const
 			flan_CANCEL_POINT( Audio() );
 			out.setSample( channel, frame + shiftFrames, getSample( channel, frame ) );
 			}
+
+	return out;
 	}
 
 Audio Audio::waveshape( Func1x1 shaper, flan_CANCEL_ARG_CPP ) const
@@ -362,7 +364,7 @@ Audio Audio::repitch( Func1x1 factor, Time granulTime, uint32_t qual, flan_CANCE
 		for( Channel i = 0; i < chs; ++i )
 			for( Frame j = 0; j < granul; ++j )
 				if( outFrame + j < acclen )
-					out.setSample( i, outFrame + j, rsoutbuf[ j  *chs + i ] );
+					out.setSample( i, outFrame + j, rsoutbuf[ j * chs + i ] );
 
 		outFrame += granul;
 		inFrame += wanted;

@@ -21,7 +21,7 @@ if( CMAKE_BUILD_TYPE STREQUAL "Release" AND BUILD_DOC )
 			)
 
 	else( DOXYGEN_FOUND )
-		message( "Doxygen need to be installed to generate the doxygen documentation" )
+		message( "Doxygen needs to be installed to generate the doxygen documentation" )
 	endif( DOXYGEN_FOUND )
 endif()
 
@@ -62,7 +62,10 @@ add_library( Flan STATIC
 add_library( Flan::Flan ALIAS Flan )
 
 target_compile_features( Flan PUBLIC cxx_std_17 )
-set_target_properties( Flan PROPERTIES CXX_EXTENSIONS OFF )
+set_target_properties( Flan PROPERTIES 
+	CXX_EXTENSIONS OFF 
+	DEBUG_POSTFIX d
+	)
 
 # Set includes
 target_include_directories( Flan 
@@ -83,7 +86,7 @@ find_package( FFTWF REQUIRED ) # FFTWF::fftwf
 target_link_libraries( Flan PUBLIC FFTWF::fftwf )
 
 find_package( SndFile REQUIRED ) # SndFile::sndfile
-target_link_libraries( Flan PUBLIC SndFile::sndfile )
+target_link_libraries( Flan PUBLIC SndFile::SndFile )
 
 find_package( OpenCL REQUIRED ) # OpenCL::OpenCL
 target_link_libraries( Flan PUBLIC OpenCL::OpenCL )
@@ -166,7 +169,7 @@ add_custom_command(
 add_custom_command(
     TARGET Flan POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
-            ${CMAKE_SOURCE_DIR}/cmake/Findsndfile.cmake
+            ${CMAKE_SOURCE_DIR}/cmake/FindSndFile.cmake
             ${CMAKE_CURRENT_BINARY_DIR}/cmake/ )
 
 
