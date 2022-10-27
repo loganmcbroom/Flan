@@ -4,6 +4,7 @@
 #include <cmath>
 #include <iostream>
 #include <fstream>
+#include <cstring>
 
 #include "flan/Utility/Bytes.h"
 
@@ -219,13 +220,13 @@ bool PVOCBuffer::load( const std::string & filename )
 	char strBuffer[4];
 
 	//Read RIFF chunk
-	file.read( strBuffer, 4 ); if( strncmp( strBuffer, "RIFF", 4 ) != 0 ) return bail( filename + " isn't a correctly formatted RIFF file.\n" );
+	file.read( strBuffer, 4 ); if( std::strncmp( strBuffer, "RIFF", 4 ) != 0 ) return bail( filename + " isn't a correctly formatted RIFF file.\n" );
 	file.read( strBuffer, 4 ); //Don't care about file size
-	file.read( strBuffer, 4 ); if( strncmp( strBuffer, "PVOC", 4 ) != 0 ) return bail( filename + " isn't a PVOC file.\n"  );
+	file.read( strBuffer, 4 ); if( std::strncmp( strBuffer, "PVOC", 4 ) != 0 ) return bail( filename + " isn't a PVOC file.\n"  );
 
 	//Read fmt subchunk
 	PVOCBuffer::Format format;
-	file.read( strBuffer, 4 ); if( strncmp( strBuffer, "fmt ", 4 ) != 0 ) return bail( filename + " isn't formatted correctly (\"fmt \" wasn't at the start of the format chunk).\n" );
+	file.read( strBuffer, 4 ); if( std::strncmp( strBuffer, "fmt ", 4 ) != 0 ) return bail( filename + " isn't formatted correctly (\"fmt \" wasn't at the start of the format chunk).\n" );
 	file.read( (char * ) &int32Buffer, 4 ); //Chunk size
 	file.read( (char * ) &int16Buffer, 2 );  if( int16Buffer != 1 ) return bail( "Formatting must be 1 (signed int)." );
 	file.read( (char * ) &int16Buffer, 2 ); format.numChannels = int16Buffer;

@@ -1,5 +1,7 @@
 #include "flan/Utility/Interpolator.h"
 
+#include <cmath>
+
 using namespace flan;
 
 static const float pi = std::acos( -1.0f );

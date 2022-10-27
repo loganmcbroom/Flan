@@ -1,32 +1,3 @@
-/* Ideas:
-	filter package - just do it in PVOC?
-	continuity maintenance in wavelength/frequency finders
-	octave error minimization in yin-based pitch finder (fast contour finder)
-	audio to function of frequency
-	convolve constant signals via fft
-	Add \mainpage with examples somewhere
-	Audio::removeSilence
-	Audio::cut uses an extra buffer copy when calling fades, remove it
-	contour pitch mean should be magnitude weighted
-	only generate docs for flan stuff
-	pvoc::alignHarmonics
-
-Todo:
-
-Task:
-	select seems slow, check it out
-	select/mix/join should consider bitrate conversion when needed
-	delete and rebuild sndfile to make sure it's in release mode
-		build in both modes
- 
-    export options
-		don't do it - it's a waste of time
-		yeah
-		remove from NodeEditor
-		upload both
-		test Loton build
-*/
-
 #include <iostream>
 #include <algorithm>
 #include <numeric>
@@ -47,13 +18,12 @@ void play( const Audio & toPlay );
 void graph( const std::string & f );
 void graph( const bitmap_image & b );
 
-void main()
+int main()
 	{
 	auto bah = Audio( "Audio/Bah.wav" );
 	auto bai = Audio( "Audio/Bai.wav" );
 	auto meow = Audio( "Audio/meow.wav" );
 	auto slaw = Audio( "Audio/slaw.wav" );
-	auto yeahh = Audio( "Audio/feel.wav" );
 	auto sine = Synthesis::sine( 5, []( float t ){ return 220 + 220 * t; } );
 	auto saw = Synthesis::saw( 5, []( float t ){ return 220 + 220 * t; } );
 
@@ -62,6 +32,8 @@ void main()
 
 	play( b );
 	//graph( b.convertToGraph() );
+
+	return 0;
 	}
 
 

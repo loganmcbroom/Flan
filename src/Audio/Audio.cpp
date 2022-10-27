@@ -512,8 +512,7 @@ Audio Audio::lowPass( Func1x1 cutoff, uint32_t taps, flan_CANCEL_ARG_CPP ) const
 			const float N = getSampleRate();
 			const float K = 2.0f * cutoff(t);
 			if( n == 0 ) return K / N;
-			else return std::sin( pi * n * K / N ) / ( N * sin( pi * n / N ) ) 
-				* Windows::Hann( float(tap) / float(taps) ); 
+			else return (float) ( std::sin( pi * n * K / N ) / ( N * sin( pi * n / N ) ) * Windows::Hann( float(tap) / float(taps) ) ); 
 			} );
 
 	return convolve( ir, canceller );

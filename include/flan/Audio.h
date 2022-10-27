@@ -1,13 +1,12 @@
 #pragma once
 
 #include <functional>
+#include <complex>
 
 #include "AudioBuffer.h"
 #include "flan/Utility/Interpolator.h"
 #include "flan/Utility/Interval.h"
 #include "Function.h"
-
-namespace std { template<class T> class complex; };
 
 namespace flan {
 
@@ -61,10 +60,6 @@ public:
 	 */
 	Audio operator-( const Audio & other ) const;
 
-	/** Find the total energy in the input, in other words, the sum of the square of each sample. 
-	 */
-	float getTotalEnergy( flan_CANCEL_ARG ) const;
-
 	/** Access the Audio buffer as a continuous function by interpolating between sample values.
 	 *	 Note, this interpolation is not "smooth" in the way a resampler interpolates, it is a basic
 	 *	 interpolation considering only two points at a time.
@@ -81,15 +76,14 @@ public:
 	//============================================================================================================================================================
 
 	/** Converts the Audio to a waveform bmp.
-	 *  \param tStart The graph start time.
-	 *  \param tEnd The graph end time. Passing -1 will graph up to the end of the data.
+	 *  \param I The time interval to graph. Passing the defalt of (0,-1) will graph the entire Audio.
 	 *  \param width The bmp width.
 	 *  \param height The bmp height.
 	 *	\param timelineScale Size of tick marks. Zero for none.
 	 */
 	Graph convertToGraph( Interval I = Interval( 0, -1 ), Pixel width = -1, Pixel height = -1, float timelineScale = 0, flan_CANCEL_ARG ) const;
 
-	/** Converts the Autio to a waveform bmp and saves it at filename.
+	/** Converts the Audio to a waveform bmp and saves it at filename.
 	 *	\param filename A filename at which to save the generated bmp.
 	 *  \param I The interval of time to graph.
 	 *  \param width The bmp width.
@@ -155,6 +149,10 @@ public:
 	//============================================================================================================================================================
 	// Information
 	//============================================================================================================================================================
+
+	/** Find the total energy in the input, in other words, the sum of the square of each sample. 
+	 */
+	float getTotalEnergy( flan_CANCEL_ARG ) const;
 
 	/** Try to find the wavelength of the input over time. Selects to minimize differences per repitition.
 	 *	\param channel The channel to process.

@@ -1,6 +1,7 @@
 #include "flan/PVOC.h"
 
 #include <iostream>
+#include <algorithm>
 
 #include "flan/spline.h"
 #include "flan/CLContext.h"
@@ -186,8 +187,8 @@ PVOC PVOC::modifyFrequency( Func2x1 outFreqFunc, Interpolator interp, flan_CANCE
 
 				const long long prevOutBinRound = forward? std::ceil( prevOutBin ) : std::floor( prevOutBin );
 				const long long outBinRound     = forward? std::ceil( outBin     ) : std::floor( outBin     );
-				const uint32_t startBin = std::clamp( prevOutBinRound, 0ll, long long(out.getNumBins() - 1) );
-				const uint32_t endBin   = std::clamp( outBinRound    , 0ll, long long(out.getNumBins() - 1) );
+				const uint32_t startBin = std::clamp( prevOutBinRound, 0ll, (long long)(out.getNumBins() - 1) );
+				const uint32_t endBin   = std::clamp( outBinRound    , 0ll, (long long)(out.getNumBins() - 1) );
 
 				for( uint32_t interpBin = startBin; interpBin != endBin; forward? ++interpBin : --interpBin )
 					{

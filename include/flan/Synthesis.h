@@ -5,6 +5,10 @@
 
 namespace flan {
 
+//! Synthesis utility functions
+/** 
+ */
+
 namespace Synthesis {
 
 /** Generate an Audio from a Func1x1. This can be accomplished in a more general setting using the function ctor of flan::Wavetable.

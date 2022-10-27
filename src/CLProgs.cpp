@@ -4,7 +4,7 @@ namespace flan {
 namespace CLProgs {
 
 extern const char * Audio_convertToPVOC = R"(
-__kernel void fftToPhase( global read_write float2 * fft )
+__kernel void fftToPhase( global float2 * fft )
 	{
 	const int i = get_global_id( 0 );
 	const float phase = atan2( fft[i].y, fft[i].x );
@@ -13,8 +13,8 @@ __kernel void fftToPhase( global read_write float2 * fft )
 	fft[i].y = phase;
 	}
 
-__kernel void phaseToFreq( global read_write float2 * MagPhase, 
-						   global write_only float2 * MagFreq,
+__kernel void phaseToFreq( global float2 * MagPhase, 
+						   global float2 * MagFreq,
 						   float overlaps,
 						   float binWidth,
 						   int numBins )
@@ -40,7 +40,7 @@ __kernel void phaseToFreq( global read_write float2 * MagPhase,
 	)";
 
 extern const char * PVOC_convertToAudio = R"(
-__kernel void phaseToFFT( global read_write float2 * MagPhase )
+__kernel void phaseToFFT( global float2 * MagPhase )
 	{
 	const int i = get_global_id( 0 );
 	const float x = MagPhase[i].x * cos( MagPhase[i].y );
@@ -49,9 +49,9 @@ __kernel void phaseToFFT( global read_write float2 * MagPhase )
 	MagPhase[i].y = y;
 	}
 
-__kernel void freqToPhase( global read_write float2 * MagFreq,
-						   global write_only float2 * MagPhase,
-						   global read_write float * phaseAccum,
+__kernel void freqToPhase( global float2 * MagFreq,
+						   global float2 * MagPhase,
+						   global float * phaseAccum,
 						   float overlaps,
 						   float binWidth,
 						   int numBins )
@@ -80,9 +80,9 @@ __kernel void freqToPhase( global read_write float2 * MagFreq,
 	)";
 
 extern const char * PVOC_modify = R"(
-kernel void modify( global read_only float2 * in,
-					global read_only float2 * modPointSamples,
-					global write_only float2 * out,
+kernel void modify( global float2 * in,
+					global float2 * modPointSamples,
+					global float2 * out,
 					int numBins,
 					int outNumFrames )
 	{
@@ -180,9 +180,9 @@ kernel void modify( global read_only float2 * in,
 	)";
 
 extern const char * PVOC_modifyTime = R"(
-kernel void modifyTime( global read_only float2 * in,
-						  global read_only float * f,
-						  global write_only float2 * out,
+kernel void modifyTime( global float2 * in,
+						  global float * f,
+						  global float2 * out,
 						  int numBins,
 						  int numOutFrames )
 	{
@@ -214,10 +214,10 @@ kernel void modifyTime( global read_only float2 * in,
 	)";
 
 extern const char * PVOC_modifyFrequency = R"(
-kernel void modifyFrequency( global read_only float2 * in,
-						  global read_only float * mappedFrequencies,
-						  global read_only float * f,
-						  global write_only float2 * out,
+kernel void modifyFrequency( global float2 * in,
+						  global float * mappedFrequencies,
+						  global float * f,
+						  global float2 * out,
 						  int numBins )
 	{
 	const int i = get_global_id( 0 );
@@ -273,7 +273,7 @@ float getMaxPartialMag( global read_only float2 * in, int numPVOCBins )
 	return a_M;
 	}
 
-void findPeaks( float2 peaks[], int * peakIndex, global read_only float2 * in, int numPVOCBins )
+void findPeaks( float2 peaks[], int * peakIndex, global float2 * in, int numPVOCBins )
 	{
     int i = 0;
 	const int arraySize = *peakIndex;
@@ -326,10 +326,10 @@ void findPeaks( float2 peaks[], int * peakIndex, global read_only float2 * in, i
         }
 	}
 
-kernel void getSalience( global read_only float2 * in,
-						 global read_write float * out,
-						 global read_only float * alphas,
-						 global read_only float * cosines,
+kernel void getSalience( global float2 * in,
+						 global float * out,
+						 global float * alphas,
+						 global float * cosines,
 						 int numPVOCBins,
 						 int numSalienceBins, 
 						 float minFreq, 

@@ -19,6 +19,7 @@ find_path( FFTWF_INCLUDE_DIR
 find_library( FFTWF_LIBRARY_DIR
     NAME
 		"libfftw3f-3"
+		"libfftw3f-3.dll"
 	PATH_SUFFIXES
 		fftw
 		lib

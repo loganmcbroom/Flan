@@ -32,6 +32,7 @@
 #include <limits>
 #include <string>
 #include <vector>
+#include <memory>
 
 
 class bitmap_image

@@ -187,7 +187,7 @@ PVOC PVOC::replaceAmplitudes( const PVOC & ampSource, Func2x1 amount, flan_CANCE
 
 	// Input validation
 	if( ampSource.isNull() ) return PVOC();
-	Func2x1 amount_s = Func2x1::clamp( amount, 0, 1 );
+	Func2x1 amount_s = Func2x1::clamp( amount, 0.0f, 1.0f );
 
 	PVOC out( getFormat() );
 	out.clearBuffer();

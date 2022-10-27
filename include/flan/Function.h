@@ -5,11 +5,16 @@
 #include <type_traits>
 #include <random>
 #include <ctime>
+#include <algorithm>
 
 #include "flan/defines.h"
 #include "flan/Utility/Interpolator.h"
 #include "flan/Utility/vec2.h"
 #include "flan/Utility/Rect.h"
+
+#undef max
+#undef min
+#undef clamp
 
 namespace flan {
 
@@ -55,25 +60,34 @@ struct Function
 	/** Clamp a function within a function range */
 	static Function<I,O> clamp( const Function<I,O> a, const Function<I,O> b, const Function<I,O> c ) 
 		{ 
-		return [a,b,c]( I in ){ return std::clamp( a.operator()( in ), b.operator()( in ), c.operator()( in ) ); }; 
+		return (Function<I,O>) [a, b, c]( I in )
+			{ 
+			return std::clamp( a.operator()( in ), b.operator()( in ), c.operator()( in ) ); 
+			}; 
 		}
 
 	/** Return the maximum of two functions at each input */
 	static Function<I,O> max( const Function<I,O> a, const Function<I,O> b ) 
 		{ 
-		return [a, b]( I in ){ return std::max( a.operator()( in ), b.operator()( in ) ); }; 
+		return (Function<I,O>) [a, b]( I in )
+			{ 
+			return std::max( a.operator()( in ), b.operator()( in ) ); 
+			}; 
 		}
 
 	/** Return the minimum of two functions at each input */
 	static Function<I,O> min( const Function<I,O> a, const Function<I,O> b ) 
 		{ 
-		return [a, b]( I in ){ return std::min( a.operator()( in ), b.operator()( in ) ); }; 
+		return (Function<I,O>) [a, b]( I in )
+			{ 
+			return std::min( a.operator()( in ), b.operator()( in ) ); 
+			}; 
 		}
 
 	static Function<I,O> uniformDistribution( Function<I,O> lowerBound, Function<I,O> upperBound )
 		{
 		static std::default_random_engine rng( std::time( nullptr ) );
-		return [lowerBound, upperBound]( I x ) -> O
+		return (Function<I,O>) [lowerBound, upperBound]( I x ) -> O
 			{ 
 			return std::uniform_real_distribution<float>( lowerBound( x ), upperBound( x ) )( rng ); 
 			};
@@ -82,13 +96,13 @@ struct Function
 	static Function<I,O> normalDistribution( Function<I,O> mean, Function<I,O> sigma )
 		{
 		static std::default_random_engine rng( std::time( nullptr ) );
-		return [mean, sigma]( I x ) -> O
+		return (Function<I,O>) [mean, sigma]( I x ) -> O
 			{ 
 			const O m = mean( x );
 			const O s = sigma( x );
 			if( s <= 0 ) return m;
 			return std::normal_distribution<float>( m, s )( rng ); 
-			};;
+			};
 		}
 
 	std::function< O ( I ) > f;

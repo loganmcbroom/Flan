@@ -3,6 +3,7 @@
 #include <vector>
 #include <array>
 #include <string>
+#include <cstring>
 
 namespace flan {
 
@@ -62,7 +63,7 @@ inline void writeBytes( unsigned char * target, T u )
 /** Write bytes from a c-string to target. */
 inline void writeBytes( unsigned char * target, const char * source )
 	{
-    for( size_t k = 0; k < strlen(source); k++ )
+    for( size_t k = 0; k < std::strlen(source); k++ )
         target[k] = source[k];
 	}
 

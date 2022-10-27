@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <map>
+#include <complex>
 
 #include "PVOCBuffer.h"
 #include "flan/Function.h"
@@ -9,7 +10,6 @@
 #include "flan/Utility/Rect.h"
 
 struct fftwf_plan_s;
-namespace std { template<class T> class complex; };
 
 namespace flan {
 
