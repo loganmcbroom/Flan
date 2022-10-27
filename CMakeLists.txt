@@ -9,7 +9,7 @@ if( BUILD_WITH_DOCS )
 
 	if( DOXYGEN_FOUND )
 		message( STATUS "Doxygen found: ${DOXYGEN_EXECUTABLE} -- ${DOXYGEN_VERSION}" )
-		set( DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in )
+		set( DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile.in )
 		set( DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/docs/Doxyfile )
 
 		configure_file( ${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY )
