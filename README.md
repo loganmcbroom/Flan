@@ -6,6 +6,7 @@ A non-real-time audio processing library based on the phase vocoder transform.
 ### Dependencies:
 
 #### libsndfile:
+
 ```
 git clone https://github.com/libsndfile/libsndfile.git
 cd libsndfile
@@ -36,6 +37,7 @@ Installing any of them should supply your system with a FindOpenCL.cmake file wh
 If that is the case with your distribution, download the binding repository [here](https://github.com/KhronosGroup/OpenCL-CLHPP), and copy the opencl.hpp and CL2.hpp files to the same folder as opencl.h.
 
 ### Flan:
+
 ```
 git clone https://github.com/loganmcbroom/flan
 cd flan
