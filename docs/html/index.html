@@ -5,7 +5,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=11"/>
 <meta name="generator" content="Doxygen 1.9.5"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>flan: Flan</title>
+<title>Flan: Flan - A general purpose non-real-time audio processing library</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -21,7 +21,7 @@
  <tbody>
  <tr id="projectrow">
   <td id="projectalign">
-   <div id="projectname">flan
+   <div id="projectname">Flan
    </div>
   </td>
  </tr>
@@ -69,45 +69,58 @@ $(function() {
 </div>
 
 <div><div class="header">
-  <div class="headertitle"><div class="title">Flan </div></div>
+  <div class="headertitle"><div class="title">Flan - A general purpose non-real-time audio processing library </div></div>
 </div><!--header-->
 <div class="contents">
-<div class="textblock"><p ><a class="anchor" id="md_README"></a>A non-real-time audio processing library based on the phase vocoder transform.</p>
-<h1><a class="anchor" id="autotoc_md1"></a>
-Building</h1>
-<h3><a class="anchor" id="autotoc_md2"></a>
-Dependencies:</h3>
-<h4><a class="anchor" id="autotoc_md3"></a>
-libsndfile:</h4>
-<div class="fragment"><div class="line">git clone https://github.com/libsndfile/libsndfile.git</div>
-<div class="line">cd libsndfile</div>
-<div class="line">cmake -S . -B build -DCMAKE_DEBUG_POSTFIX=d -DCMAKE_BUILD_TYPE=Release</div>
-<div class="line">cmake --build build --target install --config Release</div>
-</div><!-- fragment --><p> There is also a windows installer available <a href="http://www.mega-nerd.com/libsndfile/#Download">here</a>.</p>
-<h4><a class="anchor" id="autotoc_md4"></a>
-FFTWF:</h4>
-<p >See <a href="https://www.fftw.org/">https://www.fftw.org/</a></p>
-<p >Building FFTW is OS-dependant. Unix systems can download the source from the <a href="http://www.fftw.org/fftw-3.3.9.tar.gz">FFTW website</a> and run: </p><div class="fragment"><div class="line">./configure</div>
-<div class="line">make</div>
-<div class="line">make install</div>
-</div><!-- fragment --><p >Windows systems can follow the instructions <a href="http://www.fftw.org/install/windows.html">here</a> to install an import library. The FFTW devs seem to really dislike Windows, but the instructions work.</p>
-<p >Either way, the official github repo should be avoided, as you need to run a preprocessor on it to generate the actual source code.</p>
-<h4><a class="anchor" id="autotoc_md5"></a>
-OpenCL:</h4>
-<p >This should exist on most modern computers already. If OpenCL is missing from your system, there are a number of distributions of it from a number of vendors. Installing any of them should supply your system with a FindOpenCL.cmake file which can find all the needed files. Flan uses c++ bindings that not all distributions contain. If that is the case with your distribution, download the binding repository <a href="https://github.com/KhronosGroup/OpenCL-CLHPP">here</a>, and copy the opencl.hpp and CL2.hpp files to the same folder as opencl.h.</p>
-<h3><a class="anchor" id="autotoc_md6"></a>
-Flan:</h3>
-<div class="fragment"><div class="line">git clone https://github.com/loganmcbroom/flan</div>
-<div class="line">cd flan</div>
-<div class="line">cmake -S . -B build -DCMAKE_BUILD_TYPE=Release</div>
-<div class="line">cmake --build build --target install --config Release</div>
-</div><!-- fragment --><p> The "-DCMAKE_BUILD_TYPE=Release" is for single-config generators, while "--config Release" is for multi-config generators. Flan also exports the build tree, so "--target install" isn't needed if the build will remain where it was built.</p>
-<h1><a class="anchor" id="autotoc_md7"></a>
-Usage</h1>
-<p >The classes <a class="el" href="classflan_1_1_audio.html" title="Audio Algorithms.">flan::Audio</a> and <a class="el" href="classflan_1_1_p_v_o_c.html" title="Phase Vocoder (PVOC) Data Algorithms.">flan::PVOC</a> represent all the main algorithms in flan. They inherit buffer functionality from <a class="el" href="classflan_1_1_audio_buffer.html">flan::AudioBuffer</a> and <a class="el" href="classflan_1_1_p_v_o_c_buffer.html">flan::PVOCBuffer</a>. The <a class="el" href="structflan_1_1_function.html">flan::Function</a> class and its children allow a great deal of freedom in passing functions (usually in the form of lambdas) in place of constants when calling <a class="el" href="classflan_1_1_audio.html" title="Audio Algorithms.">flan::Audio</a> and <a class="el" href="classflan_1_1_p_v_o_c.html" title="Phase Vocoder (PVOC) Data Algorithms.">flan::PVOC</a> methods. Some basic synthesis functions are found in <a class="el" href="namespaceflan_1_1_synthesis.html" title="Synthesis utility functions.">flan::Synthesis</a>.</p>
-<p >Any further questions can be directed to:</p>
-<p >Discord: <a href="https://discord.gg/QmQuJKB">https://discord.gg/QmQuJKB</a></p>
-<p >Email: <a href="#" onclick="location.href='mai'+'lto:'+'log'+'an'+'mcb'+'ro'+'om@'+'gm'+'ail'+'.c'+'om'; return false;">logan<span class="obfuscator">.nosp@m.</span>mcbr<span class="obfuscator">.nosp@m.</span>oom@g<span class="obfuscator">.nosp@m.</span>mail<span class="obfuscator">.nosp@m.</span>.com</a> </p>
+<div class="toc"><h3>Table of Contents</h3>
+<ul><li class="level1"><a href="#license">License</a></li>
+<li class="level1"><a href="#platforms">Platforms</a></li>
+<li class="level1"><a href="#downloads">Downloads</a></li>
+<li class="level1"><a href="#installonmainpage">Installation</a></li>
+<li class="level1"><a href="#support">Support</a></li>
+<li class="level1"><a href="#relatedprojects">Related Projects</a></li>
+<li class="level1"><a href="#credits">Credits</a></li>
+</ul>
+</div>
+<div class="textblock"><p >The Flan library contains buffer classes for data representing sound along with algorithms for creative manipulation of those data types. Additional utilities for working with sound in a creative capacity such as wavetable synthesis algorithms are also included. A high degree of technical knowledge of sound is not required, but an understanding of short-time Forier transforms will be useful in handling PVOC data.</p>
+<div class="image">
+<img src="plot.png" alt=""/>
+</div>
+<h1><a class="anchor" id="license"></a>
+License</h1>
+<p >Flan is distributed under the terms of the <a class="el" href="flanlicense.html">GNU General Public License</a>.</p>
+<h1><a class="anchor" id="platforms"></a>
+Platforms</h1>
+<p >Flan relies exclusively on cross-platform tools, and should be usable on most devices.</p>
+<h1><a class="anchor" id="downloads"></a>
+Downloads</h1>
+<p >Source code with build instruction are available at <a href="https://github.com/loganmcbroom/Flan">the github repository</a> Deveopment is sporadic and based on my own needs, but if you need a simple feature you can contact me at the links below.</p>
+<h1><a class="anchor" id="installonmainpage"></a>
+Installation</h1>
+<p >Installation instructions are <a href="https://github.com/loganmcbroom/Flan">here</a></p>
+<h1><a class="anchor" id="support"></a>
+Support</h1>
+<ul>
+<li><a href="https://discord.gg/QmQuJKB">CDP Discord</a> - This is for the Composers Desktop Project but it's used for this as well</li>
+<li>Email - You can just email me here <a href="#" onclick="location.href='mai'+'lto:'+'log'+'an'+'mcb'+'ro'+'om@'+'gm'+'ail'+'.c'+'om'; return false;">logan<span class="obfuscator">.nosp@m.</span>mcbr<span class="obfuscator">.nosp@m.</span>oom@g<span class="obfuscator">.nosp@m.</span>mail<span class="obfuscator">.nosp@m.</span>.com</a></li>
+</ul>
+<h1><a class="anchor" id="relatedprojects"></a>
+Related Projects</h1>
+<p >This library was built for powering any future audio processing GUIs I might make. Currently those are:<br  />
+</p><ul>
+<li><a href="https://github.com/loganmcbroom/Loton">Loton</a></li>
+<li><a href="https://github.com/loganmcbroom/Falter">Falter</a></li>
+</ul>
+<h1><a class="anchor" id="credits"></a>
+Credits</h1>
+<dl class="section user"><dt>Authors: </dt><dd>Logan McBroom </dd></dl>
+<dl class="section user"><dt>Libraries:</dt><dd>libsndfile <br  />
+ fftw <br  />
+ luajit <br  />
+ r8brain <br  />
+ WDL <br  />
+ bitmap (Arash Partow) <br  />
+</dd></dl>
 </div></div><!-- PageDoc -->
 </div><!-- contents -->
 <!-- start footer part -->

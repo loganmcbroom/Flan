@@ -34,6 +34,7 @@ var searchData=
   ['gettotalenergy_31',['getTotalEnergy',['../classflan_1_1_audio.html#a7e405b360495dce34ac7ff0df1c92027',1,'flan::Audio']]],
   ['getwindowsize_32',['getWindowSize',['../classflan_1_1_p_v_o_c_buffer.html#a7379dc1bd77394a3bf7c86911b335002',1,'flan::PVOCBuffer']]],
   ['global_33',['Global',['../classflan_1_1_wavetable.html#a7be6ccff857f9ad98858bc5f03beccb1a4cc6684df7b4a92b1dec6fce3264fac8',1,'flan::Wavetable']]],
-  ['grainselect_34',['grainSelect',['../classflan_1_1_audio.html#aa28db6ec528c59f763c23e6cbbe753af',1,'flan::Audio']]],
-  ['graph_35',['Graph',['../classflan_1_1_graph.html',1,'flan']]]
+  ['gnu_20general_20public_20license_34',['GNU General Public License',['../flanlicense.html',1,'']]],
+  ['grainselect_35',['grainSelect',['../classflan_1_1_audio.html#aa28db6ec528c59f763c23e6cbbe753af',1,'flan::Audio']]],
+  ['graph_36',['Graph',['../classflan_1_1_graph.html',1,'flan']]]
 ];

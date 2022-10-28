@@ -1,0 +1,56 @@
+/*!
+  \mainpage Flan - A general purpose non-real-time audio processing library
+
+The Flan library contains buffer classes for data representing sound along with algorithms for creative manipulation of those data types. 
+Additional utilities for working with sound in a creative capacity such as wavetable synthesis algorithms are also included.
+A high degree of technical knowledge of sound is not required, but an understanding of short-time Forier transforms will be useful in handling PVOC data.
+
+  \image html plot.png
+  \tableofcontents
+
+  \section license License
+  Flan is distributed under the terms of the \ref flanlicense.
+
+
+  \section platforms Platforms
+  Flan relies exclusively on cross-platform tools, and should be usable on most devices.
+
+
+  \section downloads Downloads
+  Source code with build instruction are available at [the github repository](https://github.com/loganmcbroom/Flan)
+  Deveopment is sporadic and based on my own needs, but if you need a simple feature you can contact me at the links below.
+ 
+
+  \section installonmainpage Installation
+  Installation instructions are [here](https://github.com/loganmcbroom/Flan)
+
+ 
+  \section support Support
+  - [CDP Discord](https://discord.gg/QmQuJKB) - This is for the Composers Desktop Project but it's used for this as well
+
+  - Email - You can just email me here loganmcbroom@gmail.com
+
+
+  \section relatedprojects Related Projects
+  This library was built for powering any future audio processing GUIs I might make. Currently those are:\n
+  - [Loton](https://github.com/loganmcbroom/Loton)
+  - [Falter](https://github.com/loganmcbroom/Falter)
+
+
+
+  \section credits Credits
+  \par Authors: 
+    Logan McBroom
+  \par Libraries:
+    libsndfile \n
+    fftw \n
+    luajit \n
+    r8brain \n
+    WDL \n
+    bitmap (Arash Partow) \n
+*/
+
+/*!
+  \page flanlicense GNU General Public License
+  \include "LICENSE.md"
+*/
