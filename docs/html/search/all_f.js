@@ -14,9 +14,8 @@ var searchData=
   ['shift_11',['shift',['../classflan_1_1_audio.html#a5aa78d56f99597b4da06eb9969a7bef7',1,'flan::Audio']]],
   ['sine_12',['sine',['../namespaceflan_1_1_synthesis.html#a6151897cdcef747047979d5707033220',1,'flan::Synthesis']]],
   ['snapmode_13',['SnapMode',['../classflan_1_1_wavetable.html#a58b1fbc26cd2f3cc34229e4e164d2e16',1,'flan::Wavetable']]],
-  ['spline_14',['spline',['../structflan_1_1_func1x1.html#a687b70a24c6739d212269ffa373251c2',1,'flan::Func1x1']]],
-  ['square_15',['square',['../namespaceflan_1_1_synthesis.html#ac56dee5eb546eb2fd15137a65f8d06b3',1,'flan::Synthesis']]],
-  ['stretch_16',['stretch',['../classflan_1_1_p_v_o_c.html#a59ad05ef18baca907896e9a97f9fcc11',1,'flan::PVOC']]],
-  ['stretch_5fspline_17',['stretch_spline',['../classflan_1_1_p_v_o_c.html#aa7df4a901cb8dd17351972e5dbb36b1b',1,'flan::PVOC']]],
-  ['subtractamplitudes_18',['subtractAmplitudes',['../classflan_1_1_p_v_o_c.html#aff06e92896917867cc127b79b32c9add',1,'flan::PVOC']]]
+  ['square_14',['square',['../namespaceflan_1_1_synthesis.html#ac56dee5eb546eb2fd15137a65f8d06b3',1,'flan::Synthesis']]],
+  ['stretch_15',['stretch',['../classflan_1_1_p_v_o_c.html#a59ad05ef18baca907896e9a97f9fcc11',1,'flan::PVOC']]],
+  ['stretch_5fspline_16',['stretch_spline',['../classflan_1_1_p_v_o_c.html#ae93eaf50d755702ca534f6f14b8a702d',1,'flan::PVOC']]],
+  ['subtractamplitudes_17',['subtractAmplitudes',['../classflan_1_1_p_v_o_c.html#aff06e92896917867cc127b79b32c9add',1,'flan::PVOC']]]
 ];

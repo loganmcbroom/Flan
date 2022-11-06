@@ -141,6 +141,7 @@ $(function() {
 <li>freeze()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#a1a243019d1211599649b45934b21b6f6">flan::PVOC</a></li>
 <li>frequencyToBin()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c_buffer.html#a8b6591e09ffe21532e57667744d5518d">flan::PVOCBuffer</a></li>
 <li>Func2x1()&#160;:&#160;<a class="el" href="structflan_1_1_func2x1.html#ab8beb80f576ab0b60303501cbe953475">flan::Func2x1</a></li>
+<li>Func2x2()&#160;:&#160;<a class="el" href="structflan_1_1_func2x2.html#ad3db2acba48ea2f6c222e8a1db1b4edc">flan::Func2x2</a></li>
 <li>Function()&#160;:&#160;<a class="el" href="structflan_1_1_function.html#a48594b127ed01e880b6b2a584729a9a3">flan::Function&lt; I, O &gt;</a></li>
 </ul>
 
@@ -184,7 +185,6 @@ $(function() {
 
 
 <h3><a id="index_i" name="index_i"></a>- i -</h3><ul>
-<li>interpolatePoints()&#160;:&#160;<a class="el" href="structflan_1_1_func1x1.html#a4bccf2bafc427741603161b3e78446a2">flan::Func1x1</a></li>
 <li>invertPhase()&#160;:&#160;<a class="el" href="classflan_1_1_audio.html#a08691c32fc18f430f426ab8295566797">flan::Audio</a></li>
 <li>isNull()&#160;:&#160;<a class="el" href="classflan_1_1_audio_buffer.html#ad8e326e7f446b0cf21f0562429350d42">flan::AudioBuffer</a>, <a class="el" href="classflan_1_1_p_v_o_c_buffer.html#a9aa6005c9274837388b388827b34decb">flan::PVOCBuffer</a></li>
 <li>iterate()&#160;:&#160;<a class="el" href="classflan_1_1_audio.html#a3d7ba4d430574c48f88b7352e49d302e">flan::Audio</a></li>
@@ -207,11 +207,11 @@ $(function() {
 <li>min()&#160;:&#160;<a class="el" href="structflan_1_1_function.html#a7fdc82282d94d9deb520117ddf04c383">flan::Function&lt; I, O &gt;</a></li>
 <li>mix()&#160;:&#160;<a class="el" href="classflan_1_1_audio.html#abdb93230142f68dc8d0747562039d039">flan::Audio</a></li>
 <li>modify()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#a56446d924f5c191bb5dfe14d4082e7e9">flan::PVOC</a></li>
-<li>modify_cl()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#acc8764ef5fc9912d0c791451b5301a7f">flan::PVOC</a></li>
-<li>modifyFrequency()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#a499ecece3351948a38faac6d58e2790f">flan::PVOC</a></li>
-<li>modifyFrequency_cl()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#ad99c278182a7867c5c18f2e0e9506575">flan::PVOC</a></li>
-<li>modifyTime()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#a5ff3313cf9c0ebbe0be2d2bf1ff22b04">flan::PVOC</a></li>
-<li>modifyTime_cl()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#abc675d2b3276de167ce34d32cdb5d83c">flan::PVOC</a></li>
+<li>modify_cpu()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#a5692b90fdc368643dfbff3b42b2ca42e">flan::PVOC</a></li>
+<li>modifyFrequency()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#a423d1b6700066d233322d91d4d32c8c6">flan::PVOC</a></li>
+<li>modifyFrequency_cpu()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#acd9660e1298aa502f4eb964e09295fff">flan::PVOC</a></li>
+<li>modifyTime()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#a90032450c15bd0764f216293c5042610">flan::PVOC</a></li>
+<li>modifyTime_cpu()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#ab88488ee6880d10bd394b5baacc43a68">flan::PVOC</a></li>
 <li>modifyVolume()&#160;:&#160;<a class="el" href="classflan_1_1_audio.html#a805ab7ab097240974c6e522aa7c822e6">flan::Audio</a></li>
 </ul>
 
@@ -265,9 +265,8 @@ $(function() {
 <li>setVolume()&#160;:&#160;<a class="el" href="classflan_1_1_audio.html#a98ef036cb5e5066b5df5986412c00126">flan::Audio</a></li>
 <li>shape()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#a3190059a6cde12147220514aae168a70">flan::PVOC</a></li>
 <li>shift()&#160;:&#160;<a class="el" href="classflan_1_1_audio.html#a5aa78d56f99597b4da06eb9969a7bef7">flan::Audio</a></li>
-<li>spline()&#160;:&#160;<a class="el" href="structflan_1_1_func1x1.html#a687b70a24c6739d212269ffa373251c2">flan::Func1x1</a></li>
 <li>stretch()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#a59ad05ef18baca907896e9a97f9fcc11">flan::PVOC</a></li>
-<li>stretch_spline()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#aa7df4a901cb8dd17351972e5dbb36b1b">flan::PVOC</a></li>
+<li>stretch_spline()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#ae93eaf50d755702ca534f6f14b8a702d">flan::PVOC</a></li>
 <li>subtractAmplitudes()&#160;:&#160;<a class="el" href="classflan_1_1_p_v_o_c.html#aff06e92896917867cc127b79b32c9add">flan::PVOC</a></li>
 </ul>
 

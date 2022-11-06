@@ -397,7 +397,8 @@ public:
 		flan_CANCEL_ARG );
 
 	/** This joins all input Audio tip to tail in the order they were passed.
-	 *	\param ins The Audio to mix.
+	 *	\param ins The Audio to join.
+	 *	\param fade The amount of time join should spend fading between Audios
 	 */
 	static Audio join( const std::vector<Audio> & ins, Time fade = 0, flan_CANCEL_ARG );
 

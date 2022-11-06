@@ -14,6 +14,9 @@ namespace flan {
  *	Data is stored in channel-major order, in other words, the entire first channel 
  *	is stored in memory before the second channel's storage begins.
  *
+ *  AudioBuffer is light-copyable, that is, the data is stored in a shared_ptr.
+ *  Use AudioBuffer::deepCopy if a true copy is required
+ *
  *	A note on terminology, the term "frame" is used to describe points in time at which samples are taken.
  *	The term "sample" is used to describe the actual data at that point in time.
  */

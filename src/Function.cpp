@@ -7,7 +7,6 @@
 #include <string>
 
 #include "bmp/bitmap_image.hpp"
-#include "flan/spline.h"
 #include "flan/Graph.h"
 
 static const float pi = acos( -1.0f );
@@ -51,54 +50,6 @@ Func1x1 Func1x1::periodize( Func1x1 period )
 		{
 		const float p = period( t );
 		return f( std::fmod( t, p ) + ( t < 0.0f ? p : 0.0f ) );
-		};
-	}
-
-Func1x1 Func1x1::interpolatePoints( const std::vector< std::pair< float, float > > & ps, Interpolator interp )
-	{
-	return [ps, interp]( float t )
-		{
-		if( ps.size() == 0 ) return 0.0f;
-		if( t <= ps.front().first ) return ps.front().second;
-		if( ps.back().first <= t ) return ps.back().second;
-
-		const auto p2 = std::lower_bound( ps.begin(), ps.end(), t, []( const std::pair< float, float > & p, float t ){ return p.first < t; } );
-		const auto p1 = p2 - 1;
-		const float mix = interp( ( t - p1->first ) / ( p2->first - p1->first ) );
-		return ( 1.0f - mix ) * p1->second + mix * p2->second;
-		};
-	}
-
-Func1x1 Func1x1::interpolatePoints( float deltaX, const std::vector< float > ys, Interpolator interp )
-	{
-	std::vector<std::pair< float, float >> points( ys.size() );
-
-	float xAccum = 0;
-	std::transform( ys.begin(), ys.end(), points.begin(), [deltaX, &xAccum]( float y )
-		{ 
-		auto point = std::pair<float,float>( xAccum, y );
-		xAccum += deltaX;
-		return point;
-		} );
-
-	return interpolatePoints( points, interp );
-	}
-
-Func1x1 Func1x1::spline( const std::vector< std::pair< float, float > > points )
-	{
-	// Split points into xs and ys
-	std::vector<double> xs( points.size() );
-	std::vector<double> ys( points.size() );
-	std::transform( points.begin(), points.end(), xs.begin(), []( std::pair<float,float> p ){ return p.first; } );
-	std::transform( points.begin(), points.end(), ys.begin(), []( std::pair<float,float> p ){ return p.second; } );
-
-	// Generate tk::spline from xs and ys
-	tk::spline spline;
-	spline.set_points( xs, ys );
-
-	return [spline]( float t )
-		{
-		return spline( t );
 		};
 	}
 

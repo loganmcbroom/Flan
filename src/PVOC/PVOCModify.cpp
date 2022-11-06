@@ -9,7 +9,7 @@
 
 namespace flan {
 
-PVOC PVOC::modify( Func2x2 mod, Interpolator interp, flan_CANCEL_ARG_CPP ) const
+PVOC PVOC::modify_cpu( Func2x2 mod, Interpolator interp, flan_CANCEL_ARG_CPP ) const
 	{
 	flan_PROCESS_START( PVOC() );
 
@@ -165,7 +165,7 @@ PVOC PVOC::modify( Func2x2 mod, Interpolator interp, flan_CANCEL_ARG_CPP ) const
 	return out;
 	}
 
-PVOC PVOC::modifyFrequency( Func2x1 outFreqFunc, Interpolator interp, flan_CANCEL_ARG_CPP ) const
+PVOC PVOC::modifyFrequency_cpu( Func2x1 outFreqFunc, Interpolator interp, flan_CANCEL_ARG_CPP ) const
 	{
 	flan_PROCESS_START( PVOC() );
 
@@ -221,7 +221,7 @@ PVOC PVOC::modifyFrequency( Func2x1 outFreqFunc, Interpolator interp, flan_CANCE
 	return out;
 	}
 
-PVOC PVOC::modifyTime( Func2x1 outPosFunc, Interpolator interp, flan_CANCEL_ARG_CPP ) const
+PVOC PVOC::modifyTime_cpu( Func2x1 outPosFunc, Interpolator interp, flan_CANCEL_ARG_CPP ) const
 	{
 	flan_PROCESS_START( PVOC() );
 
@@ -286,7 +286,7 @@ PVOC PVOC::modifyTime( Func2x1 outPosFunc, Interpolator interp, flan_CANCEL_ARG_
 
 #ifdef USE_OPENCL
 
-PVOC PVOC::modify_cl( Func2x2 mod, Interpolator interp, flan_CANCEL_ARG_CPP  ) const
+PVOC PVOC::modify( Func2x2 mod, Interpolator interp, flan_CANCEL_ARG_CPP  ) const
 	{
 	flan_PROCESS_START( PVOC() );
 
@@ -391,7 +391,7 @@ PVOC PVOC::modify_cl( Func2x2 mod, Interpolator interp, flan_CANCEL_ARG_CPP  ) c
 	return out;
 	}
 
-PVOC PVOC::modifyFrequency_cl( Func2x1 outFreqFunc, Interpolator interp, flan_CANCEL_ARG_CPP ) const
+PVOC PVOC::modifyFrequency( Func2x1 outFreqFunc, Interpolator interp, flan_CANCEL_ARG_CPP ) const
 	{
 	flan_PROCESS_START( PVOC() );
 
@@ -476,7 +476,7 @@ PVOC PVOC::modifyFrequency_cl( Func2x1 outFreqFunc, Interpolator interp, flan_CA
 	return out;
 	}
 
-PVOC PVOC::modifyTime_cl( Func2x1 outPosFunc, Interpolator interp, flan_CANCEL_ARG_CPP ) const
+PVOC PVOC::modifyTime( Func2x1 outPosFunc, Interpolator interp, flan_CANCEL_ARG_CPP ) const
 	{
 	flan_PROCESS_START( PVOC() );
 
@@ -575,14 +575,14 @@ PVOC PVOC::modifyTime_cl( Func2x1 outPosFunc, Interpolator interp, flan_CANCEL_A
 PVOC PVOC::repitch( Func2x1 factor, Interpolator interp, flan_CANCEL_ARG_CPP ) const
 	{
 	flan_FUNCTION_LOG;
-	return modifyFrequency_cl( [&factor]( vec2 tf ){ return factor(tf.x(),tf.y())*tf.y(); },
+	return modifyFrequency( [&factor]( vec2 tf ){ return factor(tf.x(),tf.y())*tf.y(); },
 		interp, canceller );
 	}
 
 PVOC PVOC::stretch( Func2x1 factor, Interpolator interp, flan_CANCEL_ARG_CPP ) const
 	{
 	flan_FUNCTION_LOG;
-	return modifyTime_cl( [&factor]( vec2 tf ){ return factor(tf.x(),tf.y())*tf.x(); }, 
+	return modifyTime( [&factor]( vec2 tf ){ return factor(tf.x(),tf.y())*tf.x(); }, 
 		interp, canceller );
 	}
 
@@ -730,6 +730,7 @@ PVOC PVOC::timeExtrapolate( float startTime, float endTime, float extrapolationT
 
 	// Input validation
 	startTime = std::clamp( startTime, 0.0f, getLength() );
+	if( endTime == -1 ) endTime = getLength();
 	endTime	  = std::clamp( endTime,   0.0f, getLength() );
 	if( startTime >= endTime ) return PVOC();
 	if( extrapolationTime <= 0 ) return PVOC();

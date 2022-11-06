@@ -10,6 +10,8 @@ Ideas:
 	only generate docs for flan stuff
 	pvoc::alignHarmonics
 	select/mix/join should consider bitrate conversion when needed
+	PVOC::shape variant that passes time, bin frequency, and the MF to the shaper
+	can PVOC::freeze be made with a more normal input type?
 
 Bugs:
 	compute_d array access crash in AudioInformation - bounds check

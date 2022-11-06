@@ -196,21 +196,21 @@ public:
 	 *	\param mod Takes and returns time/frequency pairs as either flan::vec2 or std::complex<float>
 	 *	\param interp Interpolator used in quad mapping
 	 */
-	PVOC modify( Func2x2 mod, Interpolator interp = Interpolators::linear, flan_CANCEL_ARG ) const;
+	PVOC modify_cpu( Func2x2 mod, Interpolator interp = Interpolators::linear, flan_CANCEL_ARG ) const;
 
-	/** This is functionally equivalent to using PVOC::modify and only outputting the input time
+	/** This is functionally equivalent to using PVOC::modify_cpu and only outputting the input time
 	 *	\param mod Takes time/frequency pairs and returns frequency
 	 *	\param interp Interpolator used in frequency mapping
 	 */
-	PVOC modifyFrequency( Func2x1 mod, Interpolator = Interpolators::linear, flan_CANCEL_ARG ) const;
+	PVOC modifyFrequency_cpu( Func2x1 mod, Interpolator = Interpolators::linear, flan_CANCEL_ARG ) const;
 
-	/** This is functionally equivalent to using PVOC::modify and only outputting the input frequency
+	/** This is functionally equivalent to using PVOC::modify_cpu and only outputting the input frequency
 	 *	\param mod Takes time/frequency pairs and returns time
 	 *	\param interp Interpolator used in time mapping
 	 */
-	PVOC modifyTime( Func2x1 mod, Interpolator = Interpolators::linear, flan_CANCEL_ARG ) const;
+	PVOC modifyTime_cpu( Func2x1 mod, Interpolator = Interpolators::linear, flan_CANCEL_ARG ) const;
 
-	/** This is nearly identical to PVOC::modify.
+	/** This is nearly identical to PVOC::modify_cpu.
 	 *	Due to the computations being on the gpu in parallel it is much faster.
 	 *	The cost of this speed is that the output buffer is write only, so any output bin mapped to more than once
 	 *  will take one of those written values only, with no determination as to which.
@@ -218,23 +218,23 @@ public:
 	 *	\param mod Takes and returns time/frequency pairs as either flan::vec2 or std::complex<float>
 	 *	\param interp Disabled for gpu methods.
 	 */
-	PVOC modify_cl( Func2x2 mod, Interpolator interp = Interpolators::linear, flan_CANCEL_ARG ) const;
+	PVOC modify( Func2x2 mod, Interpolator interp = Interpolators::linear, flan_CANCEL_ARG ) const;
 
-	/** This is functionally equivalent to using PVOC::modify_cl and only outputting the input time
-	 *	See PVOC::modify_cl for the effects of non-parallel computation
+	/** This is functionally equivalent to using PVOC::modify and only outputting the input time
+	 *	See PVOC::modify for the effects of non-parallel computation
 	 *	This method will return the input if flan was built without OpenCL.
 	 *	\param mod Takes time/frequency pairs and returns frequency
 	 *	\param interp Disabled for gpu methods.
 	 */
-	PVOC modifyFrequency_cl( Func2x1 mod, Interpolator interp = Interpolators::linear, flan_CANCEL_ARG ) const;
+	PVOC modifyFrequency( Func2x1 mod, Interpolator interp = Interpolators::linear, flan_CANCEL_ARG ) const;
 
-	/** This is functionally equivalent to using PVOC::modify_cl and only outputting the input frequency
-	 *	See PVOC::modify_cl for the effects of non-parallel computation
+	/** This is functionally equivalent to using PVOC::modify and only outputting the input frequency
+	 *	See PVOC::modify for the effects of non-parallel computation
 	 *	This method will return the input if flan was built without OpenCL.
 	 *	\param mod Takes time/frequency pairs and returns time
 	 *	\param interp Interpolator used in time mapping, this is sampled 512 times for use by OpenCL
 	 */
-	PVOC modifyTime_cl( Func2x1 mod, Interpolator interp = Interpolators::linear, flan_CANCEL_ARG ) const;
+	PVOC modifyTime( Func2x1 mod, Interpolator interp = Interpolators::linear, flan_CANCEL_ARG ) const;
 
 	/** This is functionally equivalent to using PVOC::modifyFrequency_cl with the mod output multiplied by input frequency
 	 *	\param factor Takes time/frequency pairs and returns frequency multiplier
@@ -249,12 +249,12 @@ public:
 	PVOC stretch( Func2x1 factor, Interpolator = Interpolators::linear, flan_CANCEL_ARG ) const;
 
 	/** This is close to PVOC::stretch, but can only expand the input by integer quantities at any given time.
-	 *	It is also restricted to only choosing the local expansion amount as a function of time.
+	 *	It is also restricted to choosing the local expansion amount as a function of time, not frequency.
 	 *	Spline interpolation is used to fill the expanded space.
-	 *	\param interp This returns the local expansion amount as a function of time. 
+	 *	\param expansion This returns the local expansion amount as a function of time. 
 	 *		Output will be rounded to the nearest integer and clamped to positive integers.
 	 */
-	PVOC stretch_spline( Func1x1 interp, flan_CANCEL_ARG ) const;
+	PVOC stretch_spline( Func1x1 expansion, flan_CANCEL_ARG ) const;
 
 	/** This is functionally equivalent to stretching the input down by factor, and then up.
 	 *	Resolution is lost, but the lost resolution is filled via interpolation
@@ -268,7 +268,7 @@ public:
 	 *	of the frames at startTime and endTime. After endTime, the interpolation continues into the realm of extrapolation
 	 *	for a duration of extrapDuration.
 	 *	\param startTime Time at which interpolation starts.
-	 *	\param endTime Time at which interpolation ends and extrapolation begins
+	 *	\param endTime Time at which interpolation ends and extrapolation begins. -1 indicated end of file.
 	 *	\param extrapDuration Duration of the extrapolation
 	 *	\param interp Interpolator used throughout
 	 */
@@ -352,13 +352,6 @@ public:
 	 *	\param length Because the decay is exponential, an output length is needed. 
 	 */
 	PVOC resonate( Time length, Func2x1 decay, flan_CANCEL_ARG ) const;
-
-
-
-	//============================================================================================================================================================
-	// Backend
-	//============================================================================================================================================================
-
 
 };
 

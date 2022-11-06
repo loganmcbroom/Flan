@@ -137,12 +137,6 @@ template&lt;typename Constructable &gt; </td></tr>
 Static Public Member Functions</h2></td></tr>
 <tr class="memitem:a0960f67dad2c4ff85aebcaa6a3f70cdc"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="structflan_1_1_func1x1.html">Func1x1</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structflan_1_1_func1x1.html#a0960f67dad2c4ff85aebcaa6a3f70cdc">ADSR</a> (float a, float d, float s, float r, float sLvl, float aExp=1, float dExp=1, float rExp=1)</td></tr>
 <tr class="separator:a0960f67dad2c4ff85aebcaa6a3f70cdc"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a4bccf2bafc427741603161b3e78446a2"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="structflan_1_1_func1x1.html">Func1x1</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structflan_1_1_func1x1.html#a4bccf2bafc427741603161b3e78446a2">interpolatePoints</a> (const std::vector&lt; std::pair&lt; float, float &gt; &gt; &amp;points, Interpolator interp=Interpolators::linear)</td></tr>
-<tr class="separator:a4bccf2bafc427741603161b3e78446a2"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aff7f88e9f5ae9d0cb78d5c532fc904af"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="structflan_1_1_func1x1.html">Func1x1</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structflan_1_1_func1x1.html#aff7f88e9f5ae9d0cb78d5c532fc904af">interpolatePoints</a> (float deltaX, const std::vector&lt; float &gt; ys, Interpolator interp=Interpolators::linear)</td></tr>
-<tr class="separator:aff7f88e9f5ae9d0cb78d5c532fc904af"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a687b70a24c6739d212269ffa373251c2"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="structflan_1_1_func1x1.html">Func1x1</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structflan_1_1_func1x1.html#a687b70a24c6739d212269ffa373251c2">spline</a> (const std::vector&lt; std::pair&lt; float, float &gt; &gt; points)</td></tr>
-<tr class="separator:a687b70a24c6739d212269ffa373251c2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="inherit_header pub_static_methods_structflan_1_1_function"><td colspan="2" onclick="javascript:toggleInherit('pub_static_methods_structflan_1_1_function')"><img src="closed.png" alt="-"/>&#160;Static Public Member Functions inherited from <a class="el" href="structflan_1_1_function.html">flan::Function&lt; float, float &gt;</a></td></tr>
 <tr class="memitem:a17dd96f192f49db71ee96a2172616a47 inherit pub_static_methods_structflan_1_1_function"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="structflan_1_1_function.html">Function</a>&lt; float, float &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structflan_1_1_function.html#a17dd96f192f49db71ee96a2172616a47">clamp</a> (const <a class="el" href="structflan_1_1_function.html">Function</a>&lt; float, float &gt; a, const <a class="el" href="structflan_1_1_function.html">Function</a>&lt; float, float &gt; b, const <a class="el" href="structflan_1_1_function.html">Function</a>&lt; float, float &gt; c)</td></tr>
 <tr class="separator:a17dd96f192f49db71ee96a2172616a47 inherit pub_static_methods_structflan_1_1_function"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -334,101 +328,6 @@ std::function&lt; float(float) &gt;&#160;</td><td class="memItemRight" valign="b
 
 </div>
 </div>
-<a id="a4bccf2bafc427741603161b3e78446a2" name="a4bccf2bafc427741603161b3e78446a2"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a4bccf2bafc427741603161b3e78446a2">&#9670;&#160;</a></span>interpolatePoints() <span class="overload">[1/2]</span></h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">static <a class="el" href="structflan_1_1_func1x1.html">Func1x1</a> flan::Func1x1::interpolatePoints </td>
-          <td>(</td>
-          <td class="paramtype">const std::vector&lt; std::pair&lt; float, float &gt; &gt; &amp;&#160;</td>
-          <td class="paramname"><em>points</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">Interpolator&#160;</td>
-          <td class="paramname"><em>interp</em> = <code>Interpolators::linear</code>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-<p >Generate a function that passes through a given set of points.</p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">points</td><td>Points that the generated function must pass through. </td></tr>
-    <tr><td class="paramname">interp</td><td>How the generated function should move between points. </td></tr>
-  </table>
-  </dd>
-</dl>
-
-</div>
-</div>
-<a id="aff7f88e9f5ae9d0cb78d5c532fc904af" name="aff7f88e9f5ae9d0cb78d5c532fc904af"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aff7f88e9f5ae9d0cb78d5c532fc904af">&#9670;&#160;</a></span>interpolatePoints() <span class="overload">[2/2]</span></h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">static <a class="el" href="structflan_1_1_func1x1.html">Func1x1</a> flan::Func1x1::interpolatePoints </td>
-          <td>(</td>
-          <td class="paramtype">float&#160;</td>
-          <td class="paramname"><em>deltaX</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const std::vector&lt; float &gt;&#160;</td>
-          <td class="paramname"><em>ys</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">Interpolator&#160;</td>
-          <td class="paramname"><em>interp</em> = <code>Interpolators::linear</code>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-<p >Generate a function that passes through a given set of points.</p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">deltaX</td><td>Distance between x samples, starting at x = 0. </td></tr>
-    <tr><td class="paramname">points</td><td>Y values that the generated function must pass through. </td></tr>
-    <tr><td class="paramname">interp</td><td>How the generated function should move between points. </td></tr>
-  </table>
-  </dd>
-</dl>
-
-</div>
-</div>
 <a id="a3f095456ef08c3f94238971dcde3e01b" name="a3f095456ef08c3f94238971dcde3e01b"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a3f095456ef08c3f94238971dcde3e01b">&#9670;&#160;</a></span>periodize()</h2>
 
@@ -513,39 +412,6 @@ std::function&lt; float(float) &gt;&#160;</td><td class="memItemRight" valign="b
     <tr><td class="paramname">domain</td><td>The interval on which the function should be graphed. </td></tr>
     <tr><td class="paramname">width</td><td>The bmp width. </td></tr>
     <tr><td class="paramname">height</td><td>The bmp height. </td></tr>
-  </table>
-  </dd>
-</dl>
-
-</div>
-</div>
-<a id="a687b70a24c6739d212269ffa373251c2" name="a687b70a24c6739d212269ffa373251c2"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a687b70a24c6739d212269ffa373251c2">&#9670;&#160;</a></span>spline()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">static <a class="el" href="structflan_1_1_func1x1.html">Func1x1</a> flan::Func1x1::spline </td>
-          <td>(</td>
-          <td class="paramtype">const std::vector&lt; std::pair&lt; float, float &gt; &gt;&#160;</td>
-          <td class="paramname"><em>points</em></td><td>)</td>
-          <td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-<p >Generate a cubic spline that passes through a given set of points.</p>
-<dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">points</td><td>Points that the generated function must pass through. </td></tr>
   </table>
   </dd>
 </dl>

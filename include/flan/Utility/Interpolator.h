@@ -2,6 +2,8 @@
 
 #include <functional>
 
+#include "flan/Function.h"
+
 namespace flan {
 
 /** Interpolators describe how values between known data points should approximate those points near it.
@@ -9,7 +11,7 @@ namespace flan {
  * OpenCL based algorithms sample Iterators passed to them, so rapidly changing user-defined
  * Iterators may not work as expected with those algorithms.
  */
-using Interpolator = std::function< float ( float ) >;
+using Interpolator = flan::Func1x1;
 
 namespace Interpolators 
 	{
@@ -40,5 +42,26 @@ namespace Interpolators
 	/** Square root */
 	extern const Interpolator sqrt;
 	}
+
+/** Generate a function that passes through a given set of points.
+*
+* \param points Points that the generated function must pass through.
+* \param interp How the generated function should move between points.
+*/
+Func1x1 interpolatePoints( const std::vector< std::pair< float, float > > & points, Interpolator interp = Interpolators::linear );
+
+/** Generate a function that passes through a given set of points.
+*
+* \param deltaX Distance between x samples, starting at x = 0.
+* \param points Y values that the generated function must pass through.
+* \param interp How the generated function should move between points.
+*/
+Func1x1 interpolateIntervals( float deltaX, const std::vector< float > ys, Interpolator interp = Interpolators::linear );
+
+/** Generate a cubic spline that passes through a given set of points.
+	*
+	* \param points Points that the generated function must pass through.
+	*/
+Func1x1 spline( const std::vector< std::pair< float, float > > points );
 
 }

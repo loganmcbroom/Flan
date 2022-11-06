@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "flan/Function.h"
+#include "flan/Utility/Interpolator.h"
 
 using namespace flan;
 
@@ -255,7 +256,7 @@ void Graph::drawFunction( const Func1x1 & f, Interval domain, int plane, Color c
 
 void Graph::drawFunction( const std::vector<std::pair<float,float>> & data, int plane, Color c, flan_CANCEL_ARG_CPP )
 	{
-	auto f = Func1x1::interpolatePoints( data );
+	auto f = interpolatePoints( data );
 
 	auto xComp = []( const std::pair<float,float> & p,  const std::pair<float,float> & s ){ return p.first < s.first; };
 	const float left	= std::min_element( data.begin(), data.end(), xComp )->first;

@@ -160,6 +160,7 @@ std::vector&lt; Sample &gt;::const_iterator&#160;</td><td class="memItemRight" v
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p ><a class="el" href="classflan_1_1_audio_buffer.html">AudioBuffer</a> stores audio data and provides basic buffer access, conversion constants, loading, and saving. Access to the raw sample buffer is given, but <a class="el" href="classflan_1_1_audio_buffer.html#a8968511c54c7a97c535181fcd98a2a98">AudioBuffer::getSample</a> and <a class="el" href="classflan_1_1_audio_buffer.html#a2b0375fdf96bd0aa01728baa2bdd6b16">AudioBuffer::setSample</a> are preferred when speed is not a factor. Data is stored in channel-major order, in other words, the entire first channel is stored in memory before the second channel's storage begins.</p>
+<p ><a class="el" href="classflan_1_1_audio_buffer.html">AudioBuffer</a> is light-copyable, that is, the data is stored in a shared_ptr. Use <a class="el" href="classflan_1_1_audio_buffer.html#a5de8e4bb83c0cf7416464cc92221a5c3">AudioBuffer::deepCopy</a> if a true copy is required</p>
 <p >A note on terminology, the term "frame" is used to describe points in time at which samples are taken. The term "sample" is used to describe the actual data at that point in time. </p>
 </div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
 <a id="aa7ba32a4fda2441ea1b81c224605986b" name="aa7ba32a4fda2441ea1b81c224605986b"></a>

@@ -18,8 +18,8 @@ using Pixel = int32_t;
 
 /** These macros are used for logging function calls in debug mode, and checking for input nullity in all modes.
  */
-#ifndef NDEBUG
-#define flan_FUNCTION_LOG std::cout << __FUNCTION__ << std::endl;;
+#ifdef flan_LOG_FUNCTIONS
+#define flan_FUNCTION_LOG std::cout << __FUNCTION__ << std::endl;
 #else
 #define flan_FUNCTION_LOG
 #endif

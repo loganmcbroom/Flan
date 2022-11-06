@@ -86,93 +86,93 @@ $(function() {
 <div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span> </div>
 <div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span><span class="keyword">namespace </span><a class="code hl_namespace" href="namespaceflan.html">flan</a> {</div>
 <div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span> </div>
-<div class="line"><a id="l00020" name="l00020"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html">   20</a></span><span class="keyword">class </span><a class="code hl_class" href="classflan_1_1_audio_buffer.html">AudioBuffer</a></div>
-<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span>{</div>
-<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span><span class="keyword">public</span>:</div>
-<div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span> </div>
-<div class="line"><a id="l00029" name="l00029"></a><span class="lineno"><a class="line" href="structflan_1_1_audio_buffer_1_1_format.html">   29</a></span>    <span class="keyword">struct </span><a class="code hl_struct" href="structflan_1_1_audio_buffer_1_1_format.html">Format</a> </div>
-<div class="line"><a id="l00030" name="l00030"></a><span class="lineno">   30</span>        {</div>
-<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>        Channel numChannels = 0;</div>
-<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span>        Frame numFrames = 0;</div>
-<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>        uint32_t sampleRate = 48000;</div>
-<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>        };</div>
-<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>    </div>
-<div class="line"><a id="l00038" name="l00038"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#aa7ba32a4fda2441ea1b81c224605986b">   38</a></span>    <a class="code hl_function" href="classflan_1_1_audio_buffer.html#aa7ba32a4fda2441ea1b81c224605986b">AudioBuffer</a>();</div>
-<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span> </div>
-<div class="line"><a id="l00043" name="l00043"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a47332ad1fb35f0a724a47c30c12ad0b5">   43</a></span>    <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a47332ad1fb35f0a724a47c30c12ad0b5">AudioBuffer</a>( <span class="keyword">const</span> <a class="code hl_struct" href="structflan_1_1_audio_buffer_1_1_format.html">Format</a> &amp; format ); </div>
-<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span> </div>
-<div class="line"><a id="l00048" name="l00048"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a554a1d8e39a00d6d75536f8507701ba2">   48</a></span>    <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a554a1d8e39a00d6d75536f8507701ba2">AudioBuffer</a>( <span class="keyword">const</span> std::string &amp; filePath );</div>
-<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span> </div>
-<div class="line"><a id="l00052" name="l00052"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a5de8e4bb83c0cf7416464cc92221a5c3">   52</a></span>    <a class="code hl_class" href="classflan_1_1_audio_buffer.html">AudioBuffer</a> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a5de8e4bb83c0cf7416464cc92221a5c3">deepCopy</a>() <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span> </div>
-<div class="line"><a id="l00057" name="l00057"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#ad8e326e7f446b0cf21f0562429350d42">   57</a></span>    <span class="keywordtype">bool</span> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#ad8e326e7f446b0cf21f0562429350d42">isNull</a>() <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00058" name="l00058"></a><span class="lineno">   58</span> </div>
-<div class="line"><a id="l00059" name="l00059"></a><span class="lineno">   59</span>    <span class="comment">//======================================================</span></div>
-<div class="line"><a id="l00060" name="l00060"></a><span class="lineno">   60</span>    <span class="comment">//  I/O</span></div>
-<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span>    <span class="comment">//======================================================</span></div>
-<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span> </div>
-<div class="line"><a id="l00067" name="l00067"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a34240dc8144dd1eb6a539611ab854bab">   67</a></span>    <span class="keywordtype">bool</span> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a34240dc8144dd1eb6a539611ab854bab">load</a>( <span class="keyword">const</span> std::string &amp; filePath );</div>
-<div class="line"><a id="l00068" name="l00068"></a><span class="lineno">   68</span> </div>
-<div class="line"><a id="l00074" name="l00074"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#aefdc00472dd40caf8a5013ba0d06783c">   74</a></span>    <span class="keywordtype">bool</span> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#aefdc00472dd40caf8a5013ba0d06783c">save</a>( <span class="keyword">const</span> std::string &amp; filePath, <span class="keywordtype">int</span> format = -1 ) <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00075" name="l00075"></a><span class="lineno">   75</span> </div>
-<div class="line"><a id="l00078" name="l00078"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a43d4af10f67fafaed529aec5c85bc0d0">   78</a></span>    <span class="keywordtype">void</span> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a43d4af10f67fafaed529aec5c85bc0d0">printSummary</a>() <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00079" name="l00079"></a><span class="lineno">   79</span> </div>
-<div class="line"><a id="l00080" name="l00080"></a><span class="lineno">   80</span>    <span class="comment">//======================================================</span></div>
-<div class="line"><a id="l00081" name="l00081"></a><span class="lineno">   81</span>    <span class="comment">//  Getters</span></div>
-<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span>    <span class="comment">//======================================================</span></div>
-<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span> </div>
-<div class="line"><a id="l00088" name="l00088"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a8968511c54c7a97c535181fcd98a2a98">   88</a></span>    Sample <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a8968511c54c7a97c535181fcd98a2a98">getSample</a>( Channel channel, Frame frame ) <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00089" name="l00089"></a><span class="lineno">   89</span> </div>
-<div class="line"><a id="l00094" name="l00094"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a5f07c332ac7d70e4379f9b562ee581be">   94</a></span>    Sample <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a5f07c332ac7d70e4379f9b562ee581be">getSample_s</a>( Channel channel, Frame frame ) <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00095" name="l00095"></a><span class="lineno">   95</span>    </div>
-<div class="line"><a id="l00098" name="l00098"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a9648aeddee1649efaecf896a50582221">   98</a></span>    <a class="code hl_struct" href="structflan_1_1_audio_buffer_1_1_format.html">Format</a> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a9648aeddee1649efaecf896a50582221">getFormat</a>() <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00099" name="l00099"></a><span class="lineno">   99</span> </div>
-<div class="line"><a id="l00102" name="l00102"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a2bb3fa57ac12e962b82e859b370b32c3">  102</a></span>    Channel <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a2bb3fa57ac12e962b82e859b370b32c3">getNumChannels</a>() <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00103" name="l00103"></a><span class="lineno">  103</span> </div>
-<div class="line"><a id="l00106" name="l00106"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a606b34dbcfffcfd8fc4c1574f711bb20">  106</a></span>    Frame <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a606b34dbcfffcfd8fc4c1574f711bb20">getNumFrames</a>() <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00107" name="l00107"></a><span class="lineno">  107</span> </div>
-<div class="line"><a id="l00110" name="l00110"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#aa6d2287a26139d518f5668c227225539">  110</a></span>    uint32_t <a class="code hl_function" href="classflan_1_1_audio_buffer.html#aa6d2287a26139d518f5668c227225539">getSampleRate</a>() <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00111" name="l00111"></a><span class="lineno">  111</span> </div>
-<div class="line"><a id="l00114" name="l00114"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a599b3dac0ca2c0443d812604d67e1795">  114</a></span>    Time <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a599b3dac0ca2c0443d812604d67e1795">getLength</a>() <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00115" name="l00115"></a><span class="lineno">  115</span> </div>
-<div class="line"><a id="l00120" name="l00120"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#ad76ad883a7b7ac717809b86d906c10b5">  120</a></span>    Sample <a class="code hl_function" href="classflan_1_1_audio_buffer.html#ad76ad883a7b7ac717809b86d906c10b5">getMaxSampleMagnitude</a>( Time startTime = 0, Time endTime = 0 ) <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00121" name="l00121"></a><span class="lineno">  121</span> </div>
-<div class="line"><a id="l00124" name="l00124"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#af7857f69e46bffdde1c5e4a926029853">  124</a></span>    <span class="keywordtype">float</span> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#af7857f69e46bffdde1c5e4a926029853">frameToTime</a>() <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00125" name="l00125"></a><span class="lineno">  125</span> </div>
-<div class="line"><a id="l00128" name="l00128"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#aa0c5a21bf4af1fcd65aee464859a9396">  128</a></span>    <span class="keywordtype">float</span> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#aa0c5a21bf4af1fcd65aee464859a9396">timeToFrame</a>() <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00129" name="l00129"></a><span class="lineno">  129</span> </div>
-<div class="line"><a id="l00130" name="l00130"></a><span class="lineno">  130</span> </div>
-<div class="line"><a id="l00131" name="l00131"></a><span class="lineno">  131</span>    <span class="comment">//======================================================</span></div>
-<div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span>    <span class="comment">//  Setters</span></div>
-<div class="line"><a id="l00133" name="l00133"></a><span class="lineno">  133</span>    <span class="comment">//======================================================</span></div>
-<div class="line"><a id="l00134" name="l00134"></a><span class="lineno">  134</span> </div>
-<div class="line"><a id="l00140" name="l00140"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a2b0375fdf96bd0aa01728baa2bdd6b16">  140</a></span>    <span class="keywordtype">void</span> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a2b0375fdf96bd0aa01728baa2bdd6b16">setSample</a>( Channel channel, Frame frame, Sample sample );</div>
-<div class="line"><a id="l00141" name="l00141"></a><span class="lineno">  141</span> </div>
-<div class="line"><a id="l00146" name="l00146"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#aeca3c467220723a26092b418b3ed20ea">  146</a></span>    Sample &amp; <a class="code hl_function" href="classflan_1_1_audio_buffer.html#aeca3c467220723a26092b418b3ed20ea">getSample</a>( Channel channel, Frame frame );</div>
-<div class="line"><a id="l00147" name="l00147"></a><span class="lineno">  147</span>    </div>
-<div class="line"><a id="l00150" name="l00150"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a3351cbb385222ce339801b59bbd14b08">  150</a></span>    <span class="keywordtype">void</span> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a3351cbb385222ce339801b59bbd14b08">clearBuffer</a>();</div>
-<div class="line"><a id="l00151" name="l00151"></a><span class="lineno">  151</span> </div>
-<div class="line"><a id="l00157" name="l00157"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#af3780bb86c65997ecef84c620752932f">  157</a></span>    Sample * <a class="code hl_function" href="classflan_1_1_audio_buffer.html#af3780bb86c65997ecef84c620752932f">getSamplePointer</a>( Channel channel, Frame frame );</div>
-<div class="line"><a id="l00158" name="l00158"></a><span class="lineno">  158</span> </div>
-<div class="line"><a id="l00164" name="l00164"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#ac1cf6de535ecb9c9c350552dfa4c2321">  164</a></span>    <span class="keyword">const</span> Sample * <a class="code hl_function" href="classflan_1_1_audio_buffer.html#ac1cf6de535ecb9c9c350552dfa4c2321">getSamplePointer</a>( Channel channel, Frame frame ) <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00165" name="l00165"></a><span class="lineno">  165</span> </div>
-<div class="line"><a id="l00166" name="l00166"></a><span class="lineno">  166</span>    std::vector&lt;Sample&gt;::iterator begin();</div>
-<div class="line"><a id="l00167" name="l00167"></a><span class="lineno">  167</span>    std::vector&lt;Sample&gt;::iterator end();</div>
-<div class="line"><a id="l00168" name="l00168"></a><span class="lineno">  168</span>    std::vector&lt;Sample&gt;::const_iterator begin() <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00169" name="l00169"></a><span class="lineno">  169</span>    std::vector&lt;Sample&gt;::const_iterator end() <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span> </div>
-<div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span><span class="keyword">private</span>:<span class="comment">//=================================================================================================</span></div>
-<div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span> </div>
-<div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span>    <span class="keyword">inline</span> uint32_t getBufferPos( Channel, Frame ) <span class="keyword">const</span>;</div>
-<div class="line"><a id="l00174" name="l00174"></a><span class="lineno">  174</span> </div>
-<div class="line"><a id="l00175" name="l00175"></a><span class="lineno">  175</span>    <a class="code hl_struct" href="structflan_1_1_audio_buffer_1_1_format.html">Format</a> format;</div>
-<div class="line"><a id="l00176" name="l00176"></a><span class="lineno">  176</span>    std::shared_ptr&lt;std::vector&lt;Sample&gt;&gt; buffer;</div>
-<div class="line"><a id="l00177" name="l00177"></a><span class="lineno">  177</span>};</div>
-<div class="line"><a id="l00178" name="l00178"></a><span class="lineno">  178</span> </div>
-<div class="line"><a id="l00181" name="l00181"></a><span class="lineno"><a class="line" href="namespaceflan.html#ae61b1f9c319cad5b29efa15f06311610">  181</a></span>std::ostream &amp; <a class="code hl_function" href="namespaceflan.html#ae61b1f9c319cad5b29efa15f06311610">operator&lt;&lt;</a>( std::ostream &amp; os, <span class="keyword">const</span> <a class="code hl_class" href="classflan_1_1_audio_buffer.html">AudioBuffer</a> &amp; audio );</div>
-<div class="line"><a id="l00182" name="l00182"></a><span class="lineno">  182</span> </div>
-<div class="line"><a id="l00183" name="l00183"></a><span class="lineno">  183</span>} <span class="comment">// End namespace flan</span></div>
-<div class="ttc" id="aclassflan_1_1_audio_buffer_html"><div class="ttname"><a href="classflan_1_1_audio_buffer.html">flan::AudioBuffer</a></div><div class="ttdef"><b>Definition:</b> AudioBuffer.h:21</div></div>
+<div class="line"><a id="l00023" name="l00023"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html">   23</a></span><span class="keyword">class </span><a class="code hl_class" href="classflan_1_1_audio_buffer.html">AudioBuffer</a></div>
+<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span>{</div>
+<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span><span class="keyword">public</span>:</div>
+<div class="line"><a id="l00026" name="l00026"></a><span class="lineno">   26</span> </div>
+<div class="line"><a id="l00032" name="l00032"></a><span class="lineno"><a class="line" href="structflan_1_1_audio_buffer_1_1_format.html">   32</a></span>    <span class="keyword">struct </span><a class="code hl_struct" href="structflan_1_1_audio_buffer_1_1_format.html">Format</a> </div>
+<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>        {</div>
+<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>        Channel numChannels = 0;</div>
+<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>        Frame numFrames = 0;</div>
+<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span>        uint32_t sampleRate = 48000;</div>
+<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span>        };</div>
+<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span>    </div>
+<div class="line"><a id="l00041" name="l00041"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#aa7ba32a4fda2441ea1b81c224605986b">   41</a></span>    <a class="code hl_function" href="classflan_1_1_audio_buffer.html#aa7ba32a4fda2441ea1b81c224605986b">AudioBuffer</a>();</div>
+<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span> </div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a47332ad1fb35f0a724a47c30c12ad0b5">   46</a></span>    <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a47332ad1fb35f0a724a47c30c12ad0b5">AudioBuffer</a>( <span class="keyword">const</span> <a class="code hl_struct" href="structflan_1_1_audio_buffer_1_1_format.html">Format</a> &amp; format ); </div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span> </div>
+<div class="line"><a id="l00051" name="l00051"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a554a1d8e39a00d6d75536f8507701ba2">   51</a></span>    <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a554a1d8e39a00d6d75536f8507701ba2">AudioBuffer</a>( <span class="keyword">const</span> std::string &amp; filePath );</div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span> </div>
+<div class="line"><a id="l00055" name="l00055"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a5de8e4bb83c0cf7416464cc92221a5c3">   55</a></span>    <a class="code hl_class" href="classflan_1_1_audio_buffer.html">AudioBuffer</a> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a5de8e4bb83c0cf7416464cc92221a5c3">deepCopy</a>() <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span> </div>
+<div class="line"><a id="l00060" name="l00060"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#ad8e326e7f446b0cf21f0562429350d42">   60</a></span>    <span class="keywordtype">bool</span> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#ad8e326e7f446b0cf21f0562429350d42">isNull</a>() <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00061" name="l00061"></a><span class="lineno">   61</span> </div>
+<div class="line"><a id="l00062" name="l00062"></a><span class="lineno">   62</span>    <span class="comment">//======================================================</span></div>
+<div class="line"><a id="l00063" name="l00063"></a><span class="lineno">   63</span>    <span class="comment">//  I/O</span></div>
+<div class="line"><a id="l00064" name="l00064"></a><span class="lineno">   64</span>    <span class="comment">//======================================================</span></div>
+<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span> </div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a34240dc8144dd1eb6a539611ab854bab">   70</a></span>    <span class="keywordtype">bool</span> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a34240dc8144dd1eb6a539611ab854bab">load</a>( <span class="keyword">const</span> std::string &amp; filePath );</div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span> </div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#aefdc00472dd40caf8a5013ba0d06783c">   77</a></span>    <span class="keywordtype">bool</span> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#aefdc00472dd40caf8a5013ba0d06783c">save</a>( <span class="keyword">const</span> std::string &amp; filePath, <span class="keywordtype">int</span> format = -1 ) <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span> </div>
+<div class="line"><a id="l00081" name="l00081"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a43d4af10f67fafaed529aec5c85bc0d0">   81</a></span>    <span class="keywordtype">void</span> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a43d4af10f67fafaed529aec5c85bc0d0">printSummary</a>() <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00082" name="l00082"></a><span class="lineno">   82</span> </div>
+<div class="line"><a id="l00083" name="l00083"></a><span class="lineno">   83</span>    <span class="comment">//======================================================</span></div>
+<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>    <span class="comment">//  Getters</span></div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span>    <span class="comment">//======================================================</span></div>
+<div class="line"><a id="l00086" name="l00086"></a><span class="lineno">   86</span> </div>
+<div class="line"><a id="l00091" name="l00091"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a8968511c54c7a97c535181fcd98a2a98">   91</a></span>    Sample <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a8968511c54c7a97c535181fcd98a2a98">getSample</a>( Channel channel, Frame frame ) <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00092" name="l00092"></a><span class="lineno">   92</span> </div>
+<div class="line"><a id="l00097" name="l00097"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a5f07c332ac7d70e4379f9b562ee581be">   97</a></span>    Sample <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a5f07c332ac7d70e4379f9b562ee581be">getSample_s</a>( Channel channel, Frame frame ) <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00098" name="l00098"></a><span class="lineno">   98</span>    </div>
+<div class="line"><a id="l00101" name="l00101"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a9648aeddee1649efaecf896a50582221">  101</a></span>    <a class="code hl_struct" href="structflan_1_1_audio_buffer_1_1_format.html">Format</a> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a9648aeddee1649efaecf896a50582221">getFormat</a>() <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00102" name="l00102"></a><span class="lineno">  102</span> </div>
+<div class="line"><a id="l00105" name="l00105"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a2bb3fa57ac12e962b82e859b370b32c3">  105</a></span>    Channel <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a2bb3fa57ac12e962b82e859b370b32c3">getNumChannels</a>() <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00106" name="l00106"></a><span class="lineno">  106</span> </div>
+<div class="line"><a id="l00109" name="l00109"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a606b34dbcfffcfd8fc4c1574f711bb20">  109</a></span>    Frame <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a606b34dbcfffcfd8fc4c1574f711bb20">getNumFrames</a>() <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00110" name="l00110"></a><span class="lineno">  110</span> </div>
+<div class="line"><a id="l00113" name="l00113"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#aa6d2287a26139d518f5668c227225539">  113</a></span>    uint32_t <a class="code hl_function" href="classflan_1_1_audio_buffer.html#aa6d2287a26139d518f5668c227225539">getSampleRate</a>() <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00114" name="l00114"></a><span class="lineno">  114</span> </div>
+<div class="line"><a id="l00117" name="l00117"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a599b3dac0ca2c0443d812604d67e1795">  117</a></span>    Time <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a599b3dac0ca2c0443d812604d67e1795">getLength</a>() <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00118" name="l00118"></a><span class="lineno">  118</span> </div>
+<div class="line"><a id="l00123" name="l00123"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#ad76ad883a7b7ac717809b86d906c10b5">  123</a></span>    Sample <a class="code hl_function" href="classflan_1_1_audio_buffer.html#ad76ad883a7b7ac717809b86d906c10b5">getMaxSampleMagnitude</a>( Time startTime = 0, Time endTime = 0 ) <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00124" name="l00124"></a><span class="lineno">  124</span> </div>
+<div class="line"><a id="l00127" name="l00127"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#af7857f69e46bffdde1c5e4a926029853">  127</a></span>    <span class="keywordtype">float</span> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#af7857f69e46bffdde1c5e4a926029853">frameToTime</a>() <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00128" name="l00128"></a><span class="lineno">  128</span> </div>
+<div class="line"><a id="l00131" name="l00131"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#aa0c5a21bf4af1fcd65aee464859a9396">  131</a></span>    <span class="keywordtype">float</span> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#aa0c5a21bf4af1fcd65aee464859a9396">timeToFrame</a>() <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00132" name="l00132"></a><span class="lineno">  132</span> </div>
+<div class="line"><a id="l00133" name="l00133"></a><span class="lineno">  133</span> </div>
+<div class="line"><a id="l00134" name="l00134"></a><span class="lineno">  134</span>    <span class="comment">//======================================================</span></div>
+<div class="line"><a id="l00135" name="l00135"></a><span class="lineno">  135</span>    <span class="comment">//  Setters</span></div>
+<div class="line"><a id="l00136" name="l00136"></a><span class="lineno">  136</span>    <span class="comment">//======================================================</span></div>
+<div class="line"><a id="l00137" name="l00137"></a><span class="lineno">  137</span> </div>
+<div class="line"><a id="l00143" name="l00143"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a2b0375fdf96bd0aa01728baa2bdd6b16">  143</a></span>    <span class="keywordtype">void</span> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a2b0375fdf96bd0aa01728baa2bdd6b16">setSample</a>( Channel channel, Frame frame, Sample sample );</div>
+<div class="line"><a id="l00144" name="l00144"></a><span class="lineno">  144</span> </div>
+<div class="line"><a id="l00149" name="l00149"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#aeca3c467220723a26092b418b3ed20ea">  149</a></span>    Sample &amp; <a class="code hl_function" href="classflan_1_1_audio_buffer.html#aeca3c467220723a26092b418b3ed20ea">getSample</a>( Channel channel, Frame frame );</div>
+<div class="line"><a id="l00150" name="l00150"></a><span class="lineno">  150</span>    </div>
+<div class="line"><a id="l00153" name="l00153"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#a3351cbb385222ce339801b59bbd14b08">  153</a></span>    <span class="keywordtype">void</span> <a class="code hl_function" href="classflan_1_1_audio_buffer.html#a3351cbb385222ce339801b59bbd14b08">clearBuffer</a>();</div>
+<div class="line"><a id="l00154" name="l00154"></a><span class="lineno">  154</span> </div>
+<div class="line"><a id="l00160" name="l00160"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#af3780bb86c65997ecef84c620752932f">  160</a></span>    Sample * <a class="code hl_function" href="classflan_1_1_audio_buffer.html#af3780bb86c65997ecef84c620752932f">getSamplePointer</a>( Channel channel, Frame frame );</div>
+<div class="line"><a id="l00161" name="l00161"></a><span class="lineno">  161</span> </div>
+<div class="line"><a id="l00167" name="l00167"></a><span class="lineno"><a class="line" href="classflan_1_1_audio_buffer.html#ac1cf6de535ecb9c9c350552dfa4c2321">  167</a></span>    <span class="keyword">const</span> Sample * <a class="code hl_function" href="classflan_1_1_audio_buffer.html#ac1cf6de535ecb9c9c350552dfa4c2321">getSamplePointer</a>( Channel channel, Frame frame ) <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00168" name="l00168"></a><span class="lineno">  168</span> </div>
+<div class="line"><a id="l00169" name="l00169"></a><span class="lineno">  169</span>    std::vector&lt;Sample&gt;::iterator begin();</div>
+<div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span>    std::vector&lt;Sample&gt;::iterator end();</div>
+<div class="line"><a id="l00171" name="l00171"></a><span class="lineno">  171</span>    std::vector&lt;Sample&gt;::const_iterator begin() <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00172" name="l00172"></a><span class="lineno">  172</span>    std::vector&lt;Sample&gt;::const_iterator end() <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00173" name="l00173"></a><span class="lineno">  173</span> </div>
+<div class="line"><a id="l00174" name="l00174"></a><span class="lineno">  174</span><span class="keyword">private</span>:<span class="comment">//=================================================================================================</span></div>
+<div class="line"><a id="l00175" name="l00175"></a><span class="lineno">  175</span> </div>
+<div class="line"><a id="l00176" name="l00176"></a><span class="lineno">  176</span>    <span class="keyword">inline</span> uint32_t getBufferPos( Channel, Frame ) <span class="keyword">const</span>;</div>
+<div class="line"><a id="l00177" name="l00177"></a><span class="lineno">  177</span> </div>
+<div class="line"><a id="l00178" name="l00178"></a><span class="lineno">  178</span>    <a class="code hl_struct" href="structflan_1_1_audio_buffer_1_1_format.html">Format</a> format;</div>
+<div class="line"><a id="l00179" name="l00179"></a><span class="lineno">  179</span>    std::shared_ptr&lt;std::vector&lt;Sample&gt;&gt; buffer;</div>
+<div class="line"><a id="l00180" name="l00180"></a><span class="lineno">  180</span>};</div>
+<div class="line"><a id="l00181" name="l00181"></a><span class="lineno">  181</span> </div>
+<div class="line"><a id="l00184" name="l00184"></a><span class="lineno"><a class="line" href="namespaceflan.html#ae61b1f9c319cad5b29efa15f06311610">  184</a></span>std::ostream &amp; <a class="code hl_function" href="namespaceflan.html#ae61b1f9c319cad5b29efa15f06311610">operator&lt;&lt;</a>( std::ostream &amp; os, <span class="keyword">const</span> <a class="code hl_class" href="classflan_1_1_audio_buffer.html">AudioBuffer</a> &amp; audio );</div>
+<div class="line"><a id="l00185" name="l00185"></a><span class="lineno">  185</span> </div>
+<div class="line"><a id="l00186" name="l00186"></a><span class="lineno">  186</span>} <span class="comment">// End namespace flan</span></div>
+<div class="ttc" id="aclassflan_1_1_audio_buffer_html"><div class="ttname"><a href="classflan_1_1_audio_buffer.html">flan::AudioBuffer</a></div><div class="ttdef"><b>Definition:</b> AudioBuffer.h:24</div></div>
 <div class="ttc" id="aclassflan_1_1_audio_buffer_html_a2b0375fdf96bd0aa01728baa2bdd6b16"><div class="ttname"><a href="classflan_1_1_audio_buffer.html#a2b0375fdf96bd0aa01728baa2bdd6b16">flan::AudioBuffer::setSample</a></div><div class="ttdeci">void setSample(Channel channel, Frame frame, Sample sample)</div></div>
 <div class="ttc" id="aclassflan_1_1_audio_buffer_html_a2bb3fa57ac12e962b82e859b370b32c3"><div class="ttname"><a href="classflan_1_1_audio_buffer.html#a2bb3fa57ac12e962b82e859b370b32c3">flan::AudioBuffer::getNumChannels</a></div><div class="ttdeci">Channel getNumChannels() const</div></div>
 <div class="ttc" id="aclassflan_1_1_audio_buffer_html_a3351cbb385222ce339801b59bbd14b08"><div class="ttname"><a href="classflan_1_1_audio_buffer.html#a3351cbb385222ce339801b59bbd14b08">flan::AudioBuffer::clearBuffer</a></div><div class="ttdeci">void clearBuffer()</div></div>
@@ -198,7 +198,7 @@ $(function() {
 <div class="ttc" id="aclassflan_1_1_audio_buffer_html_af7857f69e46bffdde1c5e4a926029853"><div class="ttname"><a href="classflan_1_1_audio_buffer.html#af7857f69e46bffdde1c5e4a926029853">flan::AudioBuffer::frameToTime</a></div><div class="ttdeci">float frameToTime() const</div></div>
 <div class="ttc" id="anamespaceflan_html"><div class="ttname"><a href="namespaceflan.html">flan</a></div><div class="ttdef"><b>Definition:</b> Audio.h:11</div></div>
 <div class="ttc" id="anamespaceflan_html_ae61b1f9c319cad5b29efa15f06311610"><div class="ttname"><a href="namespaceflan.html#ae61b1f9c319cad5b29efa15f06311610">flan::operator&lt;&lt;</a></div><div class="ttdeci">std::ostream &amp; operator&lt;&lt;(std::ostream &amp;os, const AudioBuffer &amp;audio)</div></div>
-<div class="ttc" id="astructflan_1_1_audio_buffer_1_1_format_html"><div class="ttname"><a href="structflan_1_1_audio_buffer_1_1_format.html">flan::AudioBuffer::Format</a></div><div class="ttdef"><b>Definition:</b> AudioBuffer.h:30</div></div>
+<div class="ttc" id="astructflan_1_1_audio_buffer_1_1_format_html"><div class="ttname"><a href="structflan_1_1_audio_buffer_1_1_format.html">flan::AudioBuffer::Format</a></div><div class="ttdef"><b>Definition:</b> AudioBuffer.h:33</div></div>
 </div><!-- fragment --></div><!-- contents -->
 <!-- start footer part -->
 <hr class="footer"/><address class="footer"><small>

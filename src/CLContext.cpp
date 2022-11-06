@@ -10,27 +10,27 @@ using namespace flan;
 
 CLContext::CLContext()
 	{
-	std::cout << "Initializing OpenCL \n";
+	//std::cout << "Initializing OpenCL \n";
 
 	//Get platform
 	std::vector<cl::Platform> all_platforms;
 	cl::Platform::get( &all_platforms );
 	if( all_platforms.size() == 0 )
 		{
-		std::cout<< "No platforms found\n";
+		std::cout<< "No OpenCL platforms found\n";
 		return;
 		}
 	platform = all_platforms[0];
-	std::cout << "Using platform: " << platform.getInfo<CL_PLATFORM_NAME>() << "\n";
+	//std::cout << "Using platform: " << platform.getInfo<CL_PLATFORM_NAME>() << "\n";
 
 	//Get device
 	platform.getDevices( CL_DEVICE_TYPE_ALL, &devices );
 	if( devices.size() == 0 )
 		{
-		std::cout<<" No devices found. Check OpenCL installation!\n";
+		std::cout<<" No OpenCL devices found. Check OpenCL installation!\n";
 		return;
 		}
-	std::cout<< "Using device: " << devices[0].getInfo<CL_DEVICE_NAME>() << "\n";
+	//std::cout<< "Using device: " << devices[0].getInfo<CL_DEVICE_NAME>() << "\n";
 	
 	context = cl::Context( { devices[0] } );
 
@@ -40,7 +40,7 @@ CLContext::CLContext()
 	queue = cl::CommandQueue( context, devices[0], CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE | CL_QUEUE_PROFILING_ENABLE );
 #endif
 	
-	std::cout << "OpenCL Initialized \n\n";
+	//std::cout << "OpenCL Initialized \n\n";
 	}
 
 ProgramHelper::ProgramHelper( CLContext & context, const std::string & source )

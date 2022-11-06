@@ -8,7 +8,6 @@
 #include <algorithm>
 
 #include "flan/defines.h"
-#include "flan/Utility/Interpolator.h"
 #include "flan/Utility/vec2.h"
 #include "flan/Utility/Rect.h"
 
@@ -161,29 +160,6 @@ struct Func1x1 : public Function<float, float>
 	 */
 	Func1x1 periodize( Func1x1 period = 1.0f );
 
-	/** Generate a function that passes through a given set of points.
-	 *
-	 * \param points Points that the generated function must pass through.
-	 * \param interp How the generated function should move between points.
-	 */
-	static Func1x1 interpolatePoints( const std::vector< std::pair< float, float > > & points, 
-		Interpolator interp = Interpolators::linear );
-
-	/** Generate a function that passes through a given set of points.
-	 *
-	 * \param deltaX Distance between x samples, starting at x = 0.
-	 * \param points Y values that the generated function must pass through.
-	 * \param interp How the generated function should move between points.
-	 */
-	static Func1x1 interpolatePoints( float deltaX, const std::vector< float > ys, 
-		Interpolator interp = Interpolators::linear );
-
-	/** Generate a cubic spline that passes through a given set of points.
-	 *
-	 * \param points Points that the generated function must pass through.
-	 */
-	static Func1x1 spline( const std::vector< std::pair< float, float > > points );
-
 	///** Generate a function that returns random data with an identity distribution
 	// *	using the given bounds.
 	// *
@@ -205,26 +181,29 @@ struct Func1x1 : public Function<float, float>
 struct Func2x1 : public Function<vec2, float>
 {
 	/** Generic constructor */
-	template< typename Constructable, std::enable_if_t< 
-			   ! std::is_convertible< Constructable, std::function< float ( float, float ) > >::value
-			&& ! std::is_convertible< Constructable, std::function< float ( float        ) > >::value, int > = 0 >
-	Func2x1( Constructable f ) : Function( f ) {}
+	template<typename T>
+	Func2x1( T f ) : Function( f ) {}
 
 	/** Constructor when argument if convertable to std::function< float ( float, float ) >.
 	 */
-	template< typename twoArgs, 
-			  std::enable_if_t< std::is_convertible<twoArgs, std::function< float ( float, float ) >>::value, int > = 0 >
-	Func2x1( twoArgs f ) : Function( [f]( vec2 v ) { return f( v.x(), v.y() ); } ) {}
+	template<typename T>
+	requires std::convertible_to< T, std::function< float ( float, float ) > >
+	Func2x1( T f ) : Function( [f]( vec2 v ) { return f( v.x(), v.y() ); } ) {}
 
 	/** Constructor when argument if convertable to std::function< float ( float ) >.
 	 *	The additional parameter is ignored.
 	 */
-	template< typename oneArg, 
-			  std::enable_if_t< std::is_convertible<oneArg, std::function< float ( float ) >>::value, int > = 0 >
-	Func2x1( oneArg f_ ) : Function( [f_]( vec2 v ){ return f_( v.x() ); } ) {}
+	template<typename T>
+	requires std::convertible_to< T, std::function< float ( float ) > >
+	Func2x1( T f_ ) : Function( [f_]( vec2 v ){ return f_( v.x() ); } ) {}
+
+	/** Default
+	 */
+	Func2x1() : Function() {}
 
 	/** Helper for calling without converting parameters to vec2 */
 	float operator()( float t, float f ) const { return Function::operator()( vec2{ t, f } ); }
+	float operator()( vec2 z ) { return Function::operator()( z ); }
 
 	/** Helper for calling Function::uniformDistribution without explicit conversion. */
 	static Func2x1 uniformDistribution( Func2x1 m, Func2x1 s ) 
@@ -246,8 +225,13 @@ struct Func2x2 : public Function<vec2, vec2>
 	template< typename Constructable >
 	Func2x2( Constructable f ) : Function( f ) {}
 
+	/** Default
+	 */
+	Func2x2() : Function() {}
+
 	/** Helper for calling without converting parameters to vec2 */
 	vec2 operator()( float x, float y ) const { return Function::operator()( { x, y } ); }
+	vec2 operator()( vec2 z ) const { return Function::operator()( z ); }
 };
 
 } // End namespace flan

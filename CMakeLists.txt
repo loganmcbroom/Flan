@@ -2,6 +2,11 @@
 
 project( Flan VERSION 1.0.0 LANGUAGES CXX )
 
+option( LOG_FUNCTION_CALLS "Log algorithm calls to std::cout" ON )
+if( LOG_FUNCTION_CALLS )
+	add_definitions( -Dflan_LOG_FUNCTIONS )
+endif()
+
 # Doxygen building
 option( BUILD_WITH_DOCS "Build documentation" ON )
 if( BUILD_WITH_DOCS )
@@ -63,7 +68,7 @@ add_library( Flan STATIC
 	)  
 add_library( Flan::Flan ALIAS Flan )
 
-target_compile_features( Flan PUBLIC cxx_std_17 )
+target_compile_features( Flan PUBLIC cxx_std_20 )
 set_target_properties( Flan PROPERTIES 
 	CXX_EXTENSIONS OFF 
 	DEBUG_POSTFIX d
