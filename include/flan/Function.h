@@ -39,22 +39,31 @@ struct Function
 
 	/** Function composition */
 	template< typename P >
-	Function<P,O> operator()( const Function<P,I> g ) const { return [*this, g]( I t ){ return operator()( g(t) ); }; }
+	Function<P,O> operator()( const Function<P,I> g ) const { return (Function<I,O>) [*this, g]( I t ){ return operator()( g(t) ); }; }
 
 	/** Function multiplication */
-    Function<I,O> operator*( const Function<I,O> r ) const { return [*this, r](I t){ return operator()(t) * r(t); }; }
+    Function<I,O> operator*( const Function<I,O> r ) const { return (Function<I,O>) [*this, r](I t){ return operator()(t) * r(t); }; }
 
 	/** Function division */
-	Function<I,O> operator/( const Function<I,O> r ) const { return [*this, r](I t){ return operator()(t) / r(t); }; }
+	Function<I,O> operator/( const Function<I,O> r ) const { return (Function<I,O>) [*this, r](I t){ return operator()(t) / r(t); }; }
+
+	/** Function modulus */
+	Function<I,O> operator%( const Function<I,O> r ) const 
+		{ 
+		if constexpr ( std::is_floating_point<O>::value )
+			return (Function<I,O>) [*this, r](I t){ return fmod( operator()(t), r(t) ); }; 
+		else
+			return (Function<I,O>) [*this, r](I t){ return operator()(t) % r(t); }; 
+		}
 
 	/** Function addition */
-	Function<I,O> operator+( const Function<I,O> r ) const { return [*this, r](I t){ return operator()(t) + r(t); }; }
+	Function<I,O> operator+( const Function<I,O> r ) const { return (Function<I,O>) [*this, r](I t){ return operator()(t) + r(t); }; }
 
 	/** Function subtraction */
-	Function<I,O> operator-( const Function<I,O> r ) const { return [*this, r](I t){ return operator()(t) - r(t); }; }
+	Function<I,O> operator-( const Function<I,O> r ) const { return (Function<I,O>) [*this, r](I t){ return operator()(t) - r(t); }; }
 
 	/** Function negation */
-	Function<I,O> operator-() const { return [*this](I t){ return -operator()(t); }; }
+	Function<I,O> operator-() const { return (Function<I,O>) [*this](I t) { return -operator()(t); }; }
 
 	/** Clamp a function within a function range */
 	static Function<I,O> clamp( const Function<I,O> a, const Function<I,O> b, const Function<I,O> c ) 
@@ -110,8 +119,8 @@ struct Function
 /** Real function of one real variable type. */
 struct Func1x1 : public Function<float, float>
 {
-	template< typename Constructable >
-	Func1x1( Constructable f ) : Function( f ) {}
+	template< typename T >
+	Func1x1( T f ) : Function( f ) {}
 	Func1x1() : Function() {}
 
 	/** Exponentiate as a function */
@@ -180,17 +189,18 @@ struct Func1x1 : public Function<float, float>
 /** Real function of vec2 type. */
 struct Func2x1 : public Function<vec2, float>
 {
-	/** Generic constructor */
+	/** Generic constructor 
+	*/
 	template<typename T>
 	Func2x1( T f ) : Function( f ) {}
 
-	/** Constructor when argument if convertable to std::function< float ( float, float ) >.
+	/** Constructor when argument is convertable to std::function< float ( float, float ) >.
 	 */
 	template<typename T>
 	requires std::convertible_to< T, std::function< float ( float, float ) > >
 	Func2x1( T f ) : Function( [f]( vec2 v ) { return f( v.x(), v.y() ); } ) {}
 
-	/** Constructor when argument if convertable to std::function< float ( float ) >.
+	/** Constructor when argument is convertable to std::function< float ( float ) >.
 	 *	The additional parameter is ignored.
 	 */
 	template<typename T>
@@ -222,8 +232,10 @@ struct Func2x1 : public Function<vec2, float>
 /** vec2 function of vec2 type. */
 struct Func2x2 : public Function<vec2, vec2>
 {
-	template< typename Constructable >
-	Func2x2( Constructable f ) : Function( f ) {}
+	/** Generic constructor 
+	*/
+	template< typename T >
+	Func2x2( T f ) : Function( f ) {}
 
 	/** Default
 	 */

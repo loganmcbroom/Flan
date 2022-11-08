@@ -49,6 +49,8 @@ struct vec2
 	vec2 operator*( const vec2 & r ) const  { return vec2{ x() * r.x(), y() * r.y() }; }
 	/** Component-wise division */
 	vec2 operator/( const vec2 & r ) const  { return vec2{ x() / r.x(), y() / r.y() }; }
+	/** Component-wise modulus */
+	vec2 operator%( const vec2 & r ) const  { return vec2{ fmod( x(), r.x() ), fmod( y(), r.y() ) }; }
 	/** Component-wise addition */
 	vec2 operator+( const vec2 & r ) const { return vec2{ x() + r.x(), y() + r.y() }; }
 	/** Component-wise subtraction */
