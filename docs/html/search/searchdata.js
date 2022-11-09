@@ -4,10 +4,11 @@ var indexSectionsWithContent =
   1: "acfgmpsvw",
   2: "f",
   3: "abcdefgijlmnoprstuw",
-  4: "mpw",
-  5: "psw",
-  6: "glz",
-  7: "fgl"
+  4: "s",
+  5: "mpw",
+  6: "psw",
+  7: "glz",
+  8: "fgl"
 };
 
 var indexSectionNames =
@@ -16,10 +17,11 @@ var indexSectionNames =
   1: "classes",
   2: "namespaces",
   3: "functions",
-  4: "typedefs",
-  5: "enums",
-  6: "enumvalues",
-  7: "pages"
+  4: "variables",
+  5: "typedefs",
+  6: "enums",
+  7: "enumvalues",
+  8: "pages"
 };
 
 var indexSectionLabels =
@@ -28,9 +30,10 @@ var indexSectionLabels =
   1: "Classes",
   2: "Namespaces",
   3: "Functions",
-  4: "Typedefs",
-  5: "Enumerations",
-  6: "Enumerator",
-  7: "Pages"
+  4: "Variables",
+  5: "Typedefs",
+  6: "Enumerations",
+  7: "Enumerator",
+  8: "Pages"
 };
 

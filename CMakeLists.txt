@@ -38,6 +38,7 @@ add_library( Flan STATIC
 	src/Audio/AudioTexture.cpp
 	src/Audio/AudioConversions.cpp
 	src/Audio/AudioInformation.cpp
+	src/Audio/AudioSynthesis.cpp
 	src/Audio/YIN.cpp
 	
 	src/PVOC/PVOC.cpp
@@ -58,7 +59,6 @@ add_library( Flan STATIC
 	src/CLContext.cpp
 	src/CLProgs.cpp
 	src/FFTHelper.cpp 
-	src/Synthesis.cpp
 	src/Graph.cpp
 	src/Wavetable.cpp
 	src/DSPUtility.cpp 

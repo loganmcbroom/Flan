@@ -382,7 +382,7 @@ public:
 	Audio rearrange( Time sliceLength, Time fade = 0.05, flan_CANCEL_ARG ) const;
 
 	//========================================================
-	// Multi-In Procs
+	// Static Procs
 	//========================================================
 
 	/** The main Audio mixing method. The ouput format will be that of the first input.
@@ -410,6 +410,17 @@ public:
 	 */
 	static Audio select( const std::vector<Audio> & ins, Func1x1 selection,
 		std::vector<Time> startTimes = std::vector<Time>(), flan_CANCEL_ARG );
-};
+
+	/** Generate an Audio from a Func1x1. This can be accomplished in a more general setting using the function ctor of flan::Wavetable.
+	*  \param wave This is evaluated from 0 to 1. This portion is repeated to create the Audio.
+	*  \param length The length of the output.
+	*  \param freq The frequency of the output.
+	*  \param sampleRate The sample rate of the output.
+	*  \param oversample Synthesized audio must be generated at a sample rate higher than the desired sample rate to avoid aliasing.
+	*      This describes how many samples should be used in the synthesis per sample in the output.
+	*/
+	static Audio synthesize( Func1x1 wave, Time length, Func1x1 freq, size_t samplerate = 48000, size_t oversample = 16 );
+
+	};
 
 } // End namespace flan

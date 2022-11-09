@@ -184,6 +184,11 @@ struct Func1x1 : public Function<float, float>
 	// * \param sigma The sample standard deviation.
 	// */
 	//static Func1x1 normalDistribution( Func1x1 mean, Func1x1 sigma );
+
+	static Func1x1 sine; 	
+	static Func1x1 square; 	
+	static Func1x1 saw; 		
+	static Func1x1 triangle; 
 };
 
 /** Real function of vec2 type. */

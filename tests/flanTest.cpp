@@ -24,8 +24,8 @@ int main()
 	auto bai = Audio( "Audio/Bai.wav" );
 	auto meow = Audio( "Audio/meow.wav" );
 	auto slaw = Audio( "Audio/slaw.wav" );
-	auto sine = Synthesis::sine( 5, []( float t ){ return 220 + 220 * t; } );
-	auto saw = Synthesis::saw( 5, []( float t ){ return 220 + 220 * t; } );
+	auto sine = Audio::synthesize( Func1x1::sine, 5, []( float t ){ return 220 + 220 * t; } );
+	auto saw = Audio::synthesize( Func1x1::saw, 5, []( float t ){ return 220 + 220 * t; } );
 
 	auto b = bah.convertToPVOC().resonate( 0, .5 ).convertToAudio();
 

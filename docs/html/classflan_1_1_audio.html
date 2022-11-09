@@ -265,6 +265,8 @@ Static Public Member Functions</h2></td></tr>
 <tr class="separator:a9bd700de909ce335bc28a1420c3900ec"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a53f158706a34f882e49da16acdad0547"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classflan_1_1_audio.html">Audio</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classflan_1_1_audio.html#a53f158706a34f882e49da16acdad0547">select</a> (const std::vector&lt; <a class="el" href="classflan_1_1_audio.html">Audio</a> &gt; &amp;ins, <a class="el" href="structflan_1_1_func1x1.html">Func1x1</a> selection, std::vector&lt; Time &gt; startTimes=std::vector&lt; Time &gt;(), flan_CANCEL_ARG)</td></tr>
 <tr class="separator:a53f158706a34f882e49da16acdad0547"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aa31b2aea47ff4ade95fe605bdea4f4a4"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classflan_1_1_audio.html">Audio</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classflan_1_1_audio.html#aa31b2aea47ff4ade95fe605bdea4f4a4">synthesize</a> (<a class="el" href="structflan_1_1_func1x1.html">Func1x1</a> wave, Time length, <a class="el" href="structflan_1_1_func1x1.html">Func1x1</a> freq, size_t samplerate=48000, size_t oversample=16)</td></tr>
+<tr class="separator:aa31b2aea47ff4ade95fe605bdea4f4a4"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p ><a class="el" href="classflan_1_1_audio.html" title="Audio Algorithms.">Audio</a> Algorithms. </p>
@@ -2139,6 +2141,70 @@ Static Public Member Functions</h2></td></tr>
 <p >Time shifting. </p><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">shift</td><td>How much to shift the input. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a id="aa31b2aea47ff4ade95fe605bdea4f4a4" name="aa31b2aea47ff4ade95fe605bdea4f4a4"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa31b2aea47ff4ade95fe605bdea4f4a4">&#9670;&#160;</a></span>synthesize()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static <a class="el" href="classflan_1_1_audio.html">Audio</a> flan::Audio::synthesize </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structflan_1_1_func1x1.html">Func1x1</a>&#160;</td>
+          <td class="paramname"><em>wave</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">Time&#160;</td>
+          <td class="paramname"><em>length</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structflan_1_1_func1x1.html">Func1x1</a>&#160;</td>
+          <td class="paramname"><em>freq</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>samplerate</em> = <code>48000</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">size_t&#160;</td>
+          <td class="paramname"><em>oversample</em> = <code>16</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p >Generate an <a class="el" href="classflan_1_1_audio.html" title="Audio Algorithms.">Audio</a> from a <a class="el" href="structflan_1_1_func1x1.html">Func1x1</a>. This can be accomplished in a more general setting using the function ctor of <a class="el" href="classflan_1_1_wavetable.html">flan::Wavetable</a>. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">wave</td><td>This is evaluated from 0 to 1. This portion is repeated to create the <a class="el" href="classflan_1_1_audio.html" title="Audio Algorithms.">Audio</a>. </td></tr>
+    <tr><td class="paramname">length</td><td>The length of the output. </td></tr>
+    <tr><td class="paramname">freq</td><td>The frequency of the output. </td></tr>
+    <tr><td class="paramname">sampleRate</td><td>The sample rate of the output. </td></tr>
+    <tr><td class="paramname">oversample</td><td>Synthesized audio must be generated at a sample rate higher than the desired sample rate to avoid aliasing. This describes how many samples should be used in the synthesis per sample in the output. </td></tr>
   </table>
   </dd>
 </dl>

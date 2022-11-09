@@ -94,15 +94,17 @@ Inheritance diagram for flan::Func2x1:</div>
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:ab8beb80f576ab0b60303501cbe953475"><td class="memTemplParams" colspan="2">template&lt;typename Constructable , std::enable_if_t&lt; ! std::is_convertible&lt; Constructable, std::function&lt; float(float, float) &gt; &gt;::value &amp;&amp;! std::is_convertible&lt; Constructable, std::function&lt; float(float) &gt; &gt;::value, int &gt;  = 0&gt; </td></tr>
-<tr class="memitem:ab8beb80f576ab0b60303501cbe953475"><td class="memTemplItemLeft" align="right" valign="top">&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structflan_1_1_func2x1.html#ab8beb80f576ab0b60303501cbe953475">Func2x1</a> (Constructable f)</td></tr>
-<tr class="separator:ab8beb80f576ab0b60303501cbe953475"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:ab1abad19fe11d9a2349df267ceaf2ac5"><td class="memTemplParams" colspan="2">template&lt;typename twoArgs , std::enable_if_t&lt; std::is_convertible&lt; twoArgs, std::function&lt; float(float, float) &gt; &gt;::value, int &gt;  = 0&gt; </td></tr>
-<tr class="memitem:ab1abad19fe11d9a2349df267ceaf2ac5"><td class="memTemplItemLeft" align="right" valign="top">&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structflan_1_1_func2x1.html#ab1abad19fe11d9a2349df267ceaf2ac5">Func2x1</a> (twoArgs f)</td></tr>
-<tr class="separator:ab1abad19fe11d9a2349df267ceaf2ac5"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:a6dc830b09e627b14c496a08b77b6f7f3"><td class="memTemplParams" colspan="2">template&lt;typename oneArg , std::enable_if_t&lt; std::is_convertible&lt; oneArg, std::function&lt; float(float) &gt; &gt;::value, int &gt;  = 0&gt; </td></tr>
-<tr class="memitem:a6dc830b09e627b14c496a08b77b6f7f3"><td class="memTemplItemLeft" align="right" valign="top">&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structflan_1_1_func2x1.html#a6dc830b09e627b14c496a08b77b6f7f3">Func2x1</a> (oneArg f_)</td></tr>
-<tr class="separator:a6dc830b09e627b14c496a08b77b6f7f3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7194178e33873d9291924871322a35e2"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; </td></tr>
+<tr class="memitem:a7194178e33873d9291924871322a35e2"><td class="memTemplItemLeft" align="right" valign="top">&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structflan_1_1_func2x1.html#a7194178e33873d9291924871322a35e2">Func2x1</a> (T f)</td></tr>
+<tr class="separator:a7194178e33873d9291924871322a35e2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a91eb859efe96f5eaf37d6de92e952730"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; <br />
+requires std::convertible_to&lt; T, std::function&lt; float ( float, float ) &gt; &gt;</td></tr>
+<tr class="memitem:a91eb859efe96f5eaf37d6de92e952730"><td class="memTemplItemLeft" align="right" valign="top">&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structflan_1_1_func2x1.html#a91eb859efe96f5eaf37d6de92e952730">Func2x1</a> (T f)</td></tr>
+<tr class="separator:a91eb859efe96f5eaf37d6de92e952730"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a595ed910e1e086978b4f936425023d4a"><td class="memTemplParams" colspan="2">template&lt;typename T &gt; <br />
+requires std::convertible_to&lt; T, std::function&lt; float ( float ) &gt; &gt;</td></tr>
+<tr class="memitem:a595ed910e1e086978b4f936425023d4a"><td class="memTemplItemLeft" align="right" valign="top">&#160;</td><td class="memTemplItemRight" valign="bottom"><a class="el" href="structflan_1_1_func2x1.html#a595ed910e1e086978b4f936425023d4a">Func2x1</a> (T f_)</td></tr>
+<tr class="separator:a595ed910e1e086978b4f936425023d4a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af1f872f71695c8300eec2cb9a1d060b1"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structflan_1_1_func2x1.html#af1f872f71695c8300eec2cb9a1d060b1">Func2x1</a> ()</td></tr>
 <tr class="separator:af1f872f71695c8300eec2cb9a1d060b1"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad8521a8ed5c276f591d9890aecb5335b"><td class="memItemLeft" align="right" valign="top">float&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structflan_1_1_func2x1.html#ad8521a8ed5c276f591d9890aecb5335b">operator()</a> (float t, float f) const</td></tr>
@@ -130,6 +132,8 @@ float&#160;</td><td class="memItemRight" valign="bottom"><b>operator()</b> (vec2
 <tr class="separator:a6817a5671f9bde78eebfdb1d61876c7f inherit pub_methods_structflan_1_1_function"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:aec2164ca1152bb002a3655efb3aa944a inherit pub_methods_structflan_1_1_function"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structflan_1_1_function.html">Function</a>&lt; vec2, float &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structflan_1_1_function.html#aec2164ca1152bb002a3655efb3aa944a">operator/</a> (const <a class="el" href="structflan_1_1_function.html">Function</a>&lt; vec2, float &gt; r) const</td></tr>
 <tr class="separator:aec2164ca1152bb002a3655efb3aa944a inherit pub_methods_structflan_1_1_function"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8b622e48df7009a028d459ab5ba765bc inherit pub_methods_structflan_1_1_function"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structflan_1_1_function.html">Function</a>&lt; vec2, float &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structflan_1_1_function.html#a8b622e48df7009a028d459ab5ba765bc">operator%</a> (const <a class="el" href="structflan_1_1_function.html">Function</a>&lt; vec2, float &gt; r) const</td></tr>
+<tr class="separator:a8b622e48df7009a028d459ab5ba765bc inherit pub_methods_structflan_1_1_function"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:adb99cb8da9d85c35575aaf3d60423e99 inherit pub_methods_structflan_1_1_function"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structflan_1_1_function.html">Function</a>&lt; vec2, float &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structflan_1_1_function.html#adb99cb8da9d85c35575aaf3d60423e99">operator+</a> (const <a class="el" href="structflan_1_1_function.html">Function</a>&lt; vec2, float &gt; r) const</td></tr>
 <tr class="separator:adb99cb8da9d85c35575aaf3d60423e99 inherit pub_methods_structflan_1_1_function"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:abbf78b9d5a2f4f658d0a88ae846cc4e7 inherit pub_methods_structflan_1_1_function"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structflan_1_1_function.html">Function</a>&lt; vec2, float &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structflan_1_1_function.html#abbf78b9d5a2f4f658d0a88ae846cc4e7">operator-</a> (const <a class="el" href="structflan_1_1_function.html">Function</a>&lt; vec2, float &gt; r) const</td></tr>
@@ -167,13 +171,13 @@ std::function&lt; float(vec2) &gt;&#160;</td><td class="memItemRight" valign="bo
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p >Real function of vec2 type. </p>
 </div><h2 class="groupheader">Constructor &amp; Destructor Documentation</h2>
-<a id="ab8beb80f576ab0b60303501cbe953475" name="ab8beb80f576ab0b60303501cbe953475"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ab8beb80f576ab0b60303501cbe953475">&#9670;&#160;</a></span>Func2x1() <span class="overload">[1/4]</span></h2>
+<a id="a7194178e33873d9291924871322a35e2" name="a7194178e33873d9291924871322a35e2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a7194178e33873d9291924871322a35e2">&#9670;&#160;</a></span>Func2x1() <span class="overload">[1/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename Constructable , std::enable_if_t&lt; ! std::is_convertible&lt; Constructable, std::function&lt; float(float, float) &gt; &gt;::value &amp;&amp;! std::is_convertible&lt; Constructable, std::function&lt; float(float) &gt; &gt;::value, int &gt;  = 0&gt; </div>
+template&lt;typename T &gt; </div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
@@ -181,7 +185,7 @@ template&lt;typename Constructable , std::enable_if_t&lt; ! std::is_convertible&
         <tr>
           <td class="memname">flan::Func2x1::Func2x1 </td>
           <td>(</td>
-          <td class="paramtype">Constructable&#160;</td>
+          <td class="paramtype">T&#160;</td>
           <td class="paramname"><em>f</em></td><td>)</td>
           <td></td>
         </tr>
@@ -196,13 +200,14 @@ template&lt;typename Constructable , std::enable_if_t&lt; ! std::is_convertible&
 
 </div>
 </div>
-<a id="ab1abad19fe11d9a2349df267ceaf2ac5" name="ab1abad19fe11d9a2349df267ceaf2ac5"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#ab1abad19fe11d9a2349df267ceaf2ac5">&#9670;&#160;</a></span>Func2x1() <span class="overload">[2/4]</span></h2>
+<a id="a91eb859efe96f5eaf37d6de92e952730" name="a91eb859efe96f5eaf37d6de92e952730"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a91eb859efe96f5eaf37d6de92e952730">&#9670;&#160;</a></span>Func2x1() <span class="overload">[2/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename twoArgs , std::enable_if_t&lt; std::is_convertible&lt; twoArgs, std::function&lt; float(float, float) &gt; &gt;::value, int &gt;  = 0&gt; </div>
+template&lt;typename T &gt; <br />
+requires std::convertible_to&lt; T, std::function&lt; float ( float, float ) &gt; &gt;</div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
@@ -210,7 +215,7 @@ template&lt;typename twoArgs , std::enable_if_t&lt; std::is_convertible&lt; twoA
         <tr>
           <td class="memname">flan::Func2x1::Func2x1 </td>
           <td>(</td>
-          <td class="paramtype">twoArgs&#160;</td>
+          <td class="paramtype">T&#160;</td>
           <td class="paramname"><em>f</em></td><td>)</td>
           <td></td>
         </tr>
@@ -221,17 +226,18 @@ template&lt;typename twoArgs , std::enable_if_t&lt; std::is_convertible&lt; twoA
   </tr>
 </table>
 </div><div class="memdoc">
-<p >Constructor when argument if convertable to std::function&lt; float ( float, float ) &gt;. </p>
+<p >Constructor when argument is convertable to std::function&lt; float ( float, float ) &gt;. </p>
 
 </div>
 </div>
-<a id="a6dc830b09e627b14c496a08b77b6f7f3" name="a6dc830b09e627b14c496a08b77b6f7f3"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a6dc830b09e627b14c496a08b77b6f7f3">&#9670;&#160;</a></span>Func2x1() <span class="overload">[3/4]</span></h2>
+<a id="a595ed910e1e086978b4f936425023d4a" name="a595ed910e1e086978b4f936425023d4a"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a595ed910e1e086978b4f936425023d4a">&#9670;&#160;</a></span>Func2x1() <span class="overload">[3/4]</span></h2>
 
 <div class="memitem">
 <div class="memproto">
 <div class="memtemplate">
-template&lt;typename oneArg , std::enable_if_t&lt; std::is_convertible&lt; oneArg, std::function&lt; float(float) &gt; &gt;::value, int &gt;  = 0&gt; </div>
+template&lt;typename T &gt; <br />
+requires std::convertible_to&lt; T, std::function&lt; float ( float ) &gt; &gt;</div>
 <table class="mlabels">
   <tr>
   <td class="mlabels-left">
@@ -239,7 +245,7 @@ template&lt;typename oneArg , std::enable_if_t&lt; std::is_convertible&lt; oneAr
         <tr>
           <td class="memname">flan::Func2x1::Func2x1 </td>
           <td>(</td>
-          <td class="paramtype">oneArg&#160;</td>
+          <td class="paramtype">T&#160;</td>
           <td class="paramname"><em>f_</em></td><td>)</td>
           <td></td>
         </tr>
@@ -250,7 +256,7 @@ template&lt;typename oneArg , std::enable_if_t&lt; std::is_convertible&lt; oneAr
   </tr>
 </table>
 </div><div class="memdoc">
-<p >Constructor when argument if convertable to std::function&lt; float ( float ) &gt;. The additional parameter is ignored. </p>
+<p >Constructor when argument is convertable to std::function&lt; float ( float ) &gt;. The additional parameter is ignored. </p>
 
 </div>
 </div>

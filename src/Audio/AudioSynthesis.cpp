@@ -1,4 +1,4 @@
-#include "flan/Synthesis.h"
+#include "flan/Audio.h"
 
 #include <iostream>
 
@@ -8,12 +8,7 @@
 
 namespace flan {
 
-static const float pi = std::acos( -1.0f );
-static const float pi2 = 2.0f * pi;
-
-namespace Synthesis {
-
-Audio waveform( Func1x1 wave, Time length, Func1x1 freq, size_t samplerate, size_t oversample )
+Audio Audio::synthesize( Func1x1 wave, Time length, Func1x1 freq, size_t samplerate, size_t oversample )
 	{
 	if( length <= 0 ) return Audio();
 
@@ -79,24 +74,4 @@ Audio waveform( Func1x1 wave, Time length, Func1x1 freq, size_t samplerate, size
 //	return out;
 //	}
 
-Audio sine( Time length, Func1x1 freq )
-	{
-	return waveform( []( float t ){ return std::sin( pi2 * t ); }, length, freq );
-	}
-
-Audio square( Time length, Func1x1 freq )
-	{
-	return waveform( []( float t ){ return t < 0.5f ? -1.0f : 1.0f; }, length, freq );
-	}
-
-Audio saw( Time length, Func1x1 freq )
-	{
-	return waveform( []( float t ){ return -1.0f + 2.0f * t; }, length, freq );
-	}
-
-Audio triangle( Time length, Func1x1 freq )
-	{
-	return waveform( []( float t ){ return t < 0.5f ? -1.0f + 4.0f * t : 3.0f - 4.0f * t; }, length, freq );
-	}
-}
 }

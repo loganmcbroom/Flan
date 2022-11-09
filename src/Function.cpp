@@ -9,7 +9,8 @@
 #include "bmp/bitmap_image.hpp"
 #include "flan/Graph.h"
 
-static const float pi = acos( -1.0f );
+static const float pi = std::acos( -1.0f );
+static const float pi2 = 2.0f * pi;
 
 namespace flan {
 
@@ -70,5 +71,11 @@ Func1x1 Func1x1::periodize( Func1x1 period )
 //		return std::normal_distribution<float>( mean( t ), sigma( t ) )( rng ); 
 //		};
 //	}
+
+
+Func1x1 Func1x1::sine 		= []( float t ){ return std::sin( pi2 * t ); };
+Func1x1 Func1x1::square		= []( float t ){ return t < 0.5f ? -1.0f : 1.0f; };
+Func1x1 Func1x1::saw 		= []( float t ){ return -1.0f + 2.0f * t; };
+Func1x1 Func1x1::triangle 	= []( float t ){ return t < 0.5f ? -1.0f + 4.0f * t : 3.0f - 4.0f * t; };
 
 }
