@@ -244,7 +244,7 @@ PVOC PVOC::subtractAmplitudes( const PVOC & ampSource, Func2x1 amount, flan_CANC
 // Generation
 //========================================================================
 
-PVOC PVOC::generate( Time length, Func1x1 freq, Func2x1 harmonicWeights, flan_CANCEL_ARG_CPP )
+PVOC PVOC::synthesize( Time length, Func1x1 freq, Func2x1 harmonicWeights, flan_CANCEL_ARG_CPP )
 	{
 	PVOC::Format format;
 	format.hopSize = 128;

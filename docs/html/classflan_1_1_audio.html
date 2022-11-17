@@ -265,8 +265,8 @@ Static Public Member Functions</h2></td></tr>
 <tr class="separator:a9bd700de909ce335bc28a1420c3900ec"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a53f158706a34f882e49da16acdad0547"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classflan_1_1_audio.html">Audio</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classflan_1_1_audio.html#a53f158706a34f882e49da16acdad0547">select</a> (const std::vector&lt; <a class="el" href="classflan_1_1_audio.html">Audio</a> &gt; &amp;ins, <a class="el" href="structflan_1_1_func1x1.html">Func1x1</a> selection, std::vector&lt; Time &gt; startTimes=std::vector&lt; Time &gt;(), flan_CANCEL_ARG)</td></tr>
 <tr class="separator:a53f158706a34f882e49da16acdad0547"><td class="memSeparator" colspan="2">&#160;</td></tr>
-<tr class="memitem:aa31b2aea47ff4ade95fe605bdea4f4a4"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classflan_1_1_audio.html">Audio</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classflan_1_1_audio.html#aa31b2aea47ff4ade95fe605bdea4f4a4">synthesize</a> (<a class="el" href="structflan_1_1_func1x1.html">Func1x1</a> wave, Time length, <a class="el" href="structflan_1_1_func1x1.html">Func1x1</a> freq, size_t samplerate=48000, size_t oversample=16)</td></tr>
-<tr class="separator:aa31b2aea47ff4ade95fe605bdea4f4a4"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a534a2e22093e61e17a3e866b4c5060ad"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classflan_1_1_audio.html">Audio</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classflan_1_1_audio.html#a534a2e22093e61e17a3e866b4c5060ad">synthesize</a> (<a class="el" href="structflan_1_1_func1x1.html">Func1x1</a> wave, Time length, <a class="el" href="structflan_1_1_func1x1.html">Func1x1</a> freq, size_t samplerate=48000, size_t oversample=16, flan_CANCEL_ARG)</td></tr>
+<tr class="separator:a534a2e22093e61e17a3e866b4c5060ad"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p ><a class="el" href="classflan_1_1_audio.html" title="Audio Algorithms.">Audio</a> Algorithms. </p>
@@ -2147,8 +2147,8 @@ Static Public Member Functions</h2></td></tr>
 
 </div>
 </div>
-<a id="aa31b2aea47ff4ade95fe605bdea4f4a4" name="aa31b2aea47ff4ade95fe605bdea4f4a4"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#aa31b2aea47ff4ade95fe605bdea4f4a4">&#9670;&#160;</a></span>synthesize()</h2>
+<a id="a534a2e22093e61e17a3e866b4c5060ad" name="a534a2e22093e61e17a3e866b4c5060ad"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a534a2e22093e61e17a3e866b4c5060ad">&#9670;&#160;</a></span>synthesize()</h2>
 
 <div class="memitem">
 <div class="memproto">
@@ -2184,7 +2184,13 @@ Static Public Member Functions</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">size_t&#160;</td>
-          <td class="paramname"><em>oversample</em> = <code>16</code>&#160;</td>
+          <td class="paramname"><em>oversample</em> = <code>16</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">flan_CANCEL_ARG&#160;</td>
+          <td class="paramname">&#160;</td>
         </tr>
         <tr>
           <td></td>

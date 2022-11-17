@@ -7,7 +7,8 @@ namespace flan {
 /** -1 will imply "Apply to all" */
 using Waveform = int;
 
-/* General wavetable generation and playback. Note, this does not have cancel points as with the rest of flan. */
+/* Functions for working with wavetable synthesis
+ */
 class Wavetable
 {
 public:
@@ -26,7 +27,8 @@ public:
         Global, /** The average pitch of the input is estimated. */
         };
 
-    static std::vector<Frame> getWaveformStarts( const Audio & source, Wavetable::SnapMode snapMode, Wavetable::PitchMode pitchMode, float snapRatio, Frame fixedFrame );
+    static std::vector<Frame> getWaveformStarts( const Audio & source, Wavetable::SnapMode snapMode, Wavetable::PitchMode pitchMode, 
+        float snapRatio, Frame fixedFrame, flan_CANCEL_ARG );
 
     /** Main Audio wavetable constructor.
      * \param source The Audio source.
@@ -35,20 +37,21 @@ public:
      * \param snapRatio The proportion of the expected frame jump to search for frame snapping.
      * \param fixedFrameSize When pitchMode is None, this is used in place of pitch deduction.
      */
-    Wavetable( const Audio & source, SnapMode snapMode = SnapMode::Zero, PitchMode pitchMode = PitchMode::Local, float snapRatio = .3, Frame fixedFrameSize = 256 );
+    Wavetable( const Audio & source, SnapMode snapMode = SnapMode::Zero, PitchMode pitchMode = PitchMode::Local, float snapRatio = .3, 
+        Frame fixedFrameSize = 256, flan_CANCEL_ARG );
 
     /** Functional wavetable constructor.
      * \param f The function to sample. Each wave will be sampled on the interval [k,k+1), starting at 0.
      * \param numWaves The number of waveforms to sample.
      */
-    Wavetable( Func1x1 f, int numWaves );
+    Wavetable( Func1x1 f, int numWaves, flan_CANCEL_ARG );
 
     /** This constructs a Wavetable using specific waveform start points. This is normally used only by the main constructor which calls getWaveformStarts. 
      *  If getWaveformStarts is having a hard time, you can manually set the waveform start frames and use this.
      * \param source The audio source.
      * \param waveformStarts The start frames of each waveform. The waveforms are assumed to be contiguous.
      */
-    Wavetable( const Audio & source, const std::vector<Frame> & waveformStarts );
+    Wavetable( const Audio & source, const std::vector<Frame> & waveformStarts, flan_CANCEL_ARG );
 
     /** Generate Audio.
      * \param length The output length.
@@ -56,7 +59,7 @@ public:
      * \param index The waveform to read from. Choosing not-integer indices will read a linear interpolation of the surrounding waveforms.
      * \param granularity The time between input function evaluations.
      */
-    Audio generate( Time length, Func1x1 freq, Func1x1 index, Time granularity = 0.001f ) const;
+    Audio synthesize( Time length, Func1x1 freq, Func1x1 index, Time granularity = 0.001f, flan_CANCEL_ARG ) const;
 
     /** Fade the edges of target waveforms towards zero.
      * \param fadeFrames The fade length.
@@ -84,7 +87,5 @@ private:
     Audio table;
     const int numWaveforms;
 };
-
-
 
 };

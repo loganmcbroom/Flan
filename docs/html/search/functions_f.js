@@ -13,5 +13,5 @@ var searchData=
   ['stretch_10',['stretch',['../classflan_1_1_p_v_o_c.html#a59ad05ef18baca907896e9a97f9fcc11',1,'flan::PVOC']]],
   ['stretch_5fspline_11',['stretch_spline',['../classflan_1_1_p_v_o_c.html#ae93eaf50d755702ca534f6f14b8a702d',1,'flan::PVOC']]],
   ['subtractamplitudes_12',['subtractAmplitudes',['../classflan_1_1_p_v_o_c.html#aff06e92896917867cc127b79b32c9add',1,'flan::PVOC']]],
-  ['synthesize_13',['synthesize',['../classflan_1_1_audio.html#aa31b2aea47ff4ade95fe605bdea4f4a4',1,'flan::Audio']]]
+  ['synthesize_13',['synthesize',['../classflan_1_1_audio.html#a534a2e22093e61e17a3e866b4c5060ad',1,'flan::Audio::synthesize()'],['../classflan_1_1_p_v_o_c.html#a84a0dcce41dc42aab5457e838128f678',1,'flan::PVOC::synthesize()'],['../classflan_1_1_wavetable.html#afcbb96564c83b808e55fd0c3447c79c1',1,'flan::Wavetable::synthesize()']]]
 ];

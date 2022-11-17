@@ -266,9 +266,9 @@ public:
 	/** Warning: this process can produce very loud outputs with unscrupulouss parameters.
 	 *	The input is left alone until startTime. Between startTime and endTime the output is an interpolation
 	 *	of the frames at startTime and endTime. After endTime, the interpolation continues into the realm of extrapolation
-	 *	for a duration of extrapDuration.
+	 *	for extrapDuration seconds.
 	 *	\param startTime Time at which interpolation starts.
-	 *	\param endTime Time at which interpolation ends and extrapolation begins. -1 indicated end of file.
+	 *	\param endTime Time at which interpolation ends and extrapolation begins. -1 indicates end of file.
 	 *	\param extrapDuration Duration of the extrapolation
 	 *	\param interp Interpolator used throughout
 	 */
@@ -286,7 +286,7 @@ public:
 	 *	\param freq
 	 *	\param harmonicWeights This takes time and a harmonic index, and returns a magnitude.
 	 */
-	static PVOC generate( Time length, Func1x1 freq, Func2x1 harmonicWeights, flan_CANCEL_ARG );
+	static PVOC synthesize( Time length, Func1x1 freq, Func2x1 harmonicWeights, flan_CANCEL_ARG );
 
 
 

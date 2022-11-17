@@ -419,7 +419,7 @@ public:
 	*  \param oversample Synthesized audio must be generated at a sample rate higher than the desired sample rate to avoid aliasing.
 	*      This describes how many samples should be used in the synthesis per sample in the output.
 	*/
-	static Audio synthesize( Func1x1 wave, Time length, Func1x1 freq, size_t samplerate = 48000, size_t oversample = 16 );
+	static Audio synthesize( Func1x1 wave, Time length, Func1x1 freq, size_t samplerate = 48000, size_t oversample = 16, flan_CANCEL_ARG );
 
 	};
 

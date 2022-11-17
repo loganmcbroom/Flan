@@ -280,8 +280,8 @@ std::vector&lt; <a class="el" href="structflan_1_1_p_v_o_c_buffer_1_1_m_f.html">
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-static-methods" name="pub-static-methods"></a>
 Static Public Member Functions</h2></td></tr>
-<tr class="memitem:a8c9ba2354848f7dd75372ce0a0ff916e"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classflan_1_1_p_v_o_c.html">PVOC</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classflan_1_1_p_v_o_c.html#a8c9ba2354848f7dd75372ce0a0ff916e">generate</a> (Time length, <a class="el" href="structflan_1_1_func1x1.html">Func1x1</a> freq, <a class="el" href="structflan_1_1_func2x1.html">Func2x1</a> harmonicWeights, flan_CANCEL_ARG)</td></tr>
-<tr class="separator:a8c9ba2354848f7dd75372ce0a0ff916e"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a84a0dcce41dc42aab5457e838128f678"><td class="memItemLeft" align="right" valign="top">static <a class="el" href="classflan_1_1_p_v_o_c.html">PVOC</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classflan_1_1_p_v_o_c.html#a84a0dcce41dc42aab5457e838128f678">synthesize</a> (Time length, <a class="el" href="structflan_1_1_func1x1.html">Func1x1</a> freq, <a class="el" href="structflan_1_1_func2x1.html">Func2x1</a> harmonicWeights, flan_CANCEL_ARG)</td></tr>
+<tr class="separator:a84a0dcce41dc42aab5457e838128f678"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p >Phase Vocoder (<a class="el" href="classflan_1_1_p_v_o_c.html" title="Phase Vocoder (PVOC) Data Algorithms.">PVOC</a>) Data Algorithms. </p>
@@ -678,62 +678,6 @@ Static Public Member Functions</h2></td></tr>
 <p >This is a classic "time-freeze" effect. At supplied times playback is "frozen", repeating the current frame (or a linear interpolation of surrounding frames), for a specified amount of time. After this time has elapsed, playback resumes until another freeze time is encountered. </p><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">timing</td><td>Each element of timing describes a point of time to freeze, and for how long it should be frozen, in that order </td></tr>
-  </table>
-  </dd>
-</dl>
-
-</div>
-</div>
-<a id="a8c9ba2354848f7dd75372ce0a0ff916e" name="a8c9ba2354848f7dd75372ce0a0ff916e"></a>
-<h2 class="memtitle"><span class="permalink"><a href="#a8c9ba2354848f7dd75372ce0a0ff916e">&#9670;&#160;</a></span>generate()</h2>
-
-<div class="memitem">
-<div class="memproto">
-<table class="mlabels">
-  <tr>
-  <td class="mlabels-left">
-      <table class="memname">
-        <tr>
-          <td class="memname">static <a class="el" href="classflan_1_1_p_v_o_c.html">PVOC</a> flan::PVOC::generate </td>
-          <td>(</td>
-          <td class="paramtype">Time&#160;</td>
-          <td class="paramname"><em>length</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype"><a class="el" href="structflan_1_1_func1x1.html">Func1x1</a>&#160;</td>
-          <td class="paramname"><em>freq</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype"><a class="el" href="structflan_1_1_func2x1.html">Func2x1</a>&#160;</td>
-          <td class="paramname"><em>harmonicWeights</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">flan_CANCEL_ARG&#160;</td>
-          <td class="paramname">&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td></td>
-        </tr>
-      </table>
-  </td>
-  <td class="mlabels-right">
-<span class="mlabels"><span class="mlabel">static</span></span>  </td>
-  </tr>
-</table>
-</div><div class="memdoc">
-<p >Generates a <a class="el" href="classflan_1_1_p_v_o_c.html" title="Phase Vocoder (PVOC) Data Algorithms.">PVOC</a> from a spectrum. </p><dl class="params"><dt>Parameters</dt><dd>
-  <table class="params">
-    <tr><td class="paramname">length</td><td></td></tr>
-    <tr><td class="paramname">freq</td><td></td></tr>
-    <tr><td class="paramname">harmonicWeights</td><td>This takes time and a harmonic index, and returns a magnitude. </td></tr>
   </table>
   </dd>
 </dl>
@@ -1743,6 +1687,62 @@ Static Public Member Functions</h2></td></tr>
 
 </div>
 </div>
+<a id="a84a0dcce41dc42aab5457e838128f678" name="a84a0dcce41dc42aab5457e838128f678"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a84a0dcce41dc42aab5457e838128f678">&#9670;&#160;</a></span>synthesize()</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">static <a class="el" href="classflan_1_1_p_v_o_c.html">PVOC</a> flan::PVOC::synthesize </td>
+          <td>(</td>
+          <td class="paramtype">Time&#160;</td>
+          <td class="paramname"><em>length</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structflan_1_1_func1x1.html">Func1x1</a>&#160;</td>
+          <td class="paramname"><em>freq</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype"><a class="el" href="structflan_1_1_func2x1.html">Func2x1</a>&#160;</td>
+          <td class="paramname"><em>harmonicWeights</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">flan_CANCEL_ARG&#160;</td>
+          <td class="paramname">&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">static</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<p >Generates a <a class="el" href="classflan_1_1_p_v_o_c.html" title="Phase Vocoder (PVOC) Data Algorithms.">PVOC</a> from a spectrum. </p><dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">length</td><td></td></tr>
+    <tr><td class="paramname">freq</td><td></td></tr>
+    <tr><td class="paramname">harmonicWeights</td><td>This takes time and a harmonic index, and returns a magnitude. </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
 <a id="a50b834b10ee351bb2998bad5c7aa78c9" name="a50b834b10ee351bb2998bad5c7aa78c9"></a>
 <h2 class="memtitle"><span class="permalink"><a href="#a50b834b10ee351bb2998bad5c7aa78c9">&#9670;&#160;</a></span>timeExtrapolate()</h2>
 
@@ -1786,10 +1786,10 @@ Static Public Member Functions</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<p >Warning: this process can produce very loud outputs with unscrupulouss parameters. The input is left alone until startTime. Between startTime and endTime the output is an interpolation of the frames at startTime and endTime. After endTime, the interpolation continues into the realm of extrapolation for a duration of extrapDuration. </p><dl class="params"><dt>Parameters</dt><dd>
+<p >Warning: this process can produce very loud outputs with unscrupulouss parameters. The input is left alone until startTime. Between startTime and endTime the output is an interpolation of the frames at startTime and endTime. After endTime, the interpolation continues into the realm of extrapolation for extrapDuration seconds. </p><dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">startTime</td><td>Time at which interpolation starts. </td></tr>
-    <tr><td class="paramname">endTime</td><td>Time at which interpolation ends and extrapolation begins. -1 indicated end of file. </td></tr>
+    <tr><td class="paramname">endTime</td><td>Time at which interpolation ends and extrapolation begins. -1 indicates end of file. </td></tr>
     <tr><td class="paramname">extrapDuration</td><td>Duration of the extrapolation </td></tr>
     <tr><td class="paramname">interp</td><td>Interpolator used throughout </td></tr>
   </table>

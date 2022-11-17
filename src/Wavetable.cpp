@@ -18,7 +18,7 @@ using namespace flan;
 static const float pi = std::acos( -1.0f );
 static const float pi2 = 2.0f * pi;
 
-static Frame snapFrameToSample( const Audio & me, Frame frameToSnap, Sample snapHeight, Frame searchDistance )
+static Frame snapFrameToSample( const Audio & me, Frame frameToSnap, Sample snapHeight, Frame searchDistance, flan_CANCEL_ARG_CPP )
 	{	
 	const Frame leftFrameLimit = std::max( frameToSnap - searchDistance, 0 );
 	const Frame rightFrameLimit = std::min( frameToSnap + searchDistance, me.getNumFrames() - 1 );
@@ -27,6 +27,8 @@ static Frame snapFrameToSample( const Audio & me, Frame frameToSnap, Sample snap
 	const bool isAbove = me.getSample( 0, frameToSnap ) > snapHeight;
 	for( Frame searchOffset = 0; searchOffset <= searchDistance; ++searchOffset )
 		{
+		flan_CANCEL_POINT( 0 );
+
 		// Check left
 		const Frame leftSearchFrame = frameToSnap - searchOffset;
 		if( leftSearchFrame >= leftFrameLimit && me.getSample( 0, leftSearchFrame ) > snapHeight != isAbove )
@@ -50,6 +52,8 @@ static Frame snapFrameToSample( const Audio & me, Frame frameToSnap, Sample snap
 	Sample currentBestSampleDistance = norm( frameToSnap );
 	for( Frame searchFrame = leftFrameLimit; searchFrame <= rightFrameLimit; ++searchFrame )
 		{
+		flan_CANCEL_POINT( 0 );
+
 		const Sample currentSampleDistance = norm( searchFrame );
 		if( currentSampleDistance < currentBestSampleDistance )
 			{
@@ -61,7 +65,7 @@ static Frame snapFrameToSample( const Audio & me, Frame frameToSnap, Sample snap
 	return currentBestFrame;
 	}
 
-static Audio resampleWaveforms( const Audio & source, const std::vector<Frame> & waveformStarts, Frame outputWavelength )
+static Audio resampleWaveforms( const Audio & source, const std::vector<Frame> & waveformStarts, Frame outputWavelength, flan_CANCEL_ARG_CPP )
     {
 	// Input validation
 	if( source.isNull() ) return Audio();
@@ -76,6 +80,8 @@ static Audio resampleWaveforms( const Audio & source, const std::vector<Frame> &
 	// For each waveform, resample to wavelength
 	for( Waveform waveform = 0; waveform < waveformStarts.size() - 1; ++waveform )
 		{
+		flan_CANCEL_POINT( Audio() );
+
 		const Frame startFrame = waveformStarts[waveform];
 		const Frame endFrame =  waveformStarts[waveform + 1];
 		const Frame numInputFrames = endFrame - startFrame;
@@ -98,13 +104,14 @@ static Audio resampleWaveforms( const Audio & source, const std::vector<Frame> &
     return out;
     }
 
-std::vector<Frame> Wavetable::getWaveformStarts( const Audio & source, Wavetable::SnapMode snapMode, Wavetable::PitchMode pitchMode, float snapRatio, Frame fixedFrame )
+std::vector<Frame> Wavetable::getWaveformStarts( const Audio & source, Wavetable::SnapMode snapMode, 
+	Wavetable::PitchMode pitchMode, float snapRatio, Frame fixedFrame, flan_CANCEL_ARG_CPP )
 	{
 	flan_FUNCTION_LOG;
 
 	// Input validation
 	if( source.isNull() ) return std::vector<Frame>();
-	const Audio monoSource = source.convertToMono(); // Convert input to mono
+	const Audio monoSource = source.convertToMono( canceller ); // Convert input to mono
 
 	// Find expected waveform lengths via autocorrelation-based pitch detection
 	const int acGranularity = 128;
@@ -113,7 +120,7 @@ std::vector<Frame> Wavetable::getWaveformStarts( const Audio & source, Wavetable
 	Frame globalWavelength = 0;
 	if( pitchMode != Wavetable::PitchMode::None )
 		{
-		localWavelengths = monoSource.getLocalWavelengths( 0 );
+		localWavelengths = monoSource.getLocalWavelengths( 0, 0, -1, 2048, 128, nullptr, canceller );
 		globalWavelength = monoSource.getAverageWavelength( localWavelengths, .5, 64 ); 
 		if( globalWavelength == -1 ) 
 			{
@@ -124,14 +131,14 @@ std::vector<Frame> Wavetable::getWaveformStarts( const Audio & source, Wavetable
 
 	std::vector<Frame> waveformStarts;
 
-	auto snapHandler = [snapMode, &monoSource, snapRatio]( Frame frameToSnap, Frame snapSourceFrame, Frame maxSnap )
+	auto snapHandler = [snapMode, &monoSource, snapRatio, &canceller]( Frame frameToSnap, Frame snapSourceFrame, Frame maxSnap )
 		{
 		//const Frame maxSnap = snapRatio * std::abs( frameToSnap - snapSourceFrame );
 		switch( snapMode )
 			{
 			case Wavetable::SnapMode::None: return frameToSnap;
-			case Wavetable::SnapMode::Zero: return snapFrameToSample( monoSource, frameToSnap, 0, maxSnap );
-			case Wavetable::SnapMode::Level: return snapFrameToSample( monoSource, frameToSnap, monoSource.getSample( 0, snapSourceFrame ), maxSnap );
+			case Wavetable::SnapMode::Zero: return snapFrameToSample( monoSource, frameToSnap, 0, maxSnap, canceller );
+			case Wavetable::SnapMode::Level: return snapFrameToSample( monoSource, frameToSnap, monoSource.getSample( 0, snapSourceFrame ), maxSnap, canceller );
 			default: return frameToSnap;
 			}
 		};
@@ -140,6 +147,8 @@ std::vector<Frame> Wavetable::getWaveformStarts( const Audio & source, Wavetable
 
 	while( true ) // Eat until we run out of buffer
 		{
+		flan_CANCEL_POINT( std::vector<Frame>() );
+
 		// Guess how many frames the next wavelength will be
 		Frame expectedNumFrames = 0;
 		if( pitchMode ==  Wavetable::PitchMode::Local )
@@ -165,14 +174,14 @@ std::vector<Frame> Wavetable::getWaveformStarts( const Audio & source, Wavetable
     return waveformStarts;
 	}
 
-Wavetable::Wavetable( const Audio & source, SnapMode snapMode, PitchMode pitchMode, float snapRatio, Frame fixed )
+Wavetable::Wavetable( const Audio & source, SnapMode snapMode, PitchMode pitchMode, float snapRatio, Frame fixed, flan_CANCEL_ARG_CPP )
 	: wavelength( 2048 )
-    , table( resampleWaveforms( source, getWaveformStarts( source, snapMode, pitchMode, snapRatio, fixed ), wavelength ).setVolume( 1 ) )
+    , table( resampleWaveforms( source, getWaveformStarts( source, snapMode, pitchMode, snapRatio, fixed, canceller ), wavelength, canceller ).setVolume( 1 ) )
 	, numWaveforms( table.getNumFrames() / wavelength )
 	{
 	}
 
-Wavetable::Wavetable( Func1x1 f, int numWaves )
+Wavetable::Wavetable( Func1x1 f, int numWaves, flan_CANCEL_ARG_CPP )
 	: wavelength( 2048 )
     , table()
 	, numWaveforms( numWaves )
@@ -193,6 +202,7 @@ Wavetable::Wavetable( Func1x1 f, int numWaves )
 	// For each waveform, resample to wavelength
 	for( Waveform waveform = 0; waveform < numWaves; ++waveform )
 		{
+		flan_CANCEL_POINT();
 		// Sample f into buffer
 		for( int s = 0; s < overLength; ++s )
 			{
@@ -206,9 +216,9 @@ Wavetable::Wavetable( Func1x1 f, int numWaves )
 		}
 	}
 
-Wavetable::Wavetable( const Audio & source, const std::vector<Frame> & waveformStarts )
+Wavetable::Wavetable( const Audio & source, const std::vector<Frame> & waveformStarts, flan_CANCEL_ARG_CPP )
 	: wavelength( 2048 )
-    , table( resampleWaveforms( source, waveformStarts, wavelength ).setVolume( 1 ) )
+    , table( resampleWaveforms( source, waveformStarts, wavelength, canceller ).setVolume( 1 ) )
 	, numWaveforms( waveformStarts.size() - 1 )
 	{
 	}
@@ -220,7 +230,7 @@ Wavetable::Wavetable()
 	{
 	}
 
-Audio Wavetable::generate( Time length, Func1x1 freq, Func1x1 index, Time granularityTime ) const
+Audio Wavetable::synthesize( Time length, Func1x1 freq, Func1x1 index, Time granularityTime, flan_CANCEL_ARG_CPP ) const
     {
 	// Ouput setup
 	Audio::Format format = table.getFormat();
@@ -237,6 +247,8 @@ Audio Wavetable::generate( Time length, Func1x1 freq, Func1x1 index, Time granul
 	Frame phaseFrame = 0;
 	while( outFramesGenerated < out.getNumFrames() )
 		{
+		flan_CANCEL_POINT( Audio() );
+
 		const double inFreq_c = double( table.getSampleRate() ) / wavelength;
 		const double outFreq_c = freq( outFramesGenerated * out.frameToTime() );
 		const float index_c = std::clamp( index( outFramesGenerated * out.frameToTime() ), 0.0f, float( numWaveforms - 1 ) );
@@ -328,3 +340,4 @@ Sample * Wavetable::getWaveform( int waveform )
 	{
 	return table.getSamplePointer( 0, waveform * wavelength );
 	}
+	
