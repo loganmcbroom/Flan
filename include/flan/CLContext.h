@@ -18,6 +18,7 @@ public:
 	std::vector<cl::Device> devices;
 	cl::Context context;
 	cl::CommandQueue queue;
+	bool success = false;
 };
 
 struct ProgramHelper
@@ -25,6 +26,7 @@ struct ProgramHelper
 	ProgramHelper( CLContext & context, const std::string & source );
 
 	cl::Program program;
+	bool success = false;
 };
 
 };

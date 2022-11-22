@@ -263,7 +263,7 @@ PVOC Audio::convertToPVOC( Frame windowSize, Frame hopSize, Frame dftSize, std::
 	PVOCFormat.hopSize = hopSize;
 	PVOCFormat.windowSize = windowSize;
 	PVOC out( PVOCFormat );
-	PVOCBuffer::MF * outBufferWriteHead = out.getMFPointer( 0, 0, 0 );
+	MF * outBufferWriteHead = out.getMFPointer( 0, 0, 0 );
 
 	//Sample Hann window
 	std::vector<float> hannWindow( windowSize );
@@ -275,10 +275,12 @@ PVOC Audio::convertToPVOC( Frame windowSize, Frame hopSize, Frame dftSize, std::
 	
 	// Prepare OpenCL
 	CLContext cl;
+	if( ! cl.success ) return PVOC();
 	ProgramHelper programHelper( cl, CLProgs::Audio_convertToPVOC );
+	if( ! programHelper.success ) return PVOC();
 	const uint32_t outChannelDataCount = numBins * numHops;
 	cl::Buffer clIn( cl.context, CL_MEM_READ_WRITE, sizeof( std::complex<float> ) * outChannelDataCount );
-	cl::Buffer clOut( cl.context, CL_MEM_WRITE_ONLY, sizeof( PVOCBuffer::MF ) * outChannelDataCount );
+	cl::Buffer clOut( cl.context, CL_MEM_WRITE_ONLY, sizeof( MF ) * outChannelDataCount );
 	cl::KernelFunctor< cl::Buffer > cl_fftToPhase( programHelper.program, "fftToPhase" );
 	cl::KernelFunctor< cl::Buffer, cl::Buffer, float, float, int > cl_phaseToFreq( programHelper.program, "phaseToFreq" );
 	

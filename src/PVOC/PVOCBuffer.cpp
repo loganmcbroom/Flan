@@ -325,7 +325,7 @@ void PVOCBuffer::printSummary() const
 //	Getters
 //======================================================
 
-PVOCBuffer::MF PVOCBuffer::getMF( Channel channel, Frame frame, Bin bin ) const
+MF PVOCBuffer::getMF( Channel channel, Frame frame, Bin bin ) const
 	{
 	return (*buffer)[getBufferPos( channel, frame, bin )];
 	}
@@ -460,7 +460,7 @@ void PVOCBuffer::setMF( Channel channel, Frame frame, Bin bin, MF value )
 	{
 	(*buffer)[getBufferPos( channel, frame, bin )] = value;
 	}
-PVOCBuffer::MF & PVOCBuffer::getMF( Channel channel, Frame frame, Bin bin )
+MF & PVOCBuffer::getMF( Channel channel, Frame frame, Bin bin )
 	{
 	return (*buffer)[getBufferPos( channel, frame, bin )];
 	}
@@ -470,32 +470,32 @@ void PVOCBuffer::clearBuffer()
 	std::fill( buffer->begin(), buffer->end(), MF({ 0,0 }) );
 	}
 
-PVOCBuffer::MF * PVOCBuffer::getMFPointer( Channel channel, Frame frame, Bin bin )
+MF * PVOCBuffer::getMFPointer( Channel channel, Frame frame, Bin bin )
 	{
 	return buffer->data() + getBufferPos( channel, frame, bin );
 	}
 
-const PVOCBuffer::MF * PVOCBuffer::getMFPointer( Channel channel, Frame frame, Bin bin  ) const
+const MF * PVOCBuffer::getMFPointer( Channel channel, Frame frame, Bin bin  ) const
 	{
 	return buffer->data() + getBufferPos( channel, frame, bin );
 	}
 
-std::vector<PVOCBuffer::MF>::iterator PVOCBuffer::begin()
+std::vector<MF>::iterator PVOCBuffer::begin()
 	{
 	return buffer->begin();
 	}
 
-std::vector<PVOCBuffer::MF>::iterator PVOCBuffer::end()
+std::vector<MF>::iterator PVOCBuffer::end()
 	{
 	return buffer->end();
 	}
 
-std::vector<PVOCBuffer::MF>::const_iterator PVOCBuffer::begin() const
+std::vector<MF>::const_iterator PVOCBuffer::begin() const
 	{
 	return buffer->begin();
 	}
 
-std::vector<PVOCBuffer::MF>::const_iterator PVOCBuffer::end() const
+std::vector<MF>::const_iterator PVOCBuffer::end() const
 	{
 	return buffer->end();
 	}

@@ -1,7 +1,7 @@
 var searchData=
 [
   ['max_0',['max',['../structflan_1_1_function.html#a7575fa1db09b2b484a01ccf5b2cf85a3',1,'flan::Function']]],
-  ['mf_1',['MF',['../structflan_1_1_p_v_o_c_buffer_1_1_m_f.html',1,'flan::PVOCBuffer']]],
+  ['mf_1',['MF',['../structflan_1_1_m_f.html',1,'flan']]],
   ['min_2',['min',['../structflan_1_1_function.html#a7fdc82282d94d9deb520117ddf04c383',1,'flan::Function']]],
   ['mix_3',['mix',['../classflan_1_1_audio.html#abdb93230142f68dc8d0747562039d039',1,'flan::Audio']]],
   ['mod_4',['Mod',['../classflan_1_1_audio.html#a48c27c67b397116ed2ccfb88034159ca',1,'flan::Audio']]],

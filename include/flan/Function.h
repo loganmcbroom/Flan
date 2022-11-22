@@ -6,6 +6,7 @@
 #include <random>
 #include <ctime>
 #include <algorithm>
+#include <concepts>
 
 #include "flan/defines.h"
 #include "flan/Utility/vec2.h"
@@ -29,10 +30,11 @@ struct Function
 	//template< typename Callable >
 	//Function( Callable f_ ) : f( f_ ) {}
 	Function( std::function< O ( I ) > f_ ) : f( f_ ) {}
-	Function( float t0	  ) : f( [t0]( I ){ return O( t0 ); } ) {}
-	Function( double t0	  ) : f( [t0]( I ){ return O( t0 ); } ) {}
-	Function( int t0	  ) : f( [t0]( I ){ return O( t0 ); } ) {}
-	Function(			  ) : f( [  ]( I ){ return O( 0  ); } ) {}
+
+	template<typename T>
+	requires std::convertible_to<T, O>
+	Function( T t0 		  ) : f( [t0]( I ){ return O( t0 ); } ) {}
+	Function(			  ) : f( [  ]( I ){ return O( 0 ); } ) {}
 
 	/** Function application */
 	O operator()( I t ) const { return f(t); }

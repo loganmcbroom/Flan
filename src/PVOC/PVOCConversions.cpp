@@ -127,8 +127,10 @@ Audio PVOC::convertToAudio( std::shared_ptr<FFTHelper> fft, flan_CANCEL_ARG_CPP 
 
 	//prepare OpenCL
 	CLContext cl;
+	if( ! cl.success ) return Audio();
 	ProgramHelper programHelper( cl, CLProgs::PVOC_convertToAudio );
-	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( PVOCBuffer::MF ) * outChannelDataCount );
+	if( ! programHelper.success ) return Audio();
+	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( MF ) * outChannelDataCount );
 	cl::Buffer clOut( cl.context, CL_MEM_READ_WRITE, sizeof( std::complex<float> ) * outChannelDataCount );
 	cl::Buffer clPhase( cl.context, CL_MEM_READ_WRITE, sizeof( float ) * numBins );
 	cl::KernelFunctor< cl::Buffer > cl_phaseToFFT( programHelper.program, "phaseToFFT" );

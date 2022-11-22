@@ -27,7 +27,7 @@ PVOC PVOC::getFrame( Time time ) const
 	return out;
 	}
 
-PVOC::MF PVOC::getBinInterpolated( Channel channel, float frame, float bin, Interpolator i ) const
+MF PVOC::getBinInterpolated( Channel channel, float frame, float bin, Interpolator i ) const
 	{
 	frame = std::clamp( frame, 0.0f, float( getNumFrames() - 1 ) );
 	bin   = std::clamp( bin,   0.0f, float( getNumBins()   - 1 ) );
@@ -51,7 +51,7 @@ PVOC::MF PVOC::getBinInterpolated( Channel channel, float frame, float bin, Inte
 		   };
 	}
 
-PVOC::MF PVOC::getBinInterpolated( Channel channel, float frame, Bin bin, Interpolator i ) const
+MF PVOC::getBinInterpolated( Channel channel, float frame, Bin bin, Interpolator i ) const
 	{
 	frame = std::clamp( frame, 0.0f, float( getNumFrames() - 1 ) );
 
@@ -66,7 +66,7 @@ PVOC::MF PVOC::getBinInterpolated( Channel channel, float frame, Bin bin, Interp
 		   };
 	}
 
-PVOC::MF PVOC::getBinInterpolated( Channel channel, Frame frame, float bin, Interpolator i ) const
+MF PVOC::getBinInterpolated( Channel channel, Frame frame, float bin, Interpolator i ) const
 	{
 	bin = std::clamp( bin, 0.0f, float( getNumBins() - 1 ) );
 
@@ -294,12 +294,12 @@ PVOC harmonicScaler( const PVOC & me, Func2x1 series, std::function< Frequency (
 			for( Bin bin = 0; bin < me.getNumBins(); ++bin )
 				{
 				flan_CANCEL_POINT( PVOC() );
-				const PVOC::MF & source = me.getMF( channel, frame, bin );
+				const MF & source = me.getMF( channel, frame, bin );
 				if( source.f <= 1.0f ) continue;
 				int i = 0;
 				for( Frequency freq = source.f; freq < me.getHeight() && i < seriesSamples.size(); freq = harmonicFunc( source.f, i ) )
 					{
-					PVOC::MF & dest = out.getMF( channel, frame, freq * me.frequencyToBin() );
+					MF & dest = out.getMF( channel, frame, freq * me.frequencyToBin() );
 					if( dest.m < source.m * seriesSamples[i] )
 						{
 						dest.m = source.m * seriesSamples[i];

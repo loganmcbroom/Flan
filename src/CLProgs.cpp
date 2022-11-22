@@ -262,7 +262,7 @@ float HannDFT2( float f )
 	return sin( M_PI * f ) / ( M_PI * f * ( 1.0f - f * f ) );
 	}
 
-float getMaxPartialMag( global read_only float2 * in, int numPVOCBins )
+float getMaxPartialMag( global float2 * in, int numPVOCBins )
 	{
 	float a_M = 0;
 	for( int j = 0; j < numPVOCBins; ++j )
@@ -337,7 +337,7 @@ kernel void getSalience( global float2 * in,
 						 float windowOverDFT )
 	{
 	const int i = get_global_id( 0 );
-	global read_only float2 * framePtr = in + i * numPVOCBins;
+	global float2 * framePtr = in + i * numPVOCBins;
 
 	const int binEffectDist = 10;
 	const int Nh = 20;

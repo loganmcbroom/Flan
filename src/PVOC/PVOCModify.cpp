@@ -338,10 +338,12 @@ PVOC PVOC::modify( Func2x2 mod, Interpolator interp, flan_CANCEL_ARG_CPP  ) cons
 
 	//Prepare OpenCL
 	CLContext cl;
+	if( ! cl.success ) return PVOC();
 	ProgramHelper programHelper( cl, CLProgs::PVOC_modify );
-	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( PVOCBuffer::MF ) * inChannelDataCount );
+	if( ! programHelper.success ) return PVOC();
+	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( MF ) * inChannelDataCount );
 	cl::Buffer clModPointSamples( cl.context, CL_MEM_READ_ONLY, sizeof( float2 ) * inChannelDataCount );
-	cl::Buffer clOut( cl.context, CL_MEM_WRITE_ONLY, sizeof( PVOCBuffer::MF ) * outChannelDataCount );
+	cl::Buffer clOut( cl.context, CL_MEM_WRITE_ONLY, sizeof( MF ) * outChannelDataCount );
 	cl::KernelFunctor< cl::Buffer, cl::Buffer, cl::Buffer, int, int > 
 		cl_modify( programHelper.program, "modify" );
 
@@ -353,7 +355,7 @@ PVOC PVOC::modify( Func2x2 mod, Interpolator interp, flan_CANCEL_ARG_CPP  ) cons
 		//Clear cl out buffer ( the entire buffer might not be written to so it must be scrubbed )
 		flan_CANCEL_POINT( PVOC() );
 		cl.queue.enqueueBarrierWithWaitList(); //Can't clear until out copy from previous iteration is complete
-		cl.queue.enqueueFillBuffer( clOut, 0, 0, sizeof( PVOCBuffer::MF ) * outChannelDataCount );
+		cl.queue.enqueueFillBuffer( clOut, 0, 0, sizeof( MF ) * outChannelDataCount );
 
 		//Calculate and copy mapped frequencies and input magnitudes
 		auto modDataSamplesWriteHead = inModified.begin();
@@ -418,11 +420,13 @@ PVOC PVOC::modifyFrequency( Func2x1 outFreqFunc, Interpolator interp, flan_CANCE
 
 	//Prepare OpenCL
 	CLContext cl;
+	if( ! cl.success ) return PVOC();
 	ProgramHelper programHelper( cl, CLProgs::PVOC_modifyFrequency );
-	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( PVOCBuffer::MF ) * inChannelDataCount );
+	if( ! programHelper.success ) return PVOC();
+	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( MF ) * inChannelDataCount );
 	cl::Buffer clMappedFrequencies( cl.context, CL_MEM_READ_ONLY, sizeof( float ) * inChannelDataCount );
 	cl::Buffer clF( cl.context, CL_MEM_READ_ONLY, sizeof( float ) * inChannelDataCount );
-	cl::Buffer clOut( cl.context, CL_MEM_WRITE_ONLY, sizeof( PVOCBuffer::MF ) * inChannelDataCount );
+	cl::Buffer clOut( cl.context, CL_MEM_WRITE_ONLY, sizeof( MF ) * inChannelDataCount );
 	cl::KernelFunctor< cl::Buffer, cl::Buffer, cl::Buffer, cl::Buffer, int > 
 		cl_modifyFrequency( programHelper.program, "modifyFrequency" );
 
@@ -434,7 +438,7 @@ PVOC PVOC::modifyFrequency( Func2x1 outFreqFunc, Interpolator interp, flan_CANCE
 		//Clear cl out buffer ( the entire buffer might not be written to so it must be scrubbed )
 		flan_CANCEL_POINT( PVOC() );
 		cl.queue.enqueueBarrierWithWaitList(); //Can't clear until out copy from previous iteration is complete
-		cl.queue.enqueueFillBuffer( clOut, 0, 0, sizeof( PVOCBuffer::MF ) * inChannelDataCount );
+		cl.queue.enqueueFillBuffer( clOut, 0, 0, sizeof( MF ) * inChannelDataCount );
 
 		//copy input buffer to device
 		cl::copy( cl.queue, 
@@ -511,10 +515,12 @@ PVOC PVOC::modifyTime( Func2x1 outPosFunc, Interpolator interp, flan_CANCEL_ARG_
 
 	//prepare OpenCL
 	CLContext cl;
+	if( ! cl.success ) return PVOC();
 	ProgramHelper programHelper( cl, CLProgs::PVOC_modifyTime );
-	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( PVOCBuffer::MF ) * inChannelDataCount );
+	if( ! programHelper.success ) return PVOC();
+	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( MF ) * inChannelDataCount );
 	cl::Buffer clF( cl.context, CL_MEM_READ_ONLY, sizeof( float ) * inChannelDataCount );
-	cl::Buffer clOut( cl.context, CL_MEM_WRITE_ONLY, sizeof( PVOCBuffer::MF ) * outChannelDataCount );
+	cl::Buffer clOut( cl.context, CL_MEM_WRITE_ONLY, sizeof( MF ) * outChannelDataCount );
 	cl::KernelFunctor< cl::Buffer, cl::Buffer, cl::Buffer, int, int > 
 		cl_modifyTime( programHelper.program, "modifyTime" );
 
@@ -529,7 +535,7 @@ PVOC PVOC::modifyTime( Func2x1 outPosFunc, Interpolator interp, flan_CANCEL_ARG_
 		//Clear cl out buffer ( the entire buffer might not be written to )
 		flan_CANCEL_POINT( PVOC() );
 		cl.queue.enqueueBarrierWithWaitList(); //Can't clear until out copy from previous iteration is complete
-		cl.queue.enqueueFillBuffer( clOut, 0, 0, sizeof( PVOCBuffer::MF ) * outChannelDataCount );
+		cl.queue.enqueueFillBuffer( clOut, 0, 0, sizeof( MF ) * outChannelDataCount );
 
 		//copy input buffer to device
 		cl::copy( cl.queue, 

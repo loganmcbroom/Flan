@@ -62,7 +62,7 @@ PVOC::Salience PVOC::getSalience( Channel channel, Frequency minFreq, Frequency 
 		const float aiLimit = a_M / eTestFactor; // Checking a_i > limit is equivalent to checking 10log_20(aM/ai) < gamma
 
 		// Get frame-wise peaks.
-		const PVOC::MF * framePtr = getMFPointer( channel, frame, 0 );
+		const MF * framePtr = getMFPointer( channel, frame, 0 );
 		auto magPeakFunc = [framePtr]( int i ) -> float { return framePtr[i].m; };
 		const std::vector<vec2> peaks = findPeaks( magPeakFunc, getNumBins(), -1, false, false ); // The peak limit here is arbitrary
 
@@ -133,17 +133,19 @@ PVOC::Salience PVOC::getSalience_gpu( Channel channel, Frequency minFreq, Freque
 		return std::round( 10.0f * 12.0f * std::log2( f / minFreq ) );
 		};
 
+	// Prepare OpenCL
+	CLContext cl;
+	if( ! cl.success ) return Salience();
+	ProgramHelper programHelper( cl, CLProgs::PVOC_getSalience );
+	if( ! programHelper.success ) return Salience();
+
 	Salience salience;
 	salience.numBins = B( maxFreq );
 	salience.numFrames = getNumFrames();
 	salience.buffer.resize( salience.numBins * salience.numFrames, 0 );
-
-	// Prepare OpenCL
-	CLContext cl;
-	ProgramHelper programHelper( cl, CLProgs::PVOC_getSalience );
 	
 	// Create cl buffers
-	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( PVOCBuffer::MF ) * getNumBins() * getNumFrames() ); // Input for entire channel
+	cl::Buffer clIn( cl.context, CL_MEM_READ_ONLY, sizeof( MF ) * getNumBins() * getNumFrames() ); // Input for entire channel
 	cl::Buffer clOut( cl.context, CL_MEM_READ_WRITE, sizeof( float ) * salience.buffer.size() ); // Get back Salience
 	cl::Buffer clAlphas( cl.context, CL_MEM_READ_ONLY, sizeof( float ) * alphaPowers.size() );
 	cl::Buffer clCosines( cl.context, CL_MEM_READ_ONLY, sizeof( float ) * gOutputs.size() );
@@ -196,6 +198,7 @@ std::vector<PVOC::Contour> PVOC::getContours( Channel channel, Frequency minFreq
 	const Salience salience = useGPU && isOpenCLAvailable() ? 
 		getSalience_gpu( channel, minFreq, maxFreq, canceller ):
 		getSalience( channel, minFreq, maxFreq, canceller );
+	if( salience.buffer.empty() ) return std::vector<PVOC::Contour>();
 
 	// Get S+ and S-. SPlus is first used to store all peaks, then peaks are moved to S- as needed.
 	// Each vec2 contains float representations of pitch bin and amplitude. Intepolation during peak finding means these can take non-integer values.
@@ -221,6 +224,7 @@ std::vector<PVOC::Contour> PVOC::getContours( Channel channel, Frequency minFreq
 	// Now all peaks above frame-wise threshhold are in SPlus, find the mean and SD of those
 	const int numPeaks = std::accumulate( SPlus.begin(), SPlus.end(), 0, []( float s, const std::vector<vec2> & v ){ return s + v.size(); } );
 	const float magSum = std::accumulate( vv_iterator<vec2>::begin( SPlus ), vv_iterator<vec2>::end( SPlus ), 0.0f, []( float s, const vec2 & v ){ return s + v.y(); } );
+	if( numPeaks == 0 ) return std::vector<PVOC::Contour>();
 	const float mean = magSum / numPeaks;
 	const float diffSum = std::accumulate( vv_iterator<vec2>::begin( SPlus ), vv_iterator<vec2>::end( SPlus ), 0.0f, [mean]( float s, const vec2 & v )
 		{ 
@@ -367,6 +371,7 @@ PVOC PVOC::prism( PrismFunc f, bool perNote, bool useGPU, flan_CANCEL_ARG_CPP ) 
 	for( Channel channel = 0; channel < getNumChannels(); ++channel )
 		{
 		std::vector<Contour> contours = getContours( channel, minFreq, maxFreq, 60, 20, useGPU, canceller );
+		if( contours.empty() ) return PVOC();
 		std::sort( contours.begin(), contours.end(), []( const Contour & a, const Contour & b ){ return a.startFrame < b.startFrame; } );
 		for( int contour = 0; contour < contours.size(); ++contour )
 			{

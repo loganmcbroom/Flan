@@ -8,6 +8,14 @@
 
 namespace flan {
 
+/** This is the data type stored at each buffer position. It represents a frequency, and the magnitude of that frequency.
+*/
+struct MF 
+	{ 
+	Magnitude m;
+	Frequency f; 
+	};
+
 /** PVOCBuffer stores PVOC data and provides basic buffer access, conversion constants, loading, and saving.
  *	Access to the raw sample buffer is given, but PVOCBuffer::getMF and 
  *	PVOCBuffer::setMF are preferred when speed is not a factor.
@@ -26,14 +34,6 @@ namespace flan {
 class PVOCBuffer
 {
 public:
-
-	/** This is the data type stored at each buffer position. It represents a frequency, and the magnitude of that frequency.
-	*/
-	struct MF 
-		{ 
-		Magnitude m;
-		Frequency f; 
-		};
 
 	/** PVOCBuffer::Format stores all required information outside of the buffer. 
 	 *	This is used to easily transfer the way an PVOCBuffer is stored on disk to a new PVOCBuffer without copying the buffer.

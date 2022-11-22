@@ -41,34 +41,28 @@ CLContext::CLContext()
 #endif
 	
 	//std::cout << "OpenCL Initialized \n\n";
+	success = true;
 	}
 
 ProgramHelper::ProgramHelper( CLContext & context, const std::string & source )
 	{
 	cl_int err;
 
-	//std::ifstream t( "OpenCL/" + file );
-	//if( !t.is_open() )
-	//	{
-	//	std::cout << "Couldn't find " << file << std::endl;
-	//	exit( -1 );
-	//	}
-	//std::stringstream source;
-	//source << t.rdbuf();
-
 	program = cl::Program( context.context, source, false, &err );
 	if( err != CL_SUCCESS )
 		{
 		std::cout << "OpenCL error " << err << " while parsing:\n" << source << std::endl;
-		exit( err );
+		return;
 		}
 
 	err = program.build( context.devices, "-cl-denorms-are-zero" );
 	if( err != CL_SUCCESS )
 		{
 		std::cout << "Error building: " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>( context.devices[0] ) << "\n";
-		exit( err );
+		return;
 		}
+
+	success = true;
 	}
 
 
