@@ -20,17 +20,17 @@ void graph( const bitmap_image & b );
 
 int main()
 	{
-	auto bah = Audio( "Audio/Bah.wav" );
-	auto bai = Audio( "Audio/Bai.wav" );
-	auto meow = Audio( "Audio/meow.wav" );
-	auto slaw = Audio( "Audio/slaw.wav" );
-	auto sine = Audio::synthesize( Func1x1::sine, 5, []( float t ){ return 220 + 220 * t; } );
-	auto saw = Audio::synthesize( Func1x1::saw, 5, []( float t ){ return 220 + 220 * t; } );
+	// auto bah = Audio( "Audio/Bah.wav" );
+	// auto bai = Audio( "Audio/Bai.wav" );
+	// auto meow = Audio( "Audio/meow.wav" );
+	// auto slaw = Audio( "Audio/slaw.wav" );
+	auto sine = Audio::synthesize( []( float t ){ return sin( 2.0f * acos( -1.0f ) * t ); }, 2, []( float t ){ return 220; } );
+	//auto saw = Audio::synthesize( Func1x1::saw, 5, []( float t ){ return 220 + 220 * t; } );
 
-	auto b = bah.convertToPVOC().resonate( 0, .5 ).convertToAudio();
+	//auto b = bah.convertToPVOC().resonate( 0, .5 ).convertToAudio();
 
 
-	play( b );
+	play( sine );
 	//graph( b.convertToGraph() );
 
 	return 0;

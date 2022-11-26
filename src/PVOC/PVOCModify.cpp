@@ -17,7 +17,7 @@ PVOC PVOC::modify_cpu( Func2x2 mod, Interpolator interp, flan_CANCEL_ARG_CPP ) c
 	const Frame numFrames = getNumFrames();
 	const uint32_t inChannelDataCount = numFrames * numBins;
 
-	//Sample mod functions
+	//Sample mod function
 	std::vector<MF> inModified( inChannelDataCount );
 	std::vector<vec2> modPointSamples( inChannelDataCount );
 	float lastOutputFrame = 0;
@@ -65,6 +65,8 @@ PVOC PVOC::modify_cpu( Func2x2 mod, Interpolator interp, flan_CANCEL_ARG_CPP ) c
 		for( Frame frame = 1; frame < numFrames; ++frame )
 			for( Bin bin = 1; bin < numBins; ++bin )
 				{
+				flan_CANCEL_POINT( PVOC() );
+
 				const std::array<vec2, 4> p = {
 					modPointSamples[ ( frame - 1 ) * numBins + bin - 1 ],
 					modPointSamples[ ( frame - 0 ) * numBins + bin - 1 ],
@@ -92,7 +94,6 @@ PVOC PVOC::modify_cpu( Func2x2 mod, Interpolator interp, flan_CANCEL_ARG_CPP ) c
 				for( int x = minx; x <= maxx; ++x )
 					for( int y = miny; y <= maxy; ++y )
 						{	
-						flan_CANCEL_POINT( PVOC() );
 						// Test if (x,y) is inside the quad
 						// Ref: http://paulbourke.net/geometry/polygonmesh/#insidepoly
 						bool c = false;
@@ -286,14 +287,14 @@ PVOC PVOC::modifyTime_cpu( Func2x1 outPosFunc, Interpolator interp, flan_CANCEL_
 
 #ifdef USE_OPENCL
 
-PVOC PVOC::modify( Func2x2 mod, Interpolator interp, flan_CANCEL_ARG_CPP  ) const
+PVOC PVOC::modify( Func2x2 mod, Interpolator interp, flan_CANCEL_ARG_CPP ) const
 	{
 	flan_PROCESS_START( PVOC() );
 
 	if( ! isOpenCLAvailable() )
 		{
 		std::cout << "OpenCL Unavailable, using cpu backup routine";
-		return modify( mod, interp, canceller );
+		return modify_cpu( mod, interp, canceller );
 		}
 
 	using float2 = std::array<float,2>;
@@ -400,7 +401,7 @@ PVOC PVOC::modifyFrequency( Func2x1 outFreqFunc, Interpolator interp, flan_CANCE
 	if( ! isOpenCLAvailable() )
 		{
 		std::cout << "OpenCL Unavailable, using cpu backup routine";
-		return modifyTime( outFreqFunc, interp, canceller );
+		return modifyFrequency_cpu( outFreqFunc, interp, canceller );
 		}
 
 	PVOC out( getFormat() );
@@ -487,7 +488,7 @@ PVOC PVOC::modifyTime( Func2x1 outPosFunc, Interpolator interp, flan_CANCEL_ARG_
 	if( ! isOpenCLAvailable() )
 		{
 		std::cout << "OpenCL Unavailable, using cpu backup routine";
-		return modifyTime( outPosFunc, interp, canceller );
+		return modifyTime_cpu( outPosFunc, interp, canceller );
 		}
 
 	const uint32_t numBins = getNumBins();
