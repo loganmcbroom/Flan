@@ -51,7 +51,7 @@ bool AudioBuffer::load( const std::string & filePath )
 	SNDFILE * file = sf_open( filePath.data(), SFM_READ, &info ); 
 	if( file == nullptr )
 		{
-		std::cout << filePath << " could not be opened.\n";
+		std::cout << filePath + " could not be opened.\n";
 		return false;
 		}
 
@@ -67,7 +67,7 @@ bool AudioBuffer::load( const std::string & filePath )
 
 	if( sf_close( file ) != 0 )
 		{
-		std::cout << "Error closing " << filePath << ".\n";
+		std::cout << std::string( "Error closing " ) + filePath + ".\n";
 		return false;
 		}
 
@@ -91,7 +91,7 @@ bool AudioBuffer::save( const std::string & filePath, int format ) const
 	info.format = format;
 	if( !sf_format_check( &info ) )
 		{
-		std::cout << "Sound file formatting invalid while attempting to save to " << filePath << ",\n";
+		std::cout << std::string( "Sound file formatting invalid while attempting to save to " ) + filePath + ",\n";
 		printSummary();
 		return false;
 		}
@@ -113,12 +113,12 @@ bool AudioBuffer::save( const std::string & filePath, int format ) const
 	SNDFILE * file = sf_open( filePath.data(), SFM_WRITE, &outInfo );
 	if( file == nullptr )
 		{
-		std::cout << filePath << " could not be opened for saving.\n";
+		std::cout << filePath + " could not be opened for saving.\n";
 		return false;
 		}
 	if( sf_writef_float( file, interleavedBuffer.data(), info.frames ) != info.frames )	
 		{
-		std::cout << "Error writing data into " << filePath << ".\n";
+		std::cout << std::string( "Error writing data into " ) + filePath + ".\n";
 		return false;
 		}
 	sf_close( file );
