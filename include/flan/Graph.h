@@ -177,7 +177,7 @@ class Graph : public bitmap_image
 		//======================================================================================================================================================
 
 		void drawAxes( int plane = -1, Color c = Color::Black );
-		void drawLinearGrid( float xJumpSize = 1, float yJumpSize = 1, int plane = -1, Color c = Color::fromHSV( 0, 0, .7 ) );
+		void drawLinearGrid( float xJumpSize = 1, float yJumpSize = 1, int plane = -1, Color c = Color::fromHSV( 0, 0.0f, .7f ) );
 		void drawXTicks( float jump, float y, Pixel offsetDown = 4, Pixel offsetUp = 4, int plane = -1, Color c = Color::Black, float numberScale = 0 );
 		void drawYTicks( float jump, float x, Pixel offsetLeft = 4, Pixel offsetRight = 4, int plane = -1, Color c = Color::Black, float numberScale = 0 );
 

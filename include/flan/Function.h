@@ -96,7 +96,7 @@ struct Function
 
 	static Function<I,O> uniformDistribution( Function<I,O> lowerBound, Function<I,O> upperBound )
 		{
-		static std::default_random_engine rng( std::time( nullptr ) );
+		static std::default_random_engine rng( static_cast<unsigned int>( std::time( nullptr ) ) );
 		return (Function<I,O>) [lowerBound, upperBound]( I x ) -> O
 			{ 
 			return std::uniform_real_distribution<float>( lowerBound( x ), upperBound( x ) )( rng ); 
@@ -105,7 +105,7 @@ struct Function
 
 	static Function<I,O> normalDistribution( Function<I,O> mean, Function<I,O> sigma )
 		{
-		static std::default_random_engine rng( std::time( nullptr ) );
+		static std::default_random_engine rng( static_cast<unsigned int>( std::time( nullptr ) ) );
 		return (Function<I,O>) [mean, sigma]( I x ) -> O
 			{ 
 			const O m = mean( x );
@@ -219,7 +219,7 @@ struct Func2x1 : public Function<vec2, float>
 	Func2x1() : Function() {}
 
 	/** Helper for calling without converting parameters to vec2 */
-	float operator()( float t, float f ) const { return Function::operator()( vec2{ t, f } ); }
+	float operator()( float t_, float f_ ) const { return Function::operator()( vec2{ t_, f_ } ); }
 	float operator()( vec2 z ) { return Function::operator()( z ); }
 
 	/** Helper for calling Function::uniformDistribution without explicit conversion. */
