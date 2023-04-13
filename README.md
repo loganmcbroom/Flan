@@ -49,7 +49,7 @@ The "-DCMAKE_BUILD_TYPE=Release" is for single-config generators, while "--confi
 Flan also exports the build tree, so "--target install" isn't needed if the build will remain where it was built.
 
 # Usage
-The classes flan::Audio and flan::PVOC represent all the main algorithms in flan. They inherit buffer functionality from flan::AudioBuffer and flan::PVOCBuffer. The flan::Function class and its children allow a great deal of freedom in passing functions (usually in the form of lambdas) in place of constants when calling flan::Audio and flan::PVOC methods. Some basic synthesis functions are found in flan::Synthesis.
+The classes flan::Audio and flan::PV represent all the main algorithms in flan. They inherit buffer functionality from flan::AudioBuffer and flan::PVBuffer. The flan::Function class and its children allow a great deal of freedom in passing functions (usually in the form of lambdas) in place of constants when calling flan::Audio and flan::PV methods. Some basic synthesis functions are found in flan::Synthesis.
 
 Any further questions can be directed to:
 

@@ -9,18 +9,18 @@ Ideas:
 	contour pitch mean should be magnitude weighted
 	denormals?: https://www.carlh.net/plugins/denormals.php
 	ir generation - https://dsp.stackexchange.com/questions/41696/calculating-the-inverse-filter-for-the-exponential-sine-sweep-method/41700#41700
-	Audio/PVOC conversions can compute all non-overlapping windows at the same time using this http://fftw.org/fftw3_doc/Advanced-Complex-DFTs.html
+	Audio/PV conversions can compute all non-overlapping windows at the same time using this http://fftw.org/fftw3_doc/Advanced-Complex-DFTs.html
 	perturb sucks currently but might have potential using something like simplex noise, see comments on process
-		it also could be placing frequencies outside bins that can hold them, use the bin shift strategy as in PVOC::extrapolateTime
-	pvoc::synthesize should be using this: https://zynaddsubfx.sourceforge.io/doc_0.html
+		it also could be placing frequencies outside bins that can hold them, use the bin shift strategy as in PV::extrapolateTime
+	PV::synthesize should be using this: https://zynaddsubfx.sourceforge.io/doc_0.html
 		there are a bunch of other places this can be applied
 		prism, where it says "// There is no harmonic to scale, so create one"
-	PVOC::timeExtrapolate could use a Func2x1 instead of interp, not sure the best way to set it up though
+	PV::timeExtrapolate could use a Func2x1 instead of interp, not sure the best way to set it up though
 
 Process ideas:
-	pvoc::alignHarmonics
-	Graph::convertToPVOC
-	PVOC::shape variant that passes time, bin frequency, and the MF to the shaper
+	PV::alignHarmonics
+	Graph::convertToPV
+	PV::shape variant that passes time, bin frequency, and the MF to the shaper
 	Audio::removeSilence
 	Drum sequencing tools
 	Audio Dynamics
@@ -48,7 +48,7 @@ Task:
 		test just using nearest neighbor MF instead of max-mag
 
 	PV
-		rename PVOC to PV?
+		rename PV to PV?
 	SPV
 	SQPV
 		

@@ -1,4 +1,4 @@
-#include "flan/PVOC/PVOC.h"
+#include "flan/PV/PV.h"
 
 #include <iostream>
 #include <complex>
@@ -12,15 +12,15 @@ using namespace std::ranges;
 
 namespace flan {
 
-PVOC PVOC::getFrame( Time time ) const
+PV PV::getFrame( Time time ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 
 	const float selectedFrame = std::clamp( time * timeToFrame(), 0.0f, float( getNumFrames() - 1 ) );
 
 	auto format = getFormat();
 	format.numFrames = 1;
-	PVOC out( format );
+	PV out( format );
 
 	for( Channel channel = 0; channel < out.getNumChannels(); ++channel )
 		for( Bin bin = 0; bin < out.getNumBins(); ++bin )
@@ -29,7 +29,7 @@ PVOC PVOC::getFrame( Time time ) const
 	return out;
 	}
 
-MF PVOC::getBinInterpolated( Channel channel, float frame, float bin, Interpolator i ) const
+MF PV::getBinInterpolated( Channel channel, float frame, float bin, Interpolator i ) const
 	{
 	const std::array< MF, 4 > p = 
 		{
@@ -50,7 +50,7 @@ MF PVOC::getBinInterpolated( Channel channel, float frame, float bin, Interpolat
 		   };
 	}
 
-MF PVOC::getBinInterpolated( Channel channel, float frame, Bin bin, Interpolator i ) const
+MF PV::getBinInterpolated( Channel channel, float frame, Bin bin, Interpolator i ) const
 	{
 	const MF & l = getMF( channel, floor( frame ), bin );
 	const MF & h = getMF( channel, ceil ( frame ), bin );
@@ -63,7 +63,7 @@ MF PVOC::getBinInterpolated( Channel channel, float frame, Bin bin, Interpolator
 		   };
 	}
 
-MF PVOC::getBinInterpolated( Channel channel, Frame frame, float bin, Interpolator i ) const
+MF PV::getBinInterpolated( Channel channel, Frame frame, float bin, Interpolator i ) const
 	{
 	const auto l = getMF( channel, frame, floor( bin ) );
 	const auto h = getMF( channel, frame, ceil ( bin ) );
@@ -80,16 +80,16 @@ MF PVOC::getBinInterpolated( Channel channel, Frame frame, float bin, Interpolat
 //	Selection
 //========================================================================
 
-PVOC PVOC::select( Time length, const Func2x2 & selector, bool interpolateFrames, Interpolator interp ) const
+PV PV::select( Time length, const Func2x2 & selector, bool interpolateFrames, Interpolator interp ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 
 	// Input validation
-	if( length <= 0 ) return PVOC();
+	if( length <= 0 ) return PV();
 
 	auto format = getFormat();
 	format.numFrames = timeToFrame() * length;
-	PVOC out( format );
+	PV out( format );
 
 	auto selectorSamples = selector.sample( 0, out.getNumFrames(), frameToTime(), 0, getNumBins(), binToFrequency() );
 	std::for_each( std::execution::par_unseq, selectorSamples.begin(), selectorSamples.end(), [&]( vec2 & v ){
@@ -136,9 +136,9 @@ PVOC PVOC::select( Time length, const Func2x2 & selector, bool interpolateFrames
 	return out;
 	}
 
-PVOC PVOC::freeze( const std::vector<std::array<Time,2>> & timing ) const
+PV PV::freeze( const std::vector<std::array<Time,2>> & timing ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 
 	using TimingPair = std::array<Frame,2>;
 
@@ -165,7 +165,7 @@ PVOC PVOC::freeze( const std::vector<std::array<Time,2>> & timing ) const
 
 	auto format = getFormat();
 	format.numFrames += totalFreezeFrames;
-	PVOC out( format );
+	PV out( format );
 
 	for( Channel channel = 0; channel < getNumChannels(); ++channel )
 		{
@@ -199,16 +199,16 @@ PVOC PVOC::freeze( const std::vector<std::array<Time,2>> & timing ) const
 // Combinations
 //========================================================================
 
-PVOC PVOC::replaceAmplitudes( const PVOC & ampSource, const Func2x1 & amount ) const
+PV PV::replaceAmplitudes( const PV & ampSource, const Func2x1 & amount ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 
 	// Input validation
-	if( ampSource.isNull() ) return PVOC();
+	if( ampSource.isNull() ) return PV();
 	auto amountSamples = amount.sample( 0, getNumFrames(), frameToTime(), 0, getNumBins(), binToFrequency() );
 	std::for_each( amountSamples.begin(), amountSamples.end(), []( float & amount ){ amount = std::clamp( amount, 0.0f, 1.0f ); } );
 
-	PVOC out( getFormat() );
+	PV out( getFormat() );
 	out.clearBuffer();
 
 	const uint32_t numChannels = std::min( ampSource.getNumChannels(), getNumChannels() );
@@ -232,15 +232,15 @@ PVOC PVOC::replaceAmplitudes( const PVOC & ampSource, const Func2x1 & amount ) c
 	return out;
 	}
 
-PVOC PVOC::subtractAmplitudes( const PVOC & ampSource, const Func2x1 & amount ) const
+PV PV::subtractAmplitudes( const PV & ampSource, const Func2x1 & amount ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 
 	// Input validation
-	if( ampSource.isNull() ) return PVOC();
+	if( ampSource.isNull() ) return PV();
 	auto amountSamples = amount.sample( 0, getNumFrames(), frameToTime(), 0, getNumBins(), binToFrequency() );
 
-	PVOC out = copy();
+	PV out = copy();
 
 	const uint32_t numChannels = std::min( ampSource.getNumChannels(), getNumChannels() );
 	const uint32_t numFrames   = std::min( ampSource.getNumFrames(),   getNumFrames()   );
@@ -265,9 +265,9 @@ PVOC PVOC::subtractAmplitudes( const PVOC & ampSource, const Func2x1 & amount ) 
 // Generation
 //========================================================================
 
-PVOC PVOC::synthesize( Time length, Func1x1 freq, const Func2x1 & harmonicWeights )
+PV PV::synthesize( Time length, Func1x1 freq, const Func2x1 & harmonicWeights )
 	{
-	PVOC::Format format;
+	PV::Format format;
 	format.hopSize = 128;
 	format.numBins = 2049;
 	format.numChannels = 1;
@@ -275,7 +275,7 @@ PVOC PVOC::synthesize( Time length, Func1x1 freq, const Func2x1 & harmonicWeight
 	format.numFrames = length * format.sampleRate / format.hopSize;
 	format.windowSize = 2048;
 
-	PVOC out( format );
+	PV out( format );
 	out.clearBuffer();
 	const float scale = std::sqrt( out.getDFTSize() ); // Don't think too much about this constant
 
@@ -306,9 +306,9 @@ PVOC PVOC::synthesize( Time length, Func1x1 freq, const Func2x1 & harmonicWeight
 /*
 harmonicFunc must be par_unseq-safe
 */
-static PVOC harmonicScaler( const PVOC & me, const Func2x1 & series, std::function< Frequency ( Frequency, Harmonic )> harmonicFunc, Harmonic numHarmonics )
+static PV harmonicScaler( const PV & me, const Func2x1 & series, std::function< Frequency ( Frequency, Harmonic )> harmonicFunc, Harmonic numHarmonics )
 	{
-	PVOC out( me.getFormat() );
+	PV out( me.getFormat() );
 	out.clearBuffer();
 
 	auto seriesSamples = series.sample( 0, me.getNumFrames(), me.frameToTime(), 0, numHarmonics, 1 );
@@ -340,23 +340,23 @@ static PVOC harmonicScaler( const PVOC & me, const Func2x1 & series, std::functi
 	return out;
 	}
 
-PVOC PVOC::addOctaves( const Func2x1 & series ) const
+PV PV::addOctaves( const Func2x1 & series ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 	return harmonicScaler( *this, series, []( Frequency f, Harmonic h ){ return f * std::pow( 2, h ); }, std::ceil( std::log2( getHeight() ) ) );
 	}
 
-PVOC PVOC::addHarmonics( const Func2x1 & series ) const
+PV PV::addHarmonics( const Func2x1 & series ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 	return harmonicScaler( *this, series, []( Frequency f, Harmonic h ){ return f * ( h + 1 ); }, getNumBins() );
 	}
 
-PVOC PVOC::shape( const Function<MF,MF> & shaper, bool useShiftAlignment ) const
+PV PV::shape( const Function<MF,MF> & shaper, bool useShiftAlignment ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 
-	PVOC out( getFormat() );
+	PV out( getFormat() );
 	out.clearBuffer();
 
 	for( Channel channel = 0; channel < getNumChannels(); ++channel )
@@ -391,7 +391,7 @@ PVOC PVOC::shape( const Function<MF,MF> & shaper, bool useShiftAlignment ) const
 	return out;
 	}
 
-PVOC PVOC::perturb( const Func2x1 & magSigma, const Func2x1 & frqSigma, float damping ) const
+PV PV::perturb( const Func2x1 & magSigma, const Func2x1 & frqSigma, float damping ) const
 	{
 	/*
 	Velocity base with no const axis is most promising so far.
@@ -400,7 +400,7 @@ PVOC PVOC::perturb( const Func2x1 & magSigma, const Func2x1 & frqSigma, float da
 	Magnitude is currently unimplimented, test other overall process options like simplex and then add mag handling.
 	*/
 
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 
 	const float epsilon = 0.00001;
 
@@ -454,7 +454,7 @@ PVOC PVOC::perturb( const Func2x1 & magSigma, const Func2x1 & frqSigma, float da
 			}
 		}
 
-	PVOC out( getFormat() );
+	PV out( getFormat() );
 
 	for( Channel channel : iota_view( 0, getNumChannels() ) ) {
 		float magOffset  = 0;
@@ -483,7 +483,7 @@ PVOC PVOC::perturb( const Func2x1 & magSigma, const Func2x1 & frqSigma, float da
 	return out;
 	}
 
-PVOC predicateNLoudestPartials( const PVOC & me, const Function<Time, Bin> & numBins, std::function< bool (Bin, Bin) > predicate )
+PV predicateNLoudestPartials( const PV & me, const Function<Time, Bin> & numBins, std::function< bool (Bin, Bin) > predicate )
 	{
 	flan_FUNCTION_LOG;
 
@@ -491,7 +491,7 @@ PVOC predicateNLoudestPartials( const PVOC & me, const Function<Time, Bin> & num
 	auto numBinsSamples = numBins.sample( 0, me.getNumFrames(), me.frameToTime() );
 	std::ranges::for_each( numBinsSamples, [&]( Bin & b ){ b = std::clamp( b, 0, me.getNumFrames() ); } );
 
-	PVOC out( me.getFormat() );
+	PV out( me.getFormat() );
 	out.clearBuffer();
 
 	for( Channel channel = 0; channel < me.getNumChannels(); ++channel )
@@ -523,21 +523,21 @@ PVOC predicateNLoudestPartials( const PVOC & me, const Function<Time, Bin> & num
 	return out;
 	}
 
-PVOC PVOC::retainNLoudestPartials( const Function<Time, Bin> & numBins ) const
+PV PV::retainNLoudestPartials( const Function<Time, Bin> & numBins ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 	return predicateNLoudestPartials( *this, numBins, []( Bin a, Bin b ){ return a < b; } );
 	}
 
-PVOC PVOC::removeNLoudestPartials( const Function<Time, Bin> & numBins ) const
+PV PV::removeNLoudestPartials( const Function<Time, Bin> & numBins ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 	return predicateNLoudestPartials( *this, numBins, []( Bin a, Bin b ){ return a >= b; } );
 	}
 
-PVOC PVOC::resonate( Time length, const Func2x1 & decay ) const
+PV PV::resonate( Time length, const Func2x1 & decay ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 
 	// Input validation
 	if( length < 0 ) 
@@ -548,7 +548,7 @@ PVOC PVOC::resonate( Time length, const Func2x1 & decay ) const
 
 	auto format = getFormat();
 	format.numFrames = getNumFrames() + ceil( timeToFrame() * length );
-	PVOC out( format );
+	PV out( format );
 
 	// Copy first frame into out
 	for( Channel channel = 0; channel < out.getNumChannels(); ++channel )

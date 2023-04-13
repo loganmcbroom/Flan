@@ -12,7 +12,7 @@
 namespace flan {
 
 class Spectrum;
-class PVOC;
+class PV;
 class SPV;
 class SQPV;
 class Graph;
@@ -39,7 +39,7 @@ public:
 	Audio( std::vector<float> && buffer, Channel numChannels, SampleRate );
 
 	/** Constructs an Audio with the Format other but with an initialized buffer.
-	 *	\param other Format for the constructed PVOC
+	 *	\param other Format for the constructed PV
 	 */
 	Audio( const AudioBuffer::Format & other );
 
@@ -91,20 +91,20 @@ public:
 	 *
 	 *	\param windowSize This is the number of Frames copied into each fft input. 
 	 *		Defined behaviour is only guaranteed for power-of-two inputs, but it may work for other input sizes.
-	 *		The number of bins in the output PVOC is given by frameSize / 2 + 1.
-	 *	\param hop The number of Audio frames per PVOC frame.
+	 *		The number of bins in the output PV is given by frameSize / 2 + 1.
+	 *	\param hop The number of Audio frames per PV frame.
 	 *  \param dftSize The dft size. Unlike with the other time-frequency types that Audio can be converted to, this transform can use 
 	 *		a dft size larger than the window.
 	 */
-	PVOC convertToPVOC( Frame windowSize = 2048, Frame hop = 128, Frame dftSize = 4096, flan_CANCEL_ARG ) const;
+	PV convertToPV( Frame windowSize = 2048, Frame hop = 128, Frame dftSize = 4096, flan_CANCEL_ARG ) const;
 
-	/** For stereo inputs this is identical to Audio::convertToPVOC, but converts the audio to mid-side first. 
-	 *	This is often better sounding than convertToPVOC because it removes the channel incoherece and phasing issues 
-	 *	that multichannel PVOC processing often creates.
+	/** For stereo inputs this is identical to Audio::convertToPV, but converts the audio to mid-side first. 
+	 *	This is often better sounding than convertToPV because it removes the channel incoherece and phasing issues 
+	 *	that multichannel PV processing often creates.
 	 *	Non-stereo inputs will produce a null output.
-	 *	See PVOC::convertToLeftRightAudio for the inverse transform.
+	 *	See PV::convertToLeftRightAudio for the inverse transform.
 	 */
-	PVOC convertToMidSidePVOC( Frame windowSize = 2048, Frame hop = 128, Frame dftSize = 4096, flan_CANCEL_ARG ) const;
+	PV convertToMidSidePV( Frame windowSize = 2048, Frame hop = 128, Frame dftSize = 4096, flan_CANCEL_ARG ) const;
 
 	/** Apply a sliding DFT to the Audio, and phase vocode the output. See phase_vocoder for details on phase vocoding. Be aware that this process
 	 *	can return a very large output.

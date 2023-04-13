@@ -10,34 +10,34 @@
 
 namespace flan {
 
-/** PVOCBuffer stores PVOC data and provides basic buffer access, conversion constants, loading, and saving.
- *	Access to the raw sample buffer is given, but PVOCBuffer::getMF and 
- *	PVOCBuffer::setMF are preferred when speed is not a factor.
+/** PVBuffer stores PV data and provides basic buffer access, conversion constants, loading, and saving.
+ *	Access to the raw sample buffer is given, but PVBuffer::getMF and 
+ *	PVBuffer::setMF are preferred when speed is not a factor.
  *	Data is stored in channel -> frame -> bin order, in other words, the entire first channel 
  *	is stored in memory before the second, and within each channel the entire first frame is stored before the second.
  *
- *	What is PVOC data? PVOC stands for Phase Vocoder. A phase vocoder transforms audio (or any other signal) into PVOC data.
+ *	What is PV data? PV stands for Phase Vocoder. A phase vocoder transforms audio (or any other signal) into PV data.
  *	The algorithm itself is beyond the scope of this comment, curious readers may find plenty of information on the specifics online.
  *	The output of the algorithm is a two-dimensional set of data, where each data point contains a magnitude and a frequency.
  *	One dimension represents time, the other frequency. These are indexed by "frame" and "bin", respectively.
- *	Both conceptually and literally, each frame of PVOC data can be seen as an fft of input audio data near that frame's point in time.
+ *	Both conceptually and literally, each frame of PV data can be seen as an fft of input audio data near that frame's point in time.
  *	The main purpose of the data type in terms of creative audio processing is to allow spectral manipulation as a function of time,
  *	or temporal manipulation as a function of frequency, if you prefer. 
  *	The name "Phase Vocoder" is used only for historic reasons and is a misnomer. 
  */
-class PVOCBuffer
+class PVBuffer
 {
 public:
-	PVOCBuffer( const PVOCBuffer & ) = delete;
-	PVOCBuffer( PVOCBuffer && ) = default;
-	PVOCBuffer& operator=( const PVOCBuffer & ) = delete;
-	PVOCBuffer& operator=( PVOCBuffer && ) = default;
-	~PVOCBuffer() = default;
+	PVBuffer( const PVBuffer & ) = delete;
+	PVBuffer( PVBuffer && ) = default;
+	PVBuffer& operator=( const PVBuffer & ) = delete;
+	PVBuffer& operator=( PVBuffer && ) = default;
+	~PVBuffer() = default;
 
-	/** PVOCBuffer::Format stores all required information outside of the buffer. 
-	 *	This is used to easily transfer the way an PVOCBuffer is stored on disk to a new PVOCBuffer without copying the buffer.
-	 *	In practice, a function transforming a PVOCBuffer will call PVOCBuffer::getFormat(), modify members as needed, and
-	 *	then construct a blank PVOCBuffer with the Format copy constructor.
+	/** PVBuffer::Format stores all required information outside of the buffer. 
+	 *	This is used to easily transfer the way an PVBuffer is stored on disk to a new PVBuffer without copying the buffer.
+	 *	In practice, a function transforming a PVBuffer will call PVBuffer::getFormat(), modify members as needed, and
+	 *	then construct a blank PVBuffer with the Format copy constructor.
 	 *	Note that sample rate describes audio frames per second rather than flan frames per second. This is generally easier to work with
 	 *	because flan frame rates can be non-integer values.
 	 */
@@ -54,23 +54,23 @@ public:
 
 	/** Default constructor
 	 */
-	PVOCBuffer();
+	PVBuffer();
 
-	/** Format copy constructor, constructs a PVOCBuffer with the given format and an uninitialized buffer.
+	/** Format copy constructor, constructs a PVBuffer with the given format and an uninitialized buffer.
 	 *	\param format Format to use in construction.
 	 */
-	PVOCBuffer( const Format & format );
+	PVBuffer( const Format & format );
 
-	/** Load constructor, calls PVOCBuffer::load.
-	 *	\param filePath A PVOC file to load.
+	/** Load constructor, calls PVBuffer::load.
+	 *	\param filePath A PV file to load.
 	 */
-	PVOCBuffer( const std::string & filename );
+	PVBuffer( const std::string & filename );
 
-	/** Returns a deep copy of the PVOCBuffer.
+	/** Returns a deep copy of the PVBuffer.
 	 */
-	PVOCBuffer copy() const;
+	PVBuffer copy() const;
 
-	/** Return true if the PVOC is in a state which cannot be processed. This includes a 0-channel buffer,
+	/** Return true if the PV is in a state which cannot be processed. This includes a 0-channel buffer,
 	 *	a 0-frame buffer, a 0-bin buffer, or a buffer with a 0 sample rate.
 	 */
 	bool isNull() const;
@@ -79,22 +79,22 @@ public:
 	//	I/O
 	//======================================================
 
-	/** File loading. This utilizes the flan specific RIFF data type, PVOC, which is defined here. PVOC files should use the extension flan.
+	/** File loading. This utilizes the flan specific RIFF data type, PV, which is defined here. PV files should use the extension flan.
 	 *	Data should be saved in little-endian format. 
 	 *
 	 *	Chunk one is the RIFF chunk. 
 	 *		Bytes 0-3 is "RIFF". 
 	 *		Bytes 4-7 is 4 (uint32_t), the size of the RIFF chunk (12) minus the data up to and including this data (8).
-	 *		Bytes 8-11 is "PVOC".
+	 *		Bytes 8-11 is "PV".
 	 *
-	 *	Chunk two is the PVOC format chunk.
+	 *	Chunk two is the PV format chunk.
 	 *		Bytes 0-3 is "fmt " (note the space).
 	 *		Bytes 4-7 is 26 (uint32_t), the size of the format chunk (34) minus the data up to and including this data (8).
 	 *		Bytes 8-9 is 1 (uint16_t), this indicates default formatting. This is unused and reserved for future formatting changes.
 	 *		Bytes 10-11 is the number of channels (uint16_t).
 	 *		Bytes 12-15 is the number of frames (uint32_t).
 	 *		Bytes 16-19 is the number of bins per frame (uint32_t).
-	 *		Bytes 20-23 is the audio sample rate used to create the PVOC data. This is used because the PVOC frame rate can be a non-integer value.
+	 *		Bytes 20-23 is the audio sample rate used to create the PV data. This is used because the PV frame rate can be a non-integer value.
 	 *		Bytes 24-27 is the hop size used in the phase vocoder (uint32_t).
 	 *		Bytes 28-31 is the number of bytes used to store buffer information (uint32_t). Each MF pair stores twice this number of bytes.
 	 *		Bytes 32-33 is a phase vocoder window function id. Currently only 1 is defined and represents a Hann window.
@@ -103,16 +103,16 @@ public:
 	 *		Bytes 0-3 is "data".
 	 *		Bytes 4-7 is the size of the data chunk minus the data up to and including this data (8).
 	 *		The remainder of the bytes are the flan data stored in channel -> frame -> bin order. 
-	 *		Each piece of PVOC data should be stored in magnitude, frequency order, using signed integers (as WAVE does).
+	 *		Each piece of PV data should be stored in magnitude, frequency order, using signed integers (as WAVE does).
 	 *		Note that magnitudes will likely need to be normalized before storage.
-	 *		Frequency data should be scaled so the max 24bit signed int value maps to the audio sample rate corresponding to the PVOC saved.
+	 *		Frequency data should be scaled so the max 24bit signed int value maps to the audio sample rate corresponding to the PV saved.
 	 *
-	 *	\param filePath A PVOC file to load.
+	 *	\param filePath A PV file to load.
 	 */
 	bool load( const std::string & filename );
 
-	/** File saving. See PVOCBuffer::load for format information.
-	 *	\param filePath A PVOC file to load.
+	/** File saving. See PVBuffer::load for format information.
+	 *	\param filePath A PV file to load.
 	 */
 	bool save( const std::string & filename ) const;
 
@@ -131,10 +131,10 @@ public:
 	 */
 	MF getMF( Channel channel, Frame frame, Bin bin ) const;
 
-	/** Returns a single frame PVOCBuffer with data from the given input frame.
+	/** Returns a single frame PVBuffer with data from the given input frame.
 	 * \param frame
 	 */
-	PVOCBuffer getFrame( Frame frame ) const;
+	PVBuffer getFrame( Frame frame ) const;
 
 	/** Returns the format being used.
 	 */
@@ -152,20 +152,20 @@ public:
 	 */
 	Bin getNumBins() const;
 
-	/** Returns the frames per second of the audio from which this PVOCBuffer came.
-	 *	If the frames per second of the PVOC data is needed, use PVOCBuffer::timeToFrame.
+	/** Returns the frames per second of the audio from which this PVBuffer came.
+	 *	If the frames per second of the PV data is needed, use PVBuffer::timeToFrame.
 	 */
 	SampleRate getSampleRate() const;
 
-	/** Returns the hop size used in the phase vocoder to create this PVOCBuffer.
+	/** Returns the hop size used in the phase vocoder to create this PVBuffer.
 	 */
 	Frame getHopSize() const;
 
-	/** Returns the size of the transform used in the phase vocoder to create this PVOCBuffer.
+	/** Returns the size of the transform used in the phase vocoder to create this PVBuffer.
 	 */
 	Frame getDFTSize() const;
 
-	/** Returns the size of the input data window used in the phase vocoder to create this PVOCBuffer.
+	/** Returns the size of the input data window used in the phase vocoder to create this PVBuffer.
 	 */
 	Frame getWindowSize() const;
 
@@ -275,13 +275,13 @@ public:
 
 private: //=================================================================================================
 	
-	PVOCBuffer::Format format;
+	PVBuffer::Format format;
 	std::vector<MF> buffer;
 };
 
 /** Serialization.
  */
-std::ostream & operator<<( std::ostream & os, const PVOCBuffer & flan );
+std::ostream & operator<<( std::ostream & os, const PVBuffer & flan );
 
 } // End namespace flan
 

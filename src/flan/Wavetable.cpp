@@ -7,7 +7,7 @@
 
 #include "WDL/resample.h"
 #include "r8brain/CDSPResampler.h"
-#include "flan/PVOC/PVOC.h"
+#include "flan/PV/PV.h"
 #include "flan/Graph.h"
 
 #undef min

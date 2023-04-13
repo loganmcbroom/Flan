@@ -1,4 +1,4 @@
-#include "flan/PVOC/PVOC.h"
+#include "flan/PV/PV.h"
 
 #include <iostream>
 #include <numeric>
@@ -25,7 +25,7 @@ static bool notesClose( Frequency a, Frequency b )
 	}
 
 // Returns normalized pitch salience
-PVOC::Salience PVOC::getSalience( Channel channel, Frequency minFreq, Frequency maxFreq ) const
+PV::Salience PV::getSalience( Channel channel, Frequency minFreq, Frequency maxFreq ) const
 	{
 	if( isNull() )
 		return Salience();
@@ -74,7 +74,7 @@ PVOC::Salience PVOC::getSalience( Channel channel, Frequency minFreq, Frequency 
 			if( i.y() < aiLimit ) continue;
 
 			// Instantaneous amplitude correction
-			const Bin bin = i.x(); // PVOC bin
+			const Bin bin = i.x(); // PV bin
 			const float iF = framePtr[bin].f;
 			const float binOffset = iF * frequencyToBin() - i.x();
 			const float kernelFactor = Windows::HannDFT2( binOffset * getWindowSize() / getDFTSize() );
@@ -102,7 +102,7 @@ PVOC::Salience PVOC::getSalience( Channel channel, Frequency minFreq, Frequency 
 	return salience;
 	}
 	
-std::vector<PVOC::Contour> PVOC::getContours( Channel channel, Frequency minFreq, Frequency maxFreq, 
+std::vector<PV::Contour> PV::getContours( Channel channel, Frequency minFreq, Frequency maxFreq, 
 	Frame filterShort, float filterQuiet, flan_CANCEL_ARG_CPP ) const
 	{
 	const float TPlus = 0.9f;
@@ -112,7 +112,7 @@ std::vector<PVOC::Contour> PVOC::getContours( Channel channel, Frequency minFreq
 	const Frame maxGapLength = .1f * timeToFrame();
 
 	const Salience salience = getSalience( channel, minFreq, maxFreq );
-	if( salience.buffer.empty() ) return std::vector<PVOC::Contour>();
+	if( salience.buffer.empty() ) return std::vector<PV::Contour>();
 
 	// Get S+ and S-. SPlus is first used to store all peaks, then peaks are moved to S- as needed.
 	// Each vec2 contains float representations of pitch bin and amplitude. Intepolation during peak finding means these can take non-integer values.
@@ -122,7 +122,7 @@ std::vector<PVOC::Contour> PVOC::getContours( Channel channel, Frequency minFreq
 	// Frame-wise peak finding and thresholding
 	for( Frame frame = 0; frame < salience.numFrames; ++frame )
 		{
-		flan_CANCEL_POINT( std::vector<PVOC::Contour>() );
+		flan_CANCEL_POINT( std::vector<PV::Contour>() );
 
 		const auto salienceBegin = salience.buffer.begin() + frame * salience.numBins;
 		SPlus[frame] = findPeaks( [salienceBegin]( int i ){ return salienceBegin[i]; }, salience.numBins, -1, true, true );
@@ -139,7 +139,7 @@ std::vector<PVOC::Contour> PVOC::getContours( Channel channel, Frequency minFreq
 	// Now all peaks above frame-wise threshhold are in SPlus, find the mean and SD of those
 	const int numPeaks = std::accumulate( SPlus.begin(), SPlus.end(), 0, []( float s, const std::vector<vec2> & v ){ return s + v.size(); } );
 	const float magSum = std::accumulate( vv_iterator<vec2>::begin( SPlus ), vv_iterator<vec2>::end( SPlus ), 0.0f, []( float s, const vec2 & v ){ return s + v.y(); } );
-	if( numPeaks == 0 ) return std::vector<PVOC::Contour>();
+	if( numPeaks == 0 ) return std::vector<PV::Contour>();
 	const float mean = magSum / numPeaks;
 	const float diffSum = std::accumulate( vv_iterator<vec2>::begin( SPlus ), vv_iterator<vec2>::end( SPlus ), 0.0f, [mean]( float s, const vec2 & v )
 		{ 
@@ -163,7 +163,7 @@ std::vector<PVOC::Contour> PVOC::getContours( Channel channel, Frequency minFreq
 	std::vector<Contour> contours;
 	while( true )
 		{
-		flan_CANCEL_POINT( std::vector<PVOC::Contour>() );
+		flan_CANCEL_POINT( std::vector<PV::Contour>() );
 
 		// Find current SPlus max. We only need to check the first element of each frame, as each frame is sorted by magnitude.
 		const int maxSPlusFrame = std::distance( SPlus.begin(), std::max_element( SPlus.begin(), SPlus.end(), []( const std::vector<vec2> & v, const std::vector<vec2> & w )
@@ -256,14 +256,14 @@ std::vector<PVOC::Contour> PVOC::getContours( Channel channel, Frequency minFreq
 	return contoursFiltered;
 	}
 
-PVOC PVOC::prism( const PrismFunc & prismFunc, bool perNote, flan_CANCEL_ARG_CPP ) const
+PV PV::prism( const PrismFunc & prismFunc, bool perNote, flan_CANCEL_ARG_CPP ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 
 	const Frequency minFreq = 55.0;
 	const Frequency maxFreq = 1760.0;
 
-	PVOC out = copy();
+	PV out = copy();
 
 	auto pitchBinToFreq = [minFreq]( float bin ){ return minFreq * std::pow( 2.0f, bin / 120.0f ); };
 
@@ -290,7 +290,7 @@ PVOC PVOC::prism( const PrismFunc & prismFunc, bool perNote, flan_CANCEL_ARG_CPP
 	for( Channel channel = 0; channel < getNumChannels(); ++channel )
 		{
 		std::vector<Contour> contours = getContours( channel, minFreq, maxFreq, 60, 20, canceller );
-		if( contours.empty() ) return PVOC();
+		if( contours.empty() ) return PV();
 		std::sort( std::execution::par_unseq, contours.begin(), contours.end(), []( const Contour & a, const Contour & b ){ return a.startFrame < b.startFrame; } );
 		for( int contourIndex = 0; contourIndex < contours.size(); ++contourIndex )
 			{

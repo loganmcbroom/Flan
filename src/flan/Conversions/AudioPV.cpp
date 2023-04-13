@@ -1,5 +1,5 @@
 #include "flan/Audio/Audio.h"
-#include "flan/PVOC/PVOC.h"
+#include "flan/PV/PV.h"
 
 #include <iostream>
 
@@ -9,7 +9,7 @@
 
 using namespace flan;
 
-PVOC Audio::convertToPVOC( Frame windowSize, Frame hopSize, Frame dftSize, flan_CANCEL_ARG_CPP ) const
+PV Audio::convertToPV( Frame windowSize, Frame hopSize, Frame dftSize, flan_CANCEL_ARG_CPP ) const
 	{
 	flan_FUNCTION_LOG;
 
@@ -18,14 +18,14 @@ PVOC Audio::convertToPVOC( Frame windowSize, Frame hopSize, Frame dftSize, flan_
 	const Frame numHops = std::ceil( getNumFrames() / hopSize ) + 1;
 	
 	// Set up output
-	PVOCBuffer::Format PVOCFormat;
-	PVOCFormat.numChannels = getNumChannels();
-	PVOCFormat.numFrames = numHops;
-	PVOCFormat.numBins = numBins;
-	PVOCFormat.sampleRate = getSampleRate();
-	PVOCFormat.hopSize = hopSize;
-	PVOCFormat.windowSize = windowSize;
-	PVOC out( PVOCFormat );
+	PVBuffer::Format PVFormat;
+	PVFormat.numChannels = getNumChannels();
+	PVFormat.numFrames = numHops;
+	PVFormat.numBins = numBins;
+	PVFormat.sampleRate = getSampleRate();
+	PVFormat.hopSize = hopSize;
+	PVFormat.windowSize = windowSize;
+	PV out( PVFormat );
 
 	// Sample Hann window
 	std::vector<float> hannWindow( windowSize );
@@ -47,7 +47,7 @@ PVOC Audio::convertToPVOC( Frame windowSize, Frame hopSize, Frame dftSize, flan_
 		//For each hop, fft and save into buffer
 		for( int hop = 0; hop < numHops; ++hop )
 			{
-			flan_CANCEL_POINT( PVOC() );
+			flan_CANCEL_POINT( PV() );
 
 			// Where in the input signal we should start reading from
 			const Frame inFrameStart = hopSize * hop - windowSize / 2;
@@ -77,13 +77,13 @@ PVOC Audio::convertToPVOC( Frame windowSize, Frame hopSize, Frame dftSize, flan_
 	return out;
 	}
 
-PVOC Audio::convertToMidSidePVOC( Frame windowSize, Frame hop, Frame dftSize, flan_CANCEL_ARG_CPP ) const
+PV Audio::convertToMidSidePV( Frame windowSize, Frame hop, Frame dftSize, flan_CANCEL_ARG_CPP ) const
 	{
-	if( getNumChannels() != 2 ) return PVOC();
-	return convertToMidSide().convertToPVOC( windowSize, hop, dftSize, canceller );
+	if( getNumChannels() != 2 ) return PV();
+	return convertToMidSide().convertToPV( windowSize, hop, dftSize, canceller );
 	}
 
-Audio PVOC::convertToAudio( flan_CANCEL_ARG_CPP ) const
+Audio PV::convertToAudio( flan_CANCEL_ARG_CPP ) const
 	{
 	flan_FUNCTION_LOG;
 	
@@ -95,7 +95,7 @@ Audio PVOC::convertToAudio( flan_CANCEL_ARG_CPP ) const
 
 	//Sample Hann window
 	std::vector<float> hannWindow( getWindowSize() );
-	const float windowScale = 2.67f / ( getDFTSize() * getWindowSize() / getHopSize() ); // I don't know why, converting audio->pvoc->audio reduces volume by an input specific amount, usually about 2.67
+	const float windowScale = 2.67f / ( getDFTSize() * getWindowSize() / getHopSize() ); // I don't know why, converting audio->PV->audio reduces volume by an input specific amount, usually about 2.67
 	std::transform( std::execution::par_unseq, iota_iter(0), iota_iter(getWindowSize()), hannWindow.begin(), [&]( int i )
 		{
 		return Windows::Hann( float( i ) / float( getWindowSize() - 1 ) ) * windowScale;
@@ -109,19 +109,19 @@ Audio PVOC::convertToAudio( flan_CANCEL_ARG_CPP ) const
 		// Initial phase? Using 0, but maybe something else would work better.
 		std::fill( std::execution::par_unseq, phaseBuffer.begin(), phaseBuffer.end(), 0 );
 
-		for( Frame pvocFrame = 0; pvocFrame < getNumFrames(); ++pvocFrame )
+		for( Frame PVFrame = 0; PVFrame < getNumFrames(); ++PVFrame )
 			{
 			flan_CANCEL_POINT( Audio() );
 			
 			std::transform( std::execution::par_unseq, iota_iter(0), iota_iter( getNumBins() ), fft.complexBegin(), [&]( Bin bin )
 				{
-				return inverse_phase_vocoder( phaseBuffer[bin], getMF( channel, pvocFrame, bin ), Frame( 1 ) * frameToTime() );
+				return inverse_phase_vocoder( phaseBuffer[bin], getMF( channel, PVFrame, bin ), Frame( 1 ) * frameToTime() );
 				} );
 
 			fft.c2rExecute();
 
 			// Accumulate ifft output into audio buffer
-			const Frame outFrameStart = getHopSize() * pvocFrame - getWindowSize() / 2;
+			const Frame outFrameStart = getHopSize() * PVFrame - getWindowSize() / 2;
 			const Frame outFrameEnd = outFrameStart + getWindowSize();
 			const Frame outFrameStart_bounded = std::max( outFrameStart, 0 );
 			const Frame outFrameEnd_bounded   = std::min( outFrameEnd, out.getNumFrames() );
@@ -137,7 +137,7 @@ Audio PVOC::convertToAudio( flan_CANCEL_ARG_CPP ) const
 	return out;
 	}
 	
-Audio PVOC::convertToLeftRightAudio( flan_CANCEL_ARG_CPP ) const
+Audio PV::convertToLeftRightAudio( flan_CANCEL_ARG_CPP ) const
 	{
 	if( getNumChannels() != 2 ) return Audio();
 	return convertToAudio( canceller ).convertToLeftRight();

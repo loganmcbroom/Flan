@@ -1,9 +1,9 @@
-#include "flan/PVOC/PVOC.h"
+#include "flan/PV/PV.h"
 #include "flan/Graph.h"
 
 using namespace flan;
 
-Graph PVOC::convertToGraph( Rect D, Pixel width, Pixel height, float timelineScale ) const
+Graph PV::convertToGraph( Rect D, Pixel width, Pixel height, float timelineScale ) const
 	{
 	flan_PROCESS_START( Graph( width, height ) );
 
@@ -16,7 +16,7 @@ Graph PVOC::convertToGraph( Rect D, Pixel width, Pixel height, float timelineSca
 	const float startBin	= std::clamp( int( D.y1() * frequencyToBin() ), 0, getNumBins() - 1 );
 	const float endBin		= std::clamp( int( D.y2() * frequencyToBin() ), 0, getNumBins() - 1 );
 
-	// Convert PVOC data to Value/Hue data
+	// Convert PV data to Value/Hue data
 	const float maxMag = getMaxPartialMagnitude( startFrame, endFrame, startBin, endBin );
 	std::vector<Func2x1> fs;
 	for( int i = 0; i < getNumChannels(); ++i )
@@ -43,7 +43,7 @@ Graph PVOC::convertToGraph( Rect D, Pixel width, Pixel height, float timelineSca
 	return g;
 	}
 
-const PVOC & PVOC::saveToBMP( const std::string & fileName, Rect D, Pixel width, Pixel height ) const
+const PV & PV::saveToBMP( const std::string & fileName, Rect D, Pixel width, Pixel height ) const
 	{
 	flan_FUNCTION_LOG;
 	convertToGraph( D, width, height ).save_image( fileName );

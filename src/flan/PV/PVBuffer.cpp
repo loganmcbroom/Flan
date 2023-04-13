@@ -1,4 +1,4 @@
-#include "PVOCBuffer.h"
+#include "PVBuffer.h"
 
 #include <algorithm>
 #include <cmath>
@@ -11,38 +11,38 @@
 
 namespace flan {
 
-PVOCBuffer::PVOCBuffer()
+PVBuffer::PVBuffer()
 	: format()
 	, buffer()
 	{}
 
-PVOCBuffer::PVOCBuffer( const Format & other )
+PVBuffer::PVBuffer( const Format & other )
 	: format( other )
 	, buffer( getNumChannels() * getNumFrames() * getNumBins() )
 	{}
 
-PVOCBuffer::PVOCBuffer( const std::string & filename )
+PVBuffer::PVBuffer( const std::string & filename )
 	: format()
 	, buffer()
 	{
 	load( filename );
 	}
 
-PVOCBuffer PVOCBuffer::copy() const
+PVBuffer PVBuffer::copy() const
 	{
-	PVOCBuffer out;
+	PVBuffer out;
 	out.format = format;
 	out.buffer = buffer; // Deep copy
 	return out;
 	}
 
-bool PVOCBuffer::isNull() const
+bool PVBuffer::isNull() const
 	{
 	return buffer.empty() || getSampleRate() == 0;
 	}
 
-// PVOC-EX structure
-//struct WAVEFORMATPVOCEX					// 80 bytes
+// PV-EX structure
+//struct WAVEFORMATPVEX					// 80 bytes
 //	{
 //	struct WAVEFORMATEXTENSIBLE				// 40 bytes
 //		{
@@ -72,8 +72,8 @@ bool PVOCBuffer::isNull() const
 //			} guid;							
 //		} waveExt;
 //	uint32_t version  = 1;				// 4 bytes
-//	uint32_t dataSize = 32;				// 4 bytes, size of PVOCDATA data block
-//	struct PVOCDATA							// 32 bytes
+//	uint32_t dataSize = 32;				// 4 bytes, size of PVDATA data block
+//	struct PVDATA							// 32 bytes
 //		{				
 //		uint16_t dataType;						// 0 (float) or 1 (double)
 //		uint16_t analFormat;					// 0 = Amp/Freq, 1 = Amp/Phase, 2 = Complex 
@@ -88,7 +88,7 @@ bool PVOCBuffer::isNull() const
 //		} flanData;
 //	};
 
-bool PVOCBuffer::save( const std::string & filename ) const
+bool PVBuffer::save( const std::string & filename ) const
 	{
 	const int byteDepth = 3;
 	const double limit = std::pow( 2, 8 * byteDepth - 1 );
@@ -116,7 +116,7 @@ bool PVOCBuffer::save( const std::string & filename ) const
 				}
 
 	//Write entire buffer to file
-	writeRIFF( filename, "PVOC", bytes.data(), bytes.size(), 
+	writeRIFF( filename, "PV", bytes.data(), bytes.size(), 
 		{
 		(uint16_t) 1,					// Formatting
 		(uint16_t) getNumChannels(),	// Channel Count
@@ -133,7 +133,7 @@ bool PVOCBuffer::save( const std::string & filename ) const
 
 	//const int bytesPerSample = sizeof( float );
 
-	//WAVEFORMATPVOCEX flanFormat;
+	//WAVEFORMATPVEX flanFormat;
 
 	////Fill format structure	
 	//flanFormat.waveExt.waveEx.numChannels		= getNumChannels(); 
@@ -205,7 +205,7 @@ bool PVOCBuffer::save( const std::string & filename ) const
 
 	}
 
-bool PVOCBuffer::load( const std::string & filename )
+bool PVBuffer::load( const std::string & filename )
 	{
 	auto bail = []( const std::string & s )
 		{
@@ -214,7 +214,7 @@ bool PVOCBuffer::load( const std::string & filename )
 		};
 
 	std::ifstream file( filename, std::ios::binary );
-	if( !file ) return bail( "Error opening " + filename + " to load PVOC." );
+	if( !file ) return bail( "Error opening " + filename + " to load PV." );
 
 	uint16_t int16Buffer;
 	uint32_t int32Buffer;
@@ -223,10 +223,10 @@ bool PVOCBuffer::load( const std::string & filename )
 	//Read RIFF chunk
 	file.read( strBuffer, 4 ); if( std::strncmp( strBuffer, "RIFF", 4 ) != 0 ) return bail( filename + " isn't a correctly formatted RIFF file.\n" );
 	file.read( strBuffer, 4 ); //Don't care about file size
-	file.read( strBuffer, 4 ); if( std::strncmp( strBuffer, "PVOC", 4 ) != 0 ) return bail( filename + " isn't a PVOC file.\n"  );
+	file.read( strBuffer, 4 ); if( std::strncmp( strBuffer, "PV", 4 ) != 0 ) return bail( filename + " isn't a PV file.\n"  );
 
 	//Read fmt subchunk
-	PVOCBuffer::Format format;
+	PVBuffer::Format format;
 	file.read( strBuffer, 4 ); if( std::strncmp( strBuffer, "fmt ", 4 ) != 0 ) return bail( filename + " isn't formatted correctly (\"fmt \" wasn't at the start of the format chunk).\n" );
 	file.read( (char * ) &int32Buffer, 4 ); //Chunk size
 	file.read( (char * ) &int16Buffer, 2 ); if( int16Buffer != 1 ) return bail( "Formatting must be 1 (signed int)." );
@@ -237,11 +237,11 @@ bool PVOCBuffer::load( const std::string & filename )
 	file.read( (char * ) &int32Buffer, 4 ); format.hopSize = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); format.windowSize = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); if( int32Buffer != 24 ) return bail( "Bit depth must be 24." );
-	file.read( (char * ) &int16Buffer, 2 ); if( int16Buffer != 1 ) return bail( "PVOC window must be 1 (Hann)." );
-	*this = PVOCBuffer( format );
+	file.read( (char * ) &int16Buffer, 2 ); if( int16Buffer != 1 ) return bail( "PV window must be 1 (Hann)." );
+	*this = PVBuffer( format );
 
 	//Read data subchunk
-	file.read( strBuffer, 4 ); if( strncmp( strBuffer, "data", 4 ) != 0 ) return bail( filename + " isn't a correctly formatted PVOC file (\"data\" wasn't at the start of the data chunk).\n" );
+	file.read( strBuffer, 4 ); if( strncmp( strBuffer, "data", 4 ) != 0 ) return bail( filename + " isn't a correctly formatted PV file (\"data\" wasn't at the start of the data chunk).\n" );
 	file.read( (char * ) &int32Buffer, 4 );
 
 	//Read buffer
@@ -266,7 +266,7 @@ bool PVOCBuffer::load( const std::string & filename )
 
 	//auto bail = [&filename]( const std::string & s )
 	//	{
-	//	std::cout << "Error loading PVOC data from " << filename << ": " << s << std::endl;
+	//	std::cout << "Error loading PV data from " << filename << ": " << s << std::endl;
 	//	return false;
 	//	};
 
@@ -274,29 +274,29 @@ bool PVOCBuffer::load( const std::string & filename )
 	//if( !file ) return bail(  "Couldn't open file." );
 
 	////Read entire format chunk
-	//WAVEFORMATPVOCEX fileFormat;
+	//WAVEFORMATPVEX fileFormat;
 	//file.read( (char *) &fileFormat, 80 ); 
 
 	//for( int i = 0; i < 80; ++i )
 	//	std::cout << (uint16_t)((uint8_t *) &fileFormat)[i] << " ";
 
-	//// Check format chunk and create PVOCBuffer::Format
-	//PVOCBuffer::Format flanFormat;
+	//// Check format chunk and create PVBuffer::Format
+	//PVBuffer::Format flanFormat;
 	//if( fileFormat.waveExt.waveEx.formatTag != 0xFFFE ) return bail( "WAVE-EX tag wasn't 0xFFFE" );
 	//flanFormat.numChannels = fileFormat.waveExt.waveEx.numChannels;
 	//flanFormat.sampleRate = fileFormat.waveExt.waveEx.sampleRate;
 	//if( fileFormat.waveExt.waveEx.bitsPerSample != 32 ) return bail( "flan only supports 32-bit floats (bit rate wasn't 32)." );
 	//if( fileFormat.waveExt.waveEx.cbSize != 62 ) return bail( "WAVE-EX cbSize wasn't 62." );
-	//if( fileFormat.waveExt.waveEx.cbSize != 62 ) std::cout << "Discarding channel mask when loading PVOC data (unsupported)." << std::endl;
-	//WAVEFORMATPVOCEX::WAVEFORMATEXTENSIBLE::GUID correctGUID;
-	//if( !memcmp( &fileFormat.waveExt.guid, &correctGUID, sizeof( WAVEFORMATPVOCEX::WAVEFORMATEXTENSIBLE::GUID ) ) )
+	//if( fileFormat.waveExt.waveEx.cbSize != 62 ) std::cout << "Discarding channel mask when loading PV data (unsupported)." << std::endl;
+	//WAVEFORMATPVEX::WAVEFORMATEXTENSIBLE::GUID correctGUID;
+	//if( !memcmp( &fileFormat.waveExt.guid, &correctGUID, sizeof( WAVEFORMATPVEX::WAVEFORMATEXTENSIBLE::GUID ) ) )
 	//	return bail( "Incorrect GUID." );
-	//if( fileFormat.version != 1 ) return bail( "PVOC-EX versions above 1 aren't supported." );
-	//if( fileFormat.dataSize != 32 ) return bail( "PVOC-EX versions above 1 aren't supported." );
+	//if( fileFormat.version != 1 ) return bail( "PV-EX versions above 1 aren't supported." );
+	//if( fileFormat.dataSize != 32 ) return bail( "PV-EX versions above 1 aren't supported." );
 
-	//if( fileFormat.flanData.dataType != 0 ) return bail( "PVOC data type must be float." );
-	//if( fileFormat.flanData.analFormat != 0 ) return bail( "PVOC analysis format must be Amp/Freq." );
-	//if( fileFormat.flanData.sourceFormat != 3 ) return bail( "PVOC source format must be float." );
+	//if( fileFormat.flanData.dataType != 0 ) return bail( "PV data type must be float." );
+	//if( fileFormat.flanData.analFormat != 0 ) return bail( "PV analysis format must be Amp/Freq." );
+	//if( fileFormat.flanData.sourceFormat != 3 ) return bail( "PV source format must be float." );
 	//if( fileFormat.flanData.windowType != 2 ) return bail( "Only Hann window is currently supported." );
 	//flanFormat.numBins = fileFormat.flanData.analysisBins;
 	//flanFormat.overlaps = ( float( flanFormat.numBins ) - 1.0f ) * 2.0f / float( fileFormat.flanData.analStep );		
@@ -316,7 +316,7 @@ bool PVOCBuffer::load( const std::string & filename )
 	//return true;		
 	}
 
-void PVOCBuffer::printSummary() const
+void PVBuffer::printSummary() const
 	{
 	std::cout << *this;
 	}
@@ -325,62 +325,62 @@ void PVOCBuffer::printSummary() const
 //	Getters
 //======================================================
 
-MF PVOCBuffer::getMF( Channel channel, Frame frame, Bin bin ) const
+MF PVBuffer::getMF( Channel channel, Frame frame, Bin bin ) const
 	{
 	return buffer[getBufferPos( channel, frame, bin )];
 	}
 
-auto PVOCBuffer::getNumChannels() const -> Channel
+auto PVBuffer::getNumChannels() const -> Channel
 	{
 	return format.numChannels;
 	}
 
-auto PVOCBuffer::getNumFrames() const -> Frame 
+auto PVBuffer::getNumFrames() const -> Frame 
 	{
 	return format.numFrames;
 	}
 
-auto PVOCBuffer::getNumBins() const -> Bin
+auto PVBuffer::getNumBins() const -> Bin
 	{
 	return format.numBins;
 	}
 
-Frame PVOCBuffer::getDFTSize() const
+Frame PVBuffer::getDFTSize() const
 	{
 	return ( getNumBins() - 1 ) * 2;
 	}
 
-Frame PVOCBuffer::getWindowSize() const
+Frame PVBuffer::getWindowSize() const
 	{
 	return format.windowSize;
 	}
 
-PVOCBuffer::Format PVOCBuffer::getFormat() const
+PVBuffer::Format PVBuffer::getFormat() const
 	{
 	return format;
 	}
 
-SampleRate PVOCBuffer::getSampleRate() const
+SampleRate PVBuffer::getSampleRate() const
 	{
 	return format.sampleRate;
 	}
 
-Frame PVOCBuffer::getHopSize() const
+Frame PVBuffer::getHopSize() const
 	{
 	return format.hopSize;
 	}
 
-Time PVOCBuffer::getLength() const
+Time PVBuffer::getLength() const
 	{
 	return getNumFrames() * frameToTime();
 	}
 
-Frequency PVOCBuffer::getHeight() const
+Frequency PVBuffer::getHeight() const
 	{
 	return float( getNumBins() ) * binToFrequency();
 	}
 
-Magnitude PVOCBuffer::getMaxPartialMagnitude() const
+Magnitude PVBuffer::getMaxPartialMagnitude() const
 	{
 	float maxMagnitude = 0;
 	for( const MF & mf : buffer )
@@ -392,7 +392,7 @@ Magnitude PVOCBuffer::getMaxPartialMagnitude() const
 	return maxMagnitude;
 	}
 
-Magnitude PVOCBuffer::getMaxPartialMagnitude( uint32_t startFrame, uint32_t endFrame, uint32_t startBin, uint32_t endBin ) const
+Magnitude PVBuffer::getMaxPartialMagnitude( uint32_t startFrame, uint32_t endFrame, uint32_t startBin, uint32_t endBin ) const
 	{
 	if( endFrame == 0 ) endFrame = getNumFrames();
 	if( endBin == 0 ) endBin = getNumBins();
@@ -412,42 +412,42 @@ Magnitude PVOCBuffer::getMaxPartialMagnitude( uint32_t startFrame, uint32_t endF
 	return maxMagnitude;
 	}
 
-float PVOCBuffer::timeToFrame() const
+float PVBuffer::timeToFrame() const
 	{
 	return float( getSampleRate() ) / float( getHopSize() );
 	}
 
-float PVOCBuffer::frameToTime() const
+float PVBuffer::frameToTime() const
 	{
 	return 1.0f / timeToFrame();
 	}
 
-float PVOCBuffer::frequencyToBin() const
+float PVBuffer::frequencyToBin() const
 	{
 	return 1.0f / binToFrequency();
 	}
 
-float PVOCBuffer::binToFrequency() const
+float PVBuffer::binToFrequency() const
 	{
 	return float( getSampleRate() ) / float( getDFTSize() );
 	}
 
-float PVOCBuffer::getFrequencyOffset( Channel c, Frame f, Bin b ) const
+float PVBuffer::getFrequencyOffset( Channel c, Frame f, Bin b ) const
 	{
 	return getMF( c, f, b ).f - b * binToFrequency();
 	}
 
-Channel PVOCBuffer::boundChannel( Channel c ) const
+Channel PVBuffer::boundChannel( Channel c ) const
 	{
 	return std::clamp( c, 0, getNumChannels() - 1 );
 	}
 
-Frame PVOCBuffer::boundFrame( Frame f ) const
+Frame PVBuffer::boundFrame( Frame f ) const
 	{
 	return std::clamp( f, 0, getNumFrames() - 1 );
 	}
 
-Bin PVOCBuffer::boundBin( Bin b ) const
+Bin PVBuffer::boundBin( Bin b ) const
 	{
 	return std::clamp( b, 0, getNumBins() - 1 );
 	}
@@ -456,61 +456,61 @@ Bin PVOCBuffer::boundBin( Bin b ) const
 //	Setters
 //======================================================
 
-void PVOCBuffer::setMF( Channel channel, Frame frame, Bin bin, MF value )
+void PVBuffer::setMF( Channel channel, Frame frame, Bin bin, MF value )
 	{
 	buffer[getBufferPos( channel, frame, bin )] = value;
 	}
-MF & PVOCBuffer::getMF( Channel channel, Frame frame, Bin bin )
+MF & PVBuffer::getMF( Channel channel, Frame frame, Bin bin )
 	{
 	return buffer[getBufferPos( channel, frame, bin )];
 	}
 
-void PVOCBuffer::clearBuffer()
+void PVBuffer::clearBuffer()
 	{
 	std::fill( buffer.begin(), buffer.end(), MF{ 0,0 } );
 	}
 
-MF * PVOCBuffer::getMFPointer( Channel channel, Frame frame, Bin bin )
+MF * PVBuffer::getMFPointer( Channel channel, Frame frame, Bin bin )
 	{
 	return buffer.data() + getBufferPos( channel, frame, bin );
 	}
 
-const MF * PVOCBuffer::getMFPointer( Channel channel, Frame frame, Bin bin  ) const
+const MF * PVBuffer::getMFPointer( Channel channel, Frame frame, Bin bin  ) const
 	{
 	return buffer.data() + getBufferPos( channel, frame, bin );
 	}
 
-std::vector<MF> & PVOCBuffer::getBuffer()
+std::vector<MF> & PVBuffer::getBuffer()
 	{
 	return buffer;
 	}
 
-const std::vector<MF> & PVOCBuffer::getBuffer() const
+const std::vector<MF> & PVBuffer::getBuffer() const
 	{
 	return buffer;
 	}
 
-std::vector<MF>::iterator PVOCBuffer::channelBegin( Channel channel )
+std::vector<MF>::iterator PVBuffer::channelBegin( Channel channel )
 	{
 	return buffer.begin() + channel * getNumFrames() * getNumBins();
 	}
 
-std::vector<MF>::iterator PVOCBuffer::channelEnd( Channel channel )
+std::vector<MF>::iterator PVBuffer::channelEnd( Channel channel )
 	{
 	return buffer.begin() + ( channel + 1 ) * getNumFrames() * getNumBins();
 	}
 
-std::vector<MF>::const_iterator PVOCBuffer::channelBegin( Channel channel ) const
+std::vector<MF>::const_iterator PVBuffer::channelBegin( Channel channel ) const
 	{
 	return buffer.begin() + channel * getNumFrames() * getNumBins();
 	}
 
-std::vector<MF>::const_iterator PVOCBuffer::channelEnd( Channel channel ) const
+std::vector<MF>::const_iterator PVBuffer::channelEnd( Channel channel ) const
 	{
 	return buffer.begin() + ( channel + 1 ) * getNumFrames() * getNumBins();
 	}
 
-size_t PVOCBuffer::getBufferPos( Channel c, Frame f, Bin b ) const
+size_t PVBuffer::getBufferPos( Channel c, Frame f, Bin b ) const
 	{
 	return c * getNumFrames() * getNumBins() + f * getNumBins() + b;
 	}
@@ -519,9 +519,9 @@ size_t PVOCBuffer::getBufferPos( Channel c, Frame f, Bin b ) const
 //	Global
 //======================================================
 
-std::ostream & operator<<( std::ostream & os, const PVOCBuffer & flan )
+std::ostream & operator<<( std::ostream & os, const PVBuffer & flan )
 	{
-	os << "\n=========================== PVOCBuffer Info ==========================="
+	os << "\n=========================== PVBuffer Info ==========================="
 	   << "\nChannels:\t"				<< flan.getNumChannels() 
 	   << "\nSamples:\t"				<< flan.getNumFrames() 
 	   << "\nBins:\t"					<< flan.getNumBins() 

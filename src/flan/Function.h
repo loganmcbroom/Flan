@@ -25,7 +25,7 @@ namespace flan {
 class Graph;
 
 /** This is a simple wrapper around std::function that comes with some utilities and optimizations.
- *	These are primarily created by passing either lambda functions or constants to Audio or PVOC methods.
+ *	These are primarily created by passing either lambda functions or constants to Audio or PV methods.
  */
 template< typename I, typename O >
 struct Function

@@ -1,4 +1,4 @@
-#include "flan/PVOC/PVOC.h"
+#include "flan/PV/PV.h"
 
 #include <iostream>
 #include <algorithm>
@@ -11,9 +11,9 @@ using namespace std::ranges;
 
 namespace flan {
 
-PVOC PVOC::modify( const Func2x2 & mod, Interpolator interp ) const
+PV PV::modify( const Func2x2 & mod, Interpolator interp ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 
 	const Bin numBins = getNumBins();
 	const Frame numFrames = getNumFrames();
@@ -31,13 +31,13 @@ PVOC PVOC::modify( const Func2x2 & mod, Interpolator interp ) const
 
 	if( lastOutputFrame * frameToTime() > 60.0f * 10.0f ) // Outfile longer than 10 minutes?
 		{
-		std::cout << "PVOC::modify tried to make a file longer than 10 minutes, which is currently disabled";
-		return PVOC();
+		std::cout << "PV::modify tried to make a file longer than 10 minutes, which is currently disabled";
+		return PV();
 		}
 
 	auto format = getFormat();
 	format.numFrames = ceil( lastOutputFrame );
-	PVOC out( format );
+	PV out( format );
 	out.clearBuffer();
 
 	// Using a mutex per frame has proven to be faster in practice than other lock sets
@@ -193,11 +193,11 @@ PVOC PVOC::modify( const Func2x2 & mod, Interpolator interp ) const
 	return out;
 	}
 
-PVOC PVOC::modifyFrequency( const Func2x1 & mod, Interpolator interp ) const
+PV PV::modifyFrequency( const Func2x1 & mod, Interpolator interp ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 
-	PVOC out( getFormat() );
+	PV out( getFormat() );
 	out.clearBuffer();
 
 	const Channel numChannels = getNumChannels();
@@ -274,9 +274,9 @@ PVOC PVOC::modifyFrequency( const Func2x1 & mod, Interpolator interp ) const
 	return out;
 	}
 
-PVOC PVOC::modifyTime( const Func2x1 & mod, Interpolator interp ) const
+PV PV::modifyTime( const Func2x1 & mod, Interpolator interp ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 
 	const uint32_t numChannels = getNumChannels();
 	const uint32_t numFrames = getNumFrames();
@@ -293,7 +293,7 @@ PVOC PVOC::modifyTime( const Func2x1 & mod, Interpolator interp ) const
 
 	auto format = getFormat();
 	format.numFrames = lastOutputFrame;
-	PVOC out( format );
+	PV out( format );
 	out.clearBuffer();
 
 	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( numChannels ), [&]( Channel channel )
@@ -301,7 +301,7 @@ PVOC PVOC::modifyTime( const Func2x1 & mod, Interpolator interp ) const
 		// Note the bin loop happens first here. There are a lot of considerations involved in the ordering, but
 		//  it comes down to time displacement happening along frames. Paralellizing the frames requires synchronization
 		//  that isn't worth the benifits, and the parallel loop being first is faster. The algorithm isn't cache friendly 
-		//  either way because we store pvoc data in frame-major order.
+		//  either way because we store PV data in frame-major order.
 		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( numBins ), [&]( Bin bin )
 			{
 			// For each adjacent pair of frames
@@ -338,21 +338,21 @@ PVOC PVOC::modifyTime( const Func2x1 & mod, Interpolator interp ) const
 	return out;
 	}
 
-PVOC PVOC::repitch( const Func2x1 & factor, Interpolator interp ) const
+PV PV::repitch( const Func2x1 & factor, Interpolator interp ) const
 	{
 	flan_FUNCTION_LOG;
 	return modifyFrequency( [&]( vec2 tf ){ return factor( tf ) * tf.f(); }, interp );
 	}
 
-PVOC PVOC::stretch( const Func2x1 & factor, Interpolator interp ) const
+PV PV::stretch( const Func2x1 & factor, Interpolator interp ) const
 	{
 	flan_FUNCTION_LOG;
 	return modifyTime( [&factor]( vec2 tf ){ return factor( tf.x(), tf.y() ) * tf.x(); }, interp );
 	}
 
-PVOC PVOC::stretch_spline( const Func1x1 & interpolation ) const
+PV PV::stretch_spline( const Func1x1 & interpolation ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 
 	const auto safeInterpolation = [&interpolation, this]( Frame frame )
 		{
@@ -370,7 +370,7 @@ PVOC PVOC::stretch_spline( const Func1x1 & interpolation ) const
 		format.numFrames += safeInterpolation( frame );
 		}
 	Xs[getNumFrames()-1] = format.numFrames;
-	PVOC out( format );
+	PV out( format );
 
 	//Allocate Y coordinate vectors
 	std::vector<double> magnitudeYs( Xs.size() );
@@ -408,7 +408,7 @@ PVOC PVOC::stretch_spline( const Func1x1 & interpolation ) const
 	return out;
 	}
 
-PVOC PVOC::desample( const Func2x1 & factor, Interpolator interp ) const
+PV PV::desample( const Func2x1 & factor, Interpolator interp ) const
 	{
 	const Channel numChannels = getNumChannels();
 	const Frame numFrames = getNumFrames();
@@ -417,9 +417,9 @@ PVOC PVOC::desample( const Func2x1 & factor, Interpolator interp ) const
 	// Sample factor over frames and bins
 	auto factorSamples = factor.sample( 0, getNumFrames(), frameToTime(), 0, getNumBins(), binToFrequency() );
 
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 
-	PVOC out( getFormat() );
+	PV out( getFormat() );
 	out.clearBuffer();
 
 	for( Channel channel = 0; channel < numChannels; ++channel )
@@ -484,16 +484,16 @@ PVOC PVOC::desample( const Func2x1 & factor, Interpolator interp ) const
 	return out;
 	}
 
-PVOC PVOC::timeExtrapolate( Time startTime, Time endTime, Time extrapolationTime, Interpolator interpolator ) const
+PV PV::timeExtrapolate( Time startTime, Time endTime, Time extrapolationTime, Interpolator interpolator ) const
 	{
-	flan_PROCESS_START( PVOC() );
+	flan_PROCESS_START( PV() );
 
 	// Input validation
 	startTime = std::clamp( startTime, 0.0f, getLength() );
 	if( endTime == -1 ) endTime = getLength();
 	endTime	  = std::clamp( endTime,   0.0f, getLength() );
-	if( startTime >= endTime ) return PVOC();
-	if( extrapolationTime <= 0 ) return PVOC();
+	if( startTime >= endTime ) return PV();
+	if( extrapolationTime <= 0 ) return PV();
 
 	const Frame startFrame	= timeToFrame() * startTime;			//x_1
 	const Frame endFrame	= timeToFrame() * endTime;				//x_2
@@ -501,7 +501,7 @@ PVOC PVOC::timeExtrapolate( Time startTime, Time endTime, Time extrapolationTime
 
 	auto format = getFormat();
 	format.numFrames = endFrame + extFrames;
-	PVOC out( format );
+	PV out( format );
 	out.clearBuffer();
 
 	// Sample interpolator

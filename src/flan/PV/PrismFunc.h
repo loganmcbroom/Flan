@@ -2,12 +2,12 @@
 
 #include <functional>
 
-#include "flan/PVOC/PVOCBuffer.h"
+#include "flan/PV/PVBuffer.h"
 #include "flan/Utility/execution.h"
 
 namespace flan {
 
-/** Function type exclusive to PVOC::prism. 
+/** Function type exclusive to PV::prism. 
 *  The identity PrismFunc is []( int n, Time t, int h, Frequency f, const std::vector<Magnitude> & hM ){ return MF{ hM[h], f }; }
 */
 class PrismFunc {

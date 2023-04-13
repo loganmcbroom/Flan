@@ -33,11 +33,11 @@ if( BUILD_WITH_DOCS )
 endif()
 
 add_library( Flan STATIC
-	src/flan/Conversions/AudioPVOC.cpp
+	src/flan/Conversions/AudioPV.cpp
 	src/flan/Conversions/AudioSPV.cpp
 	src/flan/Conversions/AudioSQPV.cpp
 	src/flan/Conversions/AudioGraph.cpp
-	src/flan/Conversions/PVOCGraph.cpp
+	src/flan/Conversions/PVGraph.cpp
 
 	src/flan/Audio/Audio.cpp
 	src/flan/Audio/AudioBuffer.cpp 
@@ -47,11 +47,11 @@ add_library( Flan STATIC
 	src/flan/Audio/AudioSynthesis.cpp
 	src/flan/Audio/AudioMod.cpp
 	
-	src/flan/PVOC/PVOC.cpp
-	src/flan/PVOC/PVOCBuffer.cpp
-	src/flan/PVOC/PVOCInformation.cpp
-	src/flan/PVOC/PVOCModify.cpp
-	src/flan/PVOC/PrismFunc.h
+	src/flan/PV/PV.cpp
+	src/flan/PV/PVBuffer.cpp
+	src/flan/PV/PVInformation.cpp
+	src/flan/PV/PVModify.cpp
+	src/flan/PV/PrismFunc.h
 
 	src/flan/SPV/SPVBuffer.cpp
 	src/flan/SPV/SPV.cpp
