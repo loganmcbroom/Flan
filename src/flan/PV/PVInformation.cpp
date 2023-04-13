@@ -76,7 +76,7 @@ PV::Salience PV::getSalience( Channel channel, Frequency minFreq, Frequency maxF
 			// Instantaneous amplitude correction
 			const Bin bin = i.x(); // PV bin
 			const float iF = framePtr[bin].f;
-			const float binOffset = iF * frequencyToBin() - i.x();
+			const float binOffset = frequencyToBin( iF ) - i.x();
 			const float kernelFactor = Windows::HannDFT2( binOffset * getWindowSize() / getDFTSize() );
 			const float iM = kernelFactor >= 0.5f? i.y() / kernelFactor : 0;
 				
@@ -109,7 +109,7 @@ std::vector<PV::Contour> PV::getContours( Channel channel, Frequency minFreq, Fr
 	const float TSigma = 0.9f;
 	const float pitchBinInCents = 10;
 	const float maxdeltaPitch = 80; // cents
-	const Frame maxGapLength = .1f * timeToFrame();
+	const Frame maxGapLength = timeToFrame( .1f );
 
 	const Salience salience = getSalience( channel, minFreq, maxFreq );
 	if( salience.buffer.empty() ) return std::vector<PV::Contour>();
@@ -320,8 +320,8 @@ PV PV::prism( const PrismFunc & prismFunc, bool perNote, flan_CANCEL_ARG_CPP ) c
 
 					// For bins near the harmonic, we find all bins with a freq close to the harmonic
 					std::vector<Bin> & binsToChange = binsToChangeVec[harmonic];
-					const Bin startBin = boundBin( freq * frequencyToBin() - 10 );
-					const Bin endBin   = boundBin( freq * frequencyToBin() + 10 );
+					const Bin startBin = boundBin( frequencyToBin( freq ) - 10 );
+					const Bin endBin   = boundBin( frequencyToBin( freq ) + 10 );
 					const MF * sourcePtr = getMFPointer( channel, frame, startBin );
 					for( Bin bin = startBin; bin <= endBin; ++bin, ++sourcePtr )
 						{
@@ -360,7 +360,7 @@ PV PV::prism( const PrismFunc & prismFunc, bool perNote, flan_CANCEL_ARG_CPP ) c
 					{
 					Frequency freq = baseFreq * ( harmonic + 1 );                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 
-					const MF modifiedHarmonic = prismFunc( contourIndex, ( perNote? contourFrame : frame ) * frameToTime(), harmonic, baseFreq, harmonicMaxMags );
+					const MF modifiedHarmonic = prismFunc( contourIndex, frameToTime( perNote ? contourFrame : frame ), harmonic, baseFreq, harmonicMaxMags );
 					if( modifiedHarmonic.f < 0 ) 
 						continue;
 					
@@ -389,7 +389,7 @@ PV PV::prism( const PrismFunc & prismFunc, bool perNote, flan_CANCEL_ARG_CPP ) c
 					else // There is no harmonic to scale, so create one
 						{
 						//std::lock_guard<std::mutex> lock( mutexBuffer[frame] );
-						MF & destMF = out.getMF( channel, frame, modifiedHarmonic.f * frequencyToBin() );
+						MF & destMF = out.getMF( channel, frame, frequencyToBin( modifiedHarmonic.f ) );
 						destMF = modifiedHarmonic;
 						}
 					}

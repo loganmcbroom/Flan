@@ -23,6 +23,8 @@ static std::vector<std::complex<float>> createTwiddles( size_t n, Magnitude magn
 
 SPV Audio::convertToSPV( Bin numBins ) const 
 	{
+	flan_FUNCTION_LOG;
+	
 	SPV::Format format;
 	format.numChannels = getNumChannels();
 	format.numFrames = getNumFrames();
@@ -111,6 +113,8 @@ SPV Audio::convertToMidSideSPV( Frame dftSize ) const
 
 Audio SPV::convertToAudio()
 	{
+	flan_FUNCTION_LOG;
+
 	Audio::Format format;
 	format.numChannels = getNumChannels();
 	format.numFrames = getNumFrames();

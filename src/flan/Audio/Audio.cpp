@@ -12,9 +12,6 @@
 #include "flan/Utility/iota_iter.h"
 #include "flan/Utility/execution.h"
 
-static const float pi = std::acos( -1.0f );
-static const float pi2 = pi * 2.0f;
-
 using namespace flan;
 using namespace std::ranges;
 
@@ -129,7 +126,7 @@ void Audio::modifyVolumeInPlace( const Func1x1 & volumeLevel )
 	{
 	flan_PROCESS_START();
 
-	const auto sampledVolumeLevel = volumeLevel.sample( 0, getNumFrames(), frameToTime() );
+	const auto sampledVolumeLevel = volumeLevel.sample( 0, getNumFrames(), frameToTime( 1 ) );
 
 	for( Channel channel = 0; channel < getNumChannels(); ++channel )
 		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( getNumFrames() ), [&]( Frame frame )
@@ -154,7 +151,7 @@ Audio Audio::shift( Time shift ) const
 
 	if( shift <= 0 ) return cut( -shift, getLength() );
 
-	const Frame shiftFrames = shift * timeToFrame();
+	const Frame shiftFrames = timeToFrame( shift );
 
 	auto format = getFormat();
 	format.numFrames += shiftFrames;
@@ -232,7 +229,7 @@ void Audio::panInPlace( const Func1x1 & panAmount )
 
 	if( getNumChannels() != 2 ) return;
 
-	const auto sampledPanAmount = panAmount.sample( 0, getNumFrames(), frameToTime() );
+	const auto sampledPanAmount = panAmount.sample( 0, getNumFrames(), frameToTime( 1 ) );
 
 	for( Channel channel = 0; channel < 2; ++channel )
 		{
@@ -272,10 +269,11 @@ Audio Audio::cut( Time startTime, Time endTime, Time startFade, Time endFade ) c
 	flan_PROCESS_START( Audio() );
 
 	return cutFrames( 
-		timeToFrame() * startTime, 
-		timeToFrame() * endTime, 
-		timeToFrame() * startFade, 
-		timeToFrame() * endFade );
+		timeToFrame( startTime 	), 
+		timeToFrame( endTime 	), 
+		timeToFrame( startFade 	), 
+		timeToFrame( endFade 	)
+		);
 	}
 
 Audio Audio::cutFrames( Frame start, Frame end, Frame startFade, Frame endFade ) const
@@ -307,7 +305,7 @@ Audio Audio::repitch( const Func1x1 & factor, Time granulTime, WDLResampleType q
 	flan_PROCESS_START( Audio() );
 
 	// Input validation
-	Frame granul = granulTime * timeToFrame();
+	Frame granul = timeToFrame( granulTime );
 	if( granul < 1 ) granul = 1;
 
 	// This will be inverted momentarily, hence the name
@@ -371,7 +369,7 @@ Audio Audio::convolve( const Function<Time, std::vector<float>> & ir ) const
 	{
 	flan_PROCESS_START( Audio() );
 
-	auto irSamples = ir.sample( 0, getNumFrames(), frameToTime() );
+	auto irSamples = ir.sample( 0, getNumFrames(), frameToTime( 1 ) );
 	const size_t maxIrSize = max_element( irSamples, less(), []( const std::vector<float> & v ){ return v.size(); } )->size();
 
 	auto format = getFormat();
@@ -441,12 +439,12 @@ Audio Audio::delay( Time length, const Func1x1 & delayTime, const Func1x1 & deca
 
 	return Audio();
 
-	auto delayTimeSamples = delayTime.sample( 0, length * timeToFrame(), frameToTime() );
-	auto decaySamples = decay.sample( 0, length * timeToFrame(), frameToTime() );
+	auto delayTimeSamples = delayTime.sample( 0, timeToFrame( length ), frameToTime( 1 ) );
+	auto decaySamples = decay.sample( 0, timeToFrame( length ), frameToTime( 1 ) );
 
 	auto eventsPerSecond = [&]( float t )
 		{ 
-		const float delayTime_c = delayTimeSamples[ t * timeToFrame() ];
+		const float delayTime_c = delayTimeSamples[ timeToFrame( t ) ];
 		if( delayTime_c <= 0 ) return 1.0f / float( getSampleRate() );
 		return 1.0f / delayTime_c;
 		};
@@ -458,7 +456,7 @@ Audio Audio::delay( Time length, const Func1x1 & delayTime, const Func1x1 & deca
 		Audio out = mod ? mod( in, t ) : in.copy();
 
 		// Modify gain
-		const float currentDecay = decaySamples[ t * timeToFrame() ];
+		const float currentDecay = decaySamples[ timeToFrame( t ) ];
 		std::for_each( out.getBuffer().begin(), out.getBuffer().end(), [currentDecay]( Sample & s ){ s *= currentDecay; } );
 
 		return out;
@@ -470,13 +468,13 @@ Audio Audio::delay( Time length, const Func1x1 & delayTime, const Func1x1 & deca
 Audio Audio::fade( Time start, Time end, Interpolator interp ) const
 	{
 	flan_PROCESS_START( Audio() );
-	return fadeFrames( start * timeToFrame(), end * timeToFrame(), interp );
+	return fadeFrames( timeToFrame( start ), timeToFrame( end ), interp );
 	}
 
 void Audio::fadeInPlace( Time start, Time end, Interpolator interp )
 	{
 	flan_PROCESS_START();
-	fadeFramesInPlace( start * timeToFrame(), end * timeToFrame(), interp );
+	fadeFramesInPlace( timeToFrame( start ), timeToFrame( end ), interp );
 	}
 
 Audio Audio::fadeFrames( Frame start, Frame end, Interpolator interp ) const
@@ -545,15 +543,15 @@ Audio Audio::grainSelect( Time length, const Func1x1 & grainsPerSecond, const Fu
 	// Input validation
 	if( length <= 0 ) return Audio();
 
-	const auto selectionSamples = selection.sample( 0, length * timeToFrame(), frameToTime() );
-	const auto grainLengthSamples = grainLength.sample( 0, length * timeToFrame(), frameToTime() );
-	const auto fadeSamples = fade.sample( 0, length * timeToFrame(), frameToTime() );
+	const auto selectionSamples = selection		.sample( 0, timeToFrame( length ), frameToTime( 1 ) );
+	const auto grainLengthSamples = grainLength	.sample( 0, timeToFrame( length ), frameToTime( 1 ) );
+	const auto fadeSamples 		= fade			.sample( 0, timeToFrame( length ), frameToTime( 1 ) );
 
 	AudioMod grainMod = [&]( const Audio & in, float t ) -> Audio
 		{
-		const Time selection_c = selectionSamples[ t * timeToFrame() ];
-		const Time grainLength_c = grainLengthSamples[ t * timeToFrame() ];
-		const Time fade_c = fadeSamples[ t * timeToFrame() ];
+		const Time selection_c = selectionSamples[ timeToFrame( t ) ];
+		const Time grainLength_c = grainLengthSamples[ timeToFrame( t ) ];
+		const Time fade_c = fadeSamples[ timeToFrame( t ) ];
 		Audio grain = in.cut( selection_c, selection_c + grainLength_c, fade_c, fade_c );
 		return std::move( grain );
 		};
@@ -617,7 +615,7 @@ Audio Audio::mix( std::vector<const Audio *> ins, std::vector<Time> startTimes, 
 	// Convert start times to frames
 	std::vector<Frame> startFrames;
 	transform( startTimes, std::back_inserter( startFrames ), [&]( Time t ) -> Frame { 
-		return t * ins[0]->timeToFrame(); 
+		return ins[0]->timeToFrame( t ); 
 		} );
 
 	// Sample each function, if there aren't enough use constant 1
@@ -627,7 +625,7 @@ Audio Audio::mix( std::vector<const Audio *> ins, std::vector<Time> startTimes, 
 	const Func1x1 oneFunc = 1;
 	std::transform( iota_iter( 0 ), iota_iter( ins.size() ), std::back_inserter( gainsSamples ), [&]( Index i ) {
 		const Func1x1 * f = i < gains.size() ? gains[i] : &oneFunc;
-		return f->sample( startFrames[i], startFrames[i] + ins[i]->getNumFrames(), ins[i]->frameToTime() );
+		return f->sample( startFrames[i], startFrames[i] + ins[i]->getNumFrames(), ins[i]->frameToTime( 1 ) );
 		} );
 
 	// Output setup

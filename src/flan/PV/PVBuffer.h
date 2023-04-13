@@ -192,23 +192,23 @@ public:
 
 	/** Returns a unit fraction for converting seconds to frames
 	 */
-	float timeToFrame() const;
+	fFrame timeToFrame( Time ) const;
 
 	/** Returns a unit fraction for converting frames to seconds.
 	 */
-	float frameToTime() const;
+	Time frameToTime( fFrame ) const;
 
 	/** Returns a unit fraction for converting frequencies to bins.
 	 */
-	float frequencyToBin() const;
+	fBin frequencyToBin( Frequency ) const;
 
 	/** Returns a unit fraction for converting bins to frequencies.
 	 */
-	float binToFrequency() const;
+	Frequency binToFrequency( fBin ) const;
 
 	/** Returns how far the frequency recorded at the given position is from the bin frequency.
 	 */
-	float getFrequencyOffset( Channel c, Frame f, Bin b ) const;
+	Frequency getFrequencyOffset( Channel c, Frame f, Bin b ) const;
 
 	/** Returns the input channel clamped to the buffer bounds
 	 */

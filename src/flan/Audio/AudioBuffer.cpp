@@ -349,26 +349,26 @@ SampleRate AudioBuffer::getSampleRate() const
 	return format.sampleRate;
 	}
 
-float AudioBuffer::frameToTime() const
+Time AudioBuffer::frameToTime( fFrame f ) const
 	{
-	return 1.0f / timeToFrame();
+	return f / getSampleRate();
 	}
 
-float AudioBuffer::timeToFrame() const
+fFrame AudioBuffer::timeToFrame( Time t ) const
 	{
-	return float( getSampleRate() );
+	return t * float( getSampleRate() );
 	}
 
 auto AudioBuffer::getLength() const -> Time
 	{
-	return getNumFrames() * frameToTime();
+	return frameToTime( getNumFrames() );
 	}
 
 float AudioBuffer::getMaxSampleMagnitude( Time startTime, Time endTime ) const
 	{
 	if( endTime == 0 ) endTime = getLength();
-	auto startIter = buffer.begin() + startTime * timeToFrame();
-	auto endIter   = buffer.begin() + endTime   * timeToFrame();
+	auto startIter = buffer.begin() + timeToFrame( startTime );
+	auto endIter   = buffer.begin() + timeToFrame( endTime );
 	return std::abs(*std::max_element( startIter, endIter, []( float a, float b )
 		{
 		return std::abs( a ) < std::abs( b );

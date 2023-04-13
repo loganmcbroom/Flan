@@ -135,11 +135,11 @@ public:
 
 	/** Returns a unit fraction for converting frames to seconds.
 	 */
-	float frameToTime() const;
+	Time frameToTime( fFrame ) const;
 
 	/** Returns a unit fraction for converting seconds to frames
 	 */
-	float timeToFrame() const;
+	fFrame timeToFrame( Time ) const;
 
 
 	//======================================================

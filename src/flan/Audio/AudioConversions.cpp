@@ -105,7 +105,7 @@ Func1x1 Audio::convertToFunction( Time granularity ) const
 
 	if( granularity <= 0 ) return 0;
 
-	const float granularityFrames = granularity * timeToFrame();
+	const float granularityFrames = timeToFrame( granularity );
 
 	auto safeGetSample = [this]( Frame frame )
 		{
@@ -132,7 +132,7 @@ Func1x1 Audio::convertToFunction( Time granularity ) const
 		ys[x] = sum;
 		}
 	
-	const float timeToFrame_f = timeToFrame();
+	const float timeToFrame_f = timeToFrame( 1 );
 	return [ys = std::move( ys ), timeToFrame_f, granularityFrames ]( float t )
 		{
 		// Get the image sample index as a float

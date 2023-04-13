@@ -12,8 +12,8 @@ Graph Audio::convertToGraph( Interval I, Pixel width, Pixel height, float timeli
 
 	if( I.x2 == -1 ) I.x2 = getLength();
 	
-	const Frame startFrame = I.x1 * timeToFrame();
-	const Frame endFrame = I.x2 * timeToFrame();
+	const Frame startFrame = timeToFrame( I.x1 );
+	const Frame endFrame = timeToFrame( I.x2 );
 
 	Graph g( width, height );
 	g.fillImage( Color::fromHSV( 0, 0, .04 ) );

@@ -11,18 +11,18 @@ Graph PV::convertToGraph( Rect D, Pixel width, Pixel height, float timelineScale
 	if( D.y2() == -1 ) D.r.x2 = getHeight();
 
 	// Validation, Conversion
-	const float startFrame	= std::clamp( int( D.x1() * timeToFrame() ), 0, getNumFrames() - 1 );
-	const float endFrame	= std::clamp( int( D.x2() * timeToFrame() ), 0, getNumFrames() - 1 );
-	const float startBin	= std::clamp( int( D.y1() * frequencyToBin() ), 0, getNumBins() - 1 );
-	const float endBin		= std::clamp( int( D.y2() * frequencyToBin() ), 0, getNumBins() - 1 );
+	const Frame startFrame	= std::clamp( int( timeToFrame( D.x1() ) ), 0, getNumFrames() - 1 );
+	const Frame endFrame	= std::clamp( int( timeToFrame( D.x2() ) ), 0, getNumFrames() - 1 );
+	const Bin startBin		= std::clamp( int( frequencyToBin( D.y1() ) ), 0, getNumBins() - 1 );
+	const Bin endBin		= std::clamp( int( frequencyToBin( D.y2() ) ), 0, getNumBins() - 1 );
 
 	// Convert PV data to Value/Hue data
 	const float maxMag = getMaxPartialMagnitude( startFrame, endFrame, startBin, endBin );
 	std::vector<Func2x1> fs;
-	for( int i = 0; i < getNumChannels(); ++i )
-		fs.push_back( [this, maxMag, i]( float x, float y )
+	for( Channel channel = 0; channel < getNumChannels(); ++channel )
+		fs.push_back( [&]( Time x, Frequency y )
 			{
-			const float m = getMF( i, x * timeToFrame(), y * frequencyToBin() ).m;
+			const float m = getMF( channel, timeToFrame( x ), frequencyToBin( y ) ).m;
 			return std::sqrt( std::abs( m ) / maxMag ) * log2( 2.0f + y ) / 4.0f; // sqrt brings up dark areas, log scaling brings up high frequencies
 			} );
 

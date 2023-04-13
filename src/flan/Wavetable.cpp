@@ -230,10 +230,10 @@ Audio Wavetable::synthesize( Time length, Func1x1 freq, Func1x1 index, Time gran
     {
 	// Ouput setup
 	Audio::Format format = table.getFormat();
-    format.numFrames = length * table.timeToFrame();
+    format.numFrames = table.timeToFrame( length );
     Audio out( format );
 
-	const Frame granularity = granularityTime * out.timeToFrame();
+	const Frame granularity = out.timeToFrame( granularityTime );
 
 	// Resampler setup
 	WDL_Resampler rs;
@@ -246,8 +246,8 @@ Audio Wavetable::synthesize( Time length, Func1x1 freq, Func1x1 index, Time gran
 		flan_CANCEL_POINT( Audio() );
 
 		const double inFreq_c = double( table.getSampleRate() ) / wavelength;
-		const double outFreq_c = freq( outFramesGenerated * out.frameToTime() );
-		const float index_c = std::clamp( index( outFramesGenerated * out.frameToTime() ), 0.0f, float( numWaveforms - 1 ) );
+		const double outFreq_c = freq( out.frameToTime( outFramesGenerated ) );
+		const float index_c = std::clamp( index( out.frameToTime( outFramesGenerated ) ), 0.0f, float( numWaveforms - 1 ) );
 		const Frame leftIndex = std::floor( index_c );
 		const Frame rightIndex = std::ceil( index_c );
 		const float indexRemainder = index_c - leftIndex;

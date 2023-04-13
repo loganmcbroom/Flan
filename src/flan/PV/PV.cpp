@@ -16,7 +16,7 @@ PV PV::getFrame( Time time ) const
 	{
 	flan_PROCESS_START( PV() );
 
-	const float selectedFrame = std::clamp( time * timeToFrame(), 0.0f, float( getNumFrames() - 1 ) );
+	const float selectedFrame = std::clamp( timeToFrame( time ), 0.0f, float( getNumFrames() - 1 ) );
 
 	auto format = getFormat();
 	format.numFrames = 1;
@@ -88,13 +88,13 @@ PV PV::select( Time length, const Func2x2 & selector, bool interpolateFrames, In
 	if( length <= 0 ) return PV();
 
 	auto format = getFormat();
-	format.numFrames = timeToFrame() * length;
+	format.numFrames = timeToFrame( length );
 	PV out( format );
 
-	auto selectorSamples = selector.sample( 0, out.getNumFrames(), frameToTime(), 0, getNumBins(), binToFrequency() );
+	auto selectorSamples = selector.sample( 0, out.getNumFrames(), frameToTime( 1 ), 0, getNumBins(), binToFrequency( 1 ) );
 	std::for_each( std::execution::par_unseq, selectorSamples.begin(), selectorSamples.end(), [&]( vec2 & v ){
-		v.x() *= timeToFrame();
-		v.y() *= frequencyToBin();
+		v.x() = timeToFrame( v.x() );
+		v.y() = frequencyToBin( v.y() );
 	 	} );
 
 	for( Channel channel = 0; channel < out.getNumChannels(); ++channel )
@@ -144,11 +144,11 @@ PV PV::freeze( const std::vector<std::array<Time,2>> & timing ) const
 
 	//Convert times into frames
 	std::vector<TimingPair> timingFrames( timing.size() );
-	std::ranges::transform( timing, timingFrames.begin(), [this]( const std::array<Time,2> & i )
+	std::ranges::transform( timing, timingFrames.begin(), [this]( const std::array<Time,2> & ts )
 		{ 
 		return TimingPair{ 
-			std::clamp( Frame( i[0] * timeToFrame() ), 0, Frame( getNumFrames() - 1 ) ), 
-			std::max  ( Frame( i[1] * timeToFrame() ), 0 ) };
+			std::clamp( Frame( timeToFrame( ts[0] ) ), 0, Frame( getNumFrames() - 1 ) ), 
+			std::max  ( Frame( timeToFrame( ts[1] ) ), 0 ) };
 		});
 
 	//Sort by occurance frame
@@ -205,7 +205,7 @@ PV PV::replaceAmplitudes( const PV & ampSource, const Func2x1 & amount ) const
 
 	// Input validation
 	if( ampSource.isNull() ) return PV();
-	auto amountSamples = amount.sample( 0, getNumFrames(), frameToTime(), 0, getNumBins(), binToFrequency() );
+	auto amountSamples = amount.sample( 0, getNumFrames(), frameToTime( 1 ), 0, getNumBins(), binToFrequency( 1 ) );
 	std::for_each( amountSamples.begin(), amountSamples.end(), []( float & amount ){ amount = std::clamp( amount, 0.0f, 1.0f ); } );
 
 	PV out( getFormat() );
@@ -238,7 +238,7 @@ PV PV::subtractAmplitudes( const PV & ampSource, const Func2x1 & amount ) const
 
 	// Input validation
 	if( ampSource.isNull() ) return PV();
-	auto amountSamples = amount.sample( 0, getNumFrames(), frameToTime(), 0, getNumBins(), binToFrequency() );
+	auto amountSamples = amount.sample( 0, getNumFrames(), frameToTime( 1 ), 0, getNumBins(), binToFrequency( 1 ) );
 
 	PV out = copy();
 
@@ -279,8 +279,8 @@ PV PV::synthesize( Time length, Func1x1 freq, const Func2x1 & harmonicWeights )
 	out.clearBuffer();
 	const float scale = std::sqrt( out.getDFTSize() ); // Don't think too much about this constant
 
-	auto freqSamples = freq.sample( 0, length * out.timeToFrame(), out.frameToTime() );
-	auto harmonicWeightSamples = harmonicWeights.sample( 0, out.getNumFrames(), out.frameToTime(), 0, out.getNumBins(), out.binToFrequency() );
+	auto freqSamples = freq.sample( 0, out.timeToFrame( length ), out.frameToTime( 1 ) );
+	auto harmonicWeightSamples = harmonicWeights.sample( 0, out.getNumFrames(), out.frameToTime( 1 ), 0, out.getNumBins(), out.binToFrequency( 1 ) );
 
 	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( out.getNumFrames() ), [&]( Frame frame )
 		{
@@ -291,7 +291,7 @@ PV PV::synthesize( Time length, Func1x1 freq, const Func2x1 & harmonicWeights )
 			{
 			const float mag = harmonicWeightSamples[buffer_access(harmonic, frame, numHarmonics)] * scale;
 			const Frequency harmonicFreq = freq_c * ( harmonic + 1 );
-			const Bin bin = harmonicFreq * out.frequencyToBin();
+			const Bin bin = out.frequencyToBin( harmonicFreq );
 			out.getMF( 0, frame, bin ) = { mag, harmonicFreq };
 			}
 		} );
@@ -311,7 +311,7 @@ static PV harmonicScaler( const PV & me, const Func2x1 & series, std::function< 
 	PV out( me.getFormat() );
 	out.clearBuffer();
 
-	auto seriesSamples = series.sample( 0, me.getNumFrames(), me.frameToTime(), 0, numHarmonics, 1 );
+	auto seriesSamples = series.sample( 0, me.getNumFrames(), me.frameToTime( 1 ), 0, numHarmonics, 1 );
 
 	for( Channel channel = 0; channel < me.getNumChannels(); ++channel )
 		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( me.getNumFrames() ), [&]( Frame frame )
@@ -326,10 +326,10 @@ static PV harmonicScaler( const PV & me, const Func2x1 & series, std::function< 
 				for( Harmonic harmonic = 0; harmonic < numHarmonics; ++harmonic )
 					{
 					const Frequency harmonicFreq = harmonicFunc( source.f, harmonic );
-					const Bin harmonicBin = harmonicFreq * me.frequencyToBin();
+					const Bin harmonicBin = me.frequencyToBin( harmonicFreq );
 					if( harmonicBin >= me.getHeight() ) break;
 
-					MF & dest = out.getMF( channel, frame, harmonicFreq * me.frequencyToBin() );
+					MF & dest = out.getMF( channel, frame, me.frequencyToBin( harmonicFreq ) );
 					const Magnitude overwriteMag = source.m * seriesSamplesForFrame[harmonic];
 					if( dest.m < overwriteMag )
 						dest = { overwriteMag, harmonicFreq };
@@ -371,8 +371,8 @@ PV PV::shape( const Function<MF,MF> & shaper, bool useShiftAlignment ) const
 				
 				if( useShiftAlignment )
 					{
-					const Bin binShift = bin - inMF.f * frequencyToBin();
-					const Bin shapedMFBin = shapedMF.f * frequencyToBin() + binShift;
+					const Bin binShift = bin - frequencyToBin( inMF.f );
+					const Bin shapedMFBin = frequencyToBin( shapedMF.f ) + binShift;
 					if( shapedMFBin < 0 || getNumBins() <= shapedMFBin ) 
 						continue;
 
@@ -406,7 +406,7 @@ PV PV::perturb( const Func2x1 & magSigma, const Func2x1 & frqSigma, float dampin
 
 	// Function to sample f over domain of this. f must be thread safe or have an appropriate ExecutionPolicy.
 	auto sampleOnThis = [&]( const auto & f ){
-		return f.sample( 0, getNumFrames(), frameToTime(), 0, getNumBins(), binToFrequency() );
+		return f.sample( 0, getNumFrames(), frameToTime( 1 ), 0, getNumBins(), binToFrequency( 1 ) );
 		};
 
 	// Input validation
@@ -488,7 +488,7 @@ PV predicateNLoudestPartials( const PV & me, const Function<Time, Bin> & numBins
 	flan_FUNCTION_LOG;
 
 	// Input validation
-	auto numBinsSamples = numBins.sample( 0, me.getNumFrames(), me.frameToTime() );
+	auto numBinsSamples = numBins.sample( 0, me.getNumFrames(), me.frameToTime( 1 ) );
 	std::ranges::for_each( numBinsSamples, [&]( Bin & b ){ b = std::clamp( b, 0, me.getNumFrames() ); } );
 
 	PV out( me.getFormat() );
@@ -543,11 +543,11 @@ PV PV::resonate( Time length, const Func2x1 & decay ) const
 	if( length < 0 ) 
 		length = 0;
 
-	auto decaySamples = decay.sample( 0, getNumFrames(), frameToTime(), 0, getNumBins(), binToFrequency() );
+	auto decaySamples = decay.sample( 0, getNumFrames(), frameToTime( 1 ), 0, getNumBins(), binToFrequency( 1 ) );
 	std::ranges::for_each( decaySamples, []( float & x ){ x = std::max( x, 0.0f ); } );
 
 	auto format = getFormat();
-	format.numFrames = getNumFrames() + ceil( timeToFrame() * length );
+	format.numFrames = getNumFrames() + ceil( timeToFrame( length )  );
 	PV out( format );
 
 	// Copy first frame into out
@@ -557,7 +557,7 @@ PV PV::resonate( Time length, const Func2x1 & decay ) const
 			out.setMF( channel, 0, bin, getMF( channel, 0, bin ) );
 			}
 	
-	const float secondsPerFrame_c = frameToTime();
+	const float secondsPerFrame_c = frameToTime( 1 );
 
 	for( Channel channel = 0; channel < out.getNumChannels(); ++channel )
 		std::for_each( std::execution::par_unseq, iota_iter( 1 ), iota_iter( out.getNumFrames() ), [&]( Frame frame )

@@ -15,21 +15,19 @@ PV PV::modify( const Func2x2 & mod, Interpolator interp ) const
 	{
 	flan_PROCESS_START( PV() );
 
-	const Bin numBins = getNumBins();
-	const Frame numFrames = getNumFrames();
-	const uint32_t inChannelDataCount = numFrames * numBins;
+	const uint32_t inChannelDataCount = getNumFrames() * getNumBins();
 
 	//Sample mod function and convert output to frame/bin
-	auto modSamples = mod.sample( 0, getNumFrames(), frameToTime(), 0, getNumBins(), binToFrequency() );
+	auto modSamples = mod.sample( 0, getNumFrames(), frameToTime( 1 ), 0, getNumBins(), binToFrequency( 1 ) );
 	std::for_each( std::execution::par_unseq, modSamples.begin(), modSamples.end(), [&]( vec2 & v ){ 
-		v.x() *= timeToFrame();
-		v.y() *= frequencyToBin(); 
+		v.x() = timeToFrame( v.x() );
+		v.y() = frequencyToBin( v.y() ); 
 		} );
 
 	// Get the largest frame value among all mod samples, rounded up
 	const float lastOutputFrame = std::ceil( std::ranges::max_element( modSamples, std::ranges::less(), []( vec2 v ){ return v.x(); } )->x() );
 
-	if( lastOutputFrame * frameToTime() > 60.0f * 10.0f ) // Outfile longer than 10 minutes?
+	if( frameToTime( lastOutputFrame ) > 60.0f * 10.0f ) // Outfile longer than 10 minutes?
 		{
 		std::cout << "PV::modify tried to make a file longer than 10 minutes, which is currently disabled";
 		return PV();
@@ -52,33 +50,33 @@ PV PV::modify( const Func2x2 & mod, Interpolator interp ) const
 		// Calculate and copy mapped frequencies and input magnitudes
 		auto inBufferReadHead = getMFPointer( 0, 0, 0 ) + channel * inChannelDataCount;
 		auto modDataSamplesWriteHead = inModified.begin();
-		for( Frame frame = 0; frame < numFrames; ++frame )
-			for( Bin bin = 0; bin < numBins; ++bin, ++modDataSamplesWriteHead, ++inBufferReadHead )
+		for( Frame frame = 0; frame < getNumFrames(); ++frame )
+			for( Bin bin = 0; bin < getNumBins(); ++bin, ++modDataSamplesWriteHead, ++inBufferReadHead )
 				{
 				*modDataSamplesWriteHead = 
 					{
 					inBufferReadHead->m,
-					mod( frame * frameToTime(), inBufferReadHead->f ).y()
+					mod( frame * frameToTime( 1 ), inBufferReadHead->f ).y()
 					};
 				}
 		
-		std::for_each( std::execution::par, iota_iter(1), iota_iter(numFrames), [&]( Frame frame )
+		std::for_each( std::execution::par, iota_iter( 1 ), iota_iter( getNumFrames() ), [&]( Frame frame )
 			{
-			//std::for_each( std::execution::par, iota_iter(1), iota_iter(numBins), [&]( Bin bin )
-			for( Bin bin = 1; bin < numBins; ++bin )
+			//std::for_each( std::execution::par, iota_iter(1), iota_iter(getNumBins()), [&]( Bin bin )
+			for( Bin bin = 1; bin < getNumBins(); ++bin )
 				{
 				// For each square in the input, the mod maps that square to this quad
 				const std::array<vec2, 4> p = {
-					modSamples[ ( frame - 1 ) * numBins + bin - 1 ],
-					modSamples[ ( frame - 0 ) * numBins + bin - 1 ],
-					modSamples[ ( frame - 0 ) * numBins + bin - 0 ],
-					modSamples[ ( frame - 1 ) * numBins + bin - 0 ] };
+					modSamples[ ( frame - 1 ) * getNumBins() + bin - 1 ],
+					modSamples[ ( frame - 0 ) * getNumBins() + bin - 1 ],
+					modSamples[ ( frame - 0 ) * getNumBins() + bin - 0 ],
+					modSamples[ ( frame - 1 ) * getNumBins() + bin - 0 ] };
 		
 				const std::array<MF, 4> pMF = {
-					inModified[ ( frame - 1 ) * numBins + bin - 1 ],
-					inModified[ ( frame - 0 ) * numBins + bin - 1 ],
-					inModified[ ( frame - 0 ) * numBins + bin - 0 ],
-					inModified[ ( frame - 1 ) * numBins + bin - 0 ] };
+					inModified[ ( frame - 1 ) * getNumBins() + bin - 1 ],
+					inModified[ ( frame - 0 ) * getNumBins() + bin - 1 ],
+					inModified[ ( frame - 0 ) * getNumBins() + bin - 0 ],
+					inModified[ ( frame - 1 ) * getNumBins() + bin - 0 ] };
 		
 				const vec2 D12 = p[1] - p[0];
 				const vec2 D23 = p[2] - p[1];
@@ -88,8 +86,8 @@ PV PV::modify( const Func2x2 & mod, Interpolator interp ) const
 				// Find bounding box containing quad to iterate over
 				const Frame minx = fmax( floor( fmin( fmin( p[0].x(), p[1].x() ), fmin( p[2].x(), p[3].x() ) ) ), 0 );
 				const Bin 	miny = fmax( floor( fmin( fmin( p[0].y(), p[1].y() ), fmin( p[2].y(), p[3].y() ) ) ), 0 );
-				const Frame maxx = fmin( ceil(  fmax( fmax( p[0].x(), p[1].x() ), fmax( p[2].x(), p[3].x() ) ) ), format.numFrames - 1 );
-				const Bin 	maxy = fmin( ceil(  fmax( fmax( p[0].y(), p[1].y() ), fmax( p[2].y(), p[3].y() ) ) ), numBins - 1 );
+				const Frame maxx = fmin( ceil(  fmax( fmax( p[0].x(), p[1].x() ), fmax( p[2].x(), p[3].x() ) ) ), out.getNumFrames() - 1 );
+				const Bin 	maxy = fmin( ceil(  fmax( fmax( p[0].y(), p[1].y() ), fmax( p[2].y(), p[3].y() ) ) ), out.getNumBins() - 1 );
 			
 				// Iterate over bounding box
 				for( Frame x = minx; x <= maxx; ++x )
@@ -200,39 +198,36 @@ PV PV::modifyFrequency( const Func2x1 & mod, Interpolator interp ) const
 	PV out( getFormat() );
 	out.clearBuffer();
 
-	const Channel numChannels = getNumChannels();
-	const Frame numFrames = getNumFrames();
-	const Bin numBins = getNumBins();
-	const uint32_t inChannelDataCount = numFrames * numBins;
+	const size_t inChannelDataCount = getNumFrames() * getNumBins();
 
 	//Sample mod function and convert output to frame/bin
-	auto modSamples = mod.sample( 0, getNumFrames(), frameToTime(), 0, getNumBins(), binToFrequency() );
+	auto modSamples = mod.sample( 0, getNumFrames(), frameToTime( 1 ), 0, getNumBins(), binToFrequency( 1 ) );
 	std::for_each( std::execution::par_unseq, modSamples.begin(), modSamples.end(), [&]( Frequency & f ){ 
-		f *= frequencyToBin(); 
+		f = frequencyToBin( f ); 
 		} );
 
 	std::vector<MF> inModified( inChannelDataCount ); // Buffer for sampling mod on input frequencies
 
-	for( Channel channel = 0; channel < numChannels; ++channel )
+	for( Channel channel = 0; channel < getNumChannels(); ++channel )
 		{
 		// Sample mod over input frequencies into inModified
 		// This is computed early because the mod function isn't guaranteed to be thread safe
 		auto inBufferReadHead = getMFPointer( 0, 0, 0 ) + channel * inChannelDataCount;
 		auto modDataSamplesWriteHead = inModified.begin();
-		for( Frame frame = 0; frame < numFrames; ++frame )
-			for( Bin bin = 0; bin < numBins; ++bin, ++modDataSamplesWriteHead, ++inBufferReadHead )
+		for( Frame frame = 0; frame < getNumFrames(); ++frame )
+			for( Bin bin = 0; bin < getNumBins(); ++bin, ++modDataSamplesWriteHead, ++inBufferReadHead )
 				*modDataSamplesWriteHead = {
 					inBufferReadHead->m,
-					mod( frame * frameToTime(), inBufferReadHead->f ) 
+					mod( frameToTime( frame ), inBufferReadHead->f ) 
 					};
 
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( numFrames ), [&]( Frame frame )
+		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( getNumFrames() ), [&]( Frame frame )
 			{
 			// For each adjacent pair of bins
-			for( Bin bin = 1; bin < numBins; ++bin )
+			for( Bin bin = 1; bin < getNumBins(); ++bin )
 				{
 				// Get where those bins were mapped to by the mod function
-				const int hiBinIndex = frame * numBins + bin;
+				const int hiBinIndex = frame * getNumBins() + bin;
 				const float loBin = modSamples[hiBinIndex - 1];
 				const float hiBin = modSamples[hiBinIndex    ];
 				const bool forward = hiBin > loBin; // Check if the bins were mapped upside down
@@ -278,14 +273,10 @@ PV PV::modifyTime( const Func2x1 & mod, Interpolator interp ) const
 	{
 	flan_PROCESS_START( PV() );
 
-	const uint32_t numChannels = getNumChannels();
-	const uint32_t numFrames = getNumFrames();
-	const uint32_t numBins = getNumBins();
-
 	// Sample mod function and convert output to frame/bin
-	auto modSamples = mod.sample( 0, getNumFrames(), frameToTime(), 0, getNumBins(), binToFrequency() );
+	auto modSamples = mod.sample( 0, getNumFrames(), frameToTime( 1 ), 0, getNumBins(), binToFrequency( 1 ) );
 	std::for_each( std::execution::par_unseq, modSamples.begin(), modSamples.end(), [&]( Time & t ){ 
-		t *= timeToFrame();
+		t = timeToFrame( t );
 		} );
 
 	// Get the largest frame value among all mod samples, rounded up
@@ -296,19 +287,19 @@ PV PV::modifyTime( const Func2x1 & mod, Interpolator interp ) const
 	PV out( format );
 	out.clearBuffer();
 
-	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( numChannels ), [&]( Channel channel )
+	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( getNumChannels() ), [&]( Channel channel )
 		{
 		// Note the bin loop happens first here. There are a lot of considerations involved in the ordering, but
 		//  it comes down to time displacement happening along frames. Paralellizing the frames requires synchronization
 		//  that isn't worth the benifits, and the parallel loop being first is faster. The algorithm isn't cache friendly 
 		//  either way because we store PV data in frame-major order.
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( numBins ), [&]( Bin bin )
+		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( getNumBins() ), [&]( Bin bin )
 			{
 			// For each adjacent pair of frames
-			std::for_each( std::execution::seq, iota_iter( 1 ), iota_iter( numFrames ), [&]( Frame frame )
+			std::for_each( std::execution::seq, iota_iter( 1 ), iota_iter( getNumFrames() ), [&]( Frame frame )
 				{
-				const float lFrame = modSamples[ buffer_access( bin, frame - 1, numBins ) ];
-				const float rFrame = modSamples[ buffer_access( bin, frame    , numBins ) ];
+				const float lFrame = modSamples[ buffer_access( bin, frame - 1, getNumBins() ) ];
+				const float rFrame = modSamples[ buffer_access( bin, frame    , getNumBins() ) ];
 				const bool forward = rFrame > lFrame;
 
 				const Frame startFrame = forward ? std::ceil( lFrame ) : std::floor( lFrame );
@@ -356,7 +347,7 @@ PV PV::stretch_spline( const Func1x1 & interpolation ) const
 
 	const auto safeInterpolation = [&interpolation, this]( Frame frame )
 		{
-		return std::max( uint32_t( interpolation( frame * frameToTime() ) ), 1u );
+		return std::max( uint32_t( interpolation( frame * frameToTime( 1 ) ) ), 1u );
 		};
 	
 	//Set up output and spline x coordinates
@@ -408,37 +399,31 @@ PV PV::stretch_spline( const Func1x1 & interpolation ) const
 	return out;
 	}
 
-PV PV::desample( const Func2x1 & factor, Interpolator interp ) const
+PV PV::desample( const Func2x1 & eventsPerSecond, Interpolator interp ) const
 	{
-	const Channel numChannels = getNumChannels();
-	const Frame numFrames = getNumFrames();
-	const Bin numBins = getNumBins();
-
 	// Sample factor over frames and bins
-	auto factorSamples = factor.sample( 0, getNumFrames(), frameToTime(), 0, getNumBins(), binToFrequency() );
+	auto eventsPerSecondSamples = eventsPerSecond.sample( 0, getNumFrames(), frameToTime( 1 ), 0, getNumBins(), binToFrequency( 1 ) );
 
 	flan_PROCESS_START( PV() );
 
 	PV out( getFormat() );
 	out.clearBuffer();
 
-	for( Channel channel = 0; channel < numChannels; ++channel )
+	for( Channel channel = 0; channel < getNumChannels(); ++channel )
 		{
 		// This stores which frames should be interpolated between
-		std::vector<std::vector<Frame>> selectedFrames( numBins );
+		std::vector<std::vector<Frame>> selectedFrames( getNumBins() );
 
-		// This stores an accumulator for each bin which is integrated into
-		std::vector<float> accums( numBins, 1 ); // Start at one to trigger interp from starting frame
-
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( numBins ), [&]( Bin bin )
+		// Factor is integrated, when the accumulator passes 1 the currest frame is selected as an interpolation endpoint
+		std::vector<float> accums( getNumBins(), 1 ); // Start at one to trigger interp from starting frame
+		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( getNumBins() ), [&]( Bin bin )
 			{
-			// Factor is integrated, when the accumulator passes 1 the currest frame is selected as an interpolation endpoint
-			for( Frame frame = 0; frame < numFrames; ++frame )
+			for( Frame frame = 0; frame < getNumFrames(); ++frame )
 				{
 				float & accum = accums[bin];
-				if( factorSamples[ frame * numBins + bin ] < 1.0f ) continue;
-				const float factor_c = factorSamples[ frame * numBins + bin ];
-				accum += factor_c;
+				if( eventsPerSecondSamples[buffer_access( bin, frame, getNumBins() )] < 1.0f ) continue;
+				const float factor_c = eventsPerSecondSamples[buffer_access( bin, frame, getNumBins() )];
+				accum += factor_c * frameToTime( 1 );
 				if( accum >= 1.0f )
 					{
 					selectedFrames[bin].push_back( frame );
@@ -447,8 +432,7 @@ PV PV::desample( const Func2x1 & factor, Interpolator interp ) const
 				}
 			} );
 
-		//for( Bin bin = 0; bin < numBins; ++bin )
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( numBins ), [&]( Bin bin )
+		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( getNumBins() ), [&]( Bin bin )
 			{
 			// For each pair of selected interpolation endpoints in selectedFrames, intepolate the frames between them
 			std::vector<Frame> & selectedFrames_c = selectedFrames[bin];
@@ -495,9 +479,9 @@ PV PV::timeExtrapolate( Time startTime, Time endTime, Time extrapolationTime, In
 	if( startTime >= endTime ) return PV();
 	if( extrapolationTime <= 0 ) return PV();
 
-	const Frame startFrame	= timeToFrame() * startTime;			//x_1
-	const Frame endFrame	= timeToFrame() * endTime;				//x_2
-	const Frame extFrames	= timeToFrame() * extrapolationTime;	//Extrapolated frames to generate
+	const Frame startFrame	= timeToFrame( startTime );			//x_1
+	const Frame endFrame	= timeToFrame( endTime );			//x_2
+	const Frame extFrames	= timeToFrame( extrapolationTime );	//Extrapolated frames to generate
 
 	auto format = getFormat();
 	format.numFrames = endFrame + extFrames;
@@ -528,11 +512,11 @@ PV PV::timeExtrapolate( Time startTime, Time endTime, Time extrapolationTime, In
 				// containing the same frequency, and squishing all those into one bin will cause the output to sound less full.
 				// To fix that, we note for each bin at endTime how far off the frequency in that bin is from where it "should" be. That shift
 				// is later added back in when deciding what bin should be used for the current frequency, maintaining fidelity.
-				const Bin rightBinShift = bin - rightMF.f * frequencyToBin();
+				const Bin rightBinShift = bin - frequencyToBin( rightMF.f );
 
 				const MF extrapMF = { std::abs( ( 1.0f - mix ) * leftMF.m + mix * rightMF.m ),
 					          					( 1.0f - mix ) * leftMF.f + mix * rightMF.f };
-				const Bin extrapBin = extrapMF.f * frequencyToBin() + rightBinShift;
+				const Bin extrapBin = frequencyToBin( extrapMF.f ) + rightBinShift;
 				if( extrapBin < 0 || extrapBin >= getNumBins() ) continue;
 
 				MF & outMF = out.getMF( channel, frame, extrapBin );

@@ -372,12 +372,12 @@ Frame PVBuffer::getHopSize() const
 
 Time PVBuffer::getLength() const
 	{
-	return getNumFrames() * frameToTime();
+	return frameToTime( getNumFrames() );
 	}
 
 Frequency PVBuffer::getHeight() const
 	{
-	return float( getNumBins() ) * binToFrequency();
+	return binToFrequency( getNumBins() );
 	}
 
 Magnitude PVBuffer::getMaxPartialMagnitude() const
@@ -412,29 +412,29 @@ Magnitude PVBuffer::getMaxPartialMagnitude( uint32_t startFrame, uint32_t endFra
 	return maxMagnitude;
 	}
 
-float PVBuffer::timeToFrame() const
+fFrame PVBuffer::timeToFrame( Time t ) const
 	{
-	return float( getSampleRate() ) / float( getHopSize() );
+	return t * float( getSampleRate() ) / float( getHopSize() );
 	}
 
-float PVBuffer::frameToTime() const
+float PVBuffer::frameToTime( fFrame f ) const
 	{
-	return 1.0f / timeToFrame();
+	return f / ( float( getSampleRate() ) / float( getHopSize() ) );
 	}
 
-float PVBuffer::frequencyToBin() const
+fBin PVBuffer::frequencyToBin( Frequency f ) const
 	{
-	return 1.0f / binToFrequency();
+	return f / ( float( getSampleRate() ) / float( getDFTSize() ) );
 	}
 
-float PVBuffer::binToFrequency() const
+Frequency PVBuffer::binToFrequency( fBin b ) const
 	{
-	return float( getSampleRate() ) / float( getDFTSize() );
+	return b * float( getSampleRate() ) / float( getDFTSize() );
 	}
 
 float PVBuffer::getFrequencyOffset( Channel c, Frame f, Bin b ) const
 	{
-	return getMF( c, f, b ).f - b * binToFrequency();
+	return getMF( c, f, b ).f - binToFrequency( b );
 	}
 
 Channel PVBuffer::boundChannel( Channel c ) const
@@ -525,8 +525,8 @@ std::ostream & operator<<( std::ostream & os, const PVBuffer & flan )
 	   << "\nChannels:\t"				<< flan.getNumChannels() 
 	   << "\nSamples:\t"				<< flan.getNumFrames() 
 	   << "\nBins:\t"					<< flan.getNumBins() 
-	   << "\nFrames/second:\t"			<< flan.timeToFrame() 
-	   << "\nBins/Frequency:\t"			<< flan.frequencyToBin() 
+	   << "\nFrames/second:\t"			<< flan.timeToFrame( 1 ) 
+	   << "\nBins/Frequency:\t"			<< flan.frequencyToBin( 1 ) 
 	   << "\nHop size:\t"				<< flan.getHopSize() 
 	   << "\nDFT size:\t"				<< flan.getDFTSize() 
 	   << "\n=======================================================================" 

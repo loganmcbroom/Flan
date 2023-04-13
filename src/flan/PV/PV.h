@@ -221,10 +221,10 @@ public:
 
 	/** This is functionally equivalent to stretching the input down by factor, and then up.
 	 *	Resolution is lost, but the lost resolution is filled via interpolation
-	 *	\param factor Local information loss ratio. A factor of two will replace every other frame with interpolated data.
+	 *	\param eventsPerSecond The number of MFs per second that are not removed before interpolation.
 	 *	\param interp Interpolator deciding how lost frames are restored from their surroundings
 	 */
-	PV desample( const Func2x1 & factor, Interpolator interp = Interpolators::linear ) const;
+	PV desample( const Func2x1 & eventsPerSecond, Interpolator interp = Interpolators::linear ) const;
 
 	/** Warning: this process can produce very loud outputs with unscrupulouss parameters.
 	 *	The input is left alone until startTime. Between startTime and endTime the output is an interpolation

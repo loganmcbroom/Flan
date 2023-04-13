@@ -69,7 +69,7 @@ PV Audio::convertToPV( Frame windowSize, Frame hopSize, Frame dftSize, flan_CANC
 
 			std::for_each( std::execution::par_unseq, iota_iter(0), iota_iter(numBins), [&]( Bin bin )
 				{
-				out.getMF( channel, hop, bin ) = phase_vocoder( phaseBuffer[bin], fft.getComplexBuffer()[bin], bin * out.binToFrequency(), hopSize * frameToTime() );
+				out.getMF( channel, hop, bin ) = phase_vocoder( phaseBuffer[bin], fft.getComplexBuffer()[bin], out.binToFrequency( bin ), frameToTime( hopSize ) );
 				} );
 			}
 		}
@@ -115,7 +115,7 @@ Audio PV::convertToAudio( flan_CANCEL_ARG_CPP ) const
 			
 			std::transform( std::execution::par_unseq, iota_iter(0), iota_iter( getNumBins() ), fft.complexBegin(), [&]( Bin bin )
 				{
-				return inverse_phase_vocoder( phaseBuffer[bin], getMF( channel, PVFrame, bin ), Frame( 1 ) * frameToTime() );
+				return inverse_phase_vocoder( phaseBuffer[bin], getMF( channel, PVFrame, bin ), frameToTime( 1 ) );
 				} );
 
 			fft.c2rExecute();

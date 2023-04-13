@@ -19,6 +19,7 @@ public:
 	Audio convertToLeftRightAudio() const;
 
 	SQPV modifyFrequency( const Func2x1 & mod ) const;
+	SQPV repitch( const Func2x1 & mod ) const;
 };
 
 }

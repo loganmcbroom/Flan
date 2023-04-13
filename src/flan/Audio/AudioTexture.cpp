@@ -15,13 +15,13 @@ Audio Audio::texture( Time length, const Func1x1 & eventsPerSecond, const Func1x
 	flan_PROCESS_START( Audio() );
 
 	// Get constants
-	const float secondsPerFrame = frameToTime();
-	const float framesPerSecond = timeToFrame();
-	const Frame lengthFrames = length * timeToFrame();
+	const float secondsPerFrame = 1.0f / getSampleRate();
+	const float framesPerSecond = getSampleRate();
+	const Frame lengthFrames = timeToFrame( length );
 
 	// Input validation
 	if( length <= 0 ) return Audio();
-	auto eventsPerSecondSamples = eventsPerSecond.sample( 0, length * timeToFrame(), frameToTime() );
+	auto eventsPerSecondSamples = eventsPerSecond.sample( 0, lengthFrames, frameToTime( 1 ) );
 	std::for_each( eventsPerSecondSamples.begin(), eventsPerSecondSamples.end(), []( float & EpS )
 		{ 
 		EpS = std::max( 0.0f, EpS );
@@ -31,7 +31,7 @@ Audio Audio::texture( Time length, const Func1x1 & eventsPerSecond, const Func1x
 		return eventsPerSecondSamples[ f ] * secondsPerFrame;
 		};
 
-	auto scatterSamples = scatter.sample( 0, length * timeToFrame(), frameToTime() );
+	auto scatterSamples = scatter.sample( 0, lengthFrames, frameToTime( 1 ) );
 	std::for_each( scatterSamples.begin(), scatterSamples.end(), []( float & scatter )
 		{ 
 		scatter = std::max( 0.0f, scatter );

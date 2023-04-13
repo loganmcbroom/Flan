@@ -33,7 +33,13 @@ int main()
 
 	//play( bah.convertToPV().convertToAudio().setVolume( .7 ) );
 	//play( bah.convertToSPV().convertToAudio().setVolume( .7 ) );
-	play( bah.convertToMidSideSQPV().modifyFrequency( []( vec2 tf ){ return tf.f() * .5f; } ).convertToLeftRightAudio().setVolume( .7 ) );
+	// auto a = bah.repitch( .5 ).setVolume( .7 );
+	// auto b = bah.convertToMidSidePV()  .modifyFrequency( []( vec2 tf ){ return tf.f() * .5f; } ).convertToLeftRightAudio().setVolume( .7 );
+	// auto c = bah.convertToMidSideSPV() .modifyFrequency( []( vec2 tf ){ return tf.f() * .5f; } ).convertToLeftRightAudio().setVolume( .7 );
+	auto d = bah.convertToMidSideSQPV().modifyFrequency( []( vec2 tf ){ return tf.f() * .5f; } ).convertToLeftRightAudio().setVolume( .7 );
+
+	//play( Audio::join( std::vector<const Audio *>{ &a, &b, &c, &d } ) );
+	play( d );
 	
 	return 0;
 	}
