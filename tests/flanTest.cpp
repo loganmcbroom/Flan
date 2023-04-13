@@ -1,38 +1,40 @@
 #include <iostream>
 #include <algorithm>
 #include <numeric>
+#include <ranges>
 
-#include "flan/Audio.h"
-#include "flan/PVOC.h" 
+#include "flan/Audio/Audio.h"
+#include "flan/PVOC/PVOC.h" 
+#include "flan/SPV/SPV.h" 
+#include "flan/SQPV/SQPV.h"
 #include "flan/Function.h"
 #include "flan/Wavetable.h"
 #include "flan/Synthesis.h"
 #include "flan/Graph.h"
-#include "flan/FFTHelper.h"
 #include "flan/WindowFunctions.h"
 #include "flan/Utility/Timer.h"
+#include "Iir1/Iir.h"
+#include "flan/DSPUtility.h"
 
 using namespace flan;
 
 void play( const Audio & toPlay );
 void graph( const std::string & f );
 void graph( const bitmap_image & b );
+template<typename T, typename Callable>
+void test( const T & a, int n, Callable c );
+
+const float pi = std::acos( -1.0f );
 
 int main()
 	{
-	// auto bah = Audio( "Audio/Bah.wav" );
-	// auto bai = Audio( "Audio/Bai.wav" );
-	// auto meow = Audio( "Audio/meow.wav" );
-	// auto slaw = Audio( "Audio/slaw.wav" );
-	auto sine = Audio::synthesize( []( float t ){ return sin( 2.0f * acos( -1.0f ) * t ); }, 2, []( float t ){ return 220; } );
-	//auto saw = Audio::synthesize( Func1x1::saw, 5, []( float t ){ return 220 + 220 * t; } );
+	auto synth = Audio::synthesize( []( float t ){ return t / flan::pi - 1.0f; }, 1, []( float t ){ return 200.0f; } );
+	auto bah = Audio( "Bah.wav" );
 
-	//auto b = bah.convertToPVOC().resonate( 0, .5 ).convertToAudio();
-
-
-	play( sine );
-	//graph( b.convertToGraph() );
-
+	//play( bah.convertToPVOC().convertToAudio().setVolume( .7 ) );
+	//play( bah.convertToSPV().convertToAudio().setVolume( .7 ) );
+	play( bah.convertToMidSideSQPV().modifyFrequency( []( vec2 tf ){ return tf.f() * .5f; } ).convertToLeftRightAudio().setVolume( .7 ) );
+	
 	return 0;
 	}
 
@@ -43,7 +45,7 @@ void play( const Audio & toPlay )
 	{
 	if( !toPlay.save( "TempFileSave.wav" ) )
         return;
-	std::cout << "Playing sound ... \n";
+	std::cout << "Playing sound ... " << std::endl;
 	if( ! PlaySound("TempFileSave.wav", nullptr, SND_FILENAME) )
 		std::cout << "Error playing sound\n";
 	}
@@ -58,3 +60,15 @@ void graph( const bitmap_image & b )
 	b.save_image( "Temp.bmp" );
 	system( (std::string("start ") + "Temp.bmp").c_str() );
 	}
+
+template<typename T, typename Callable>
+void test( const T & a, int n, Callable c )
+	{
+	Timer t;
+	t.start();
+	for( const int i : std::views::iota( 0, n ) )
+		c( a );
+	t.stop();
+	std::cout << t.elapsedMilliseconds() / n << " ms per call" << std::endl;
+	}
+

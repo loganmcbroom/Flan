@@ -33,38 +33,76 @@ if( BUILD_WITH_DOCS )
 endif()
 
 add_library( Flan STATIC
-	src/Audio/Audio.cpp
-	src/Audio/AudioBuffer.cpp 
-	src/Audio/AudioTexture.cpp
-	src/Audio/AudioConversions.cpp
-	src/Audio/AudioInformation.cpp
-	src/Audio/AudioSynthesis.cpp
-	src/Audio/YIN.cpp
+	src/flan/Conversions/AudioPVOC.cpp
+	src/flan/Conversions/AudioSPV.cpp
+	src/flan/Conversions/AudioSQPV.cpp
+	src/flan/Conversions/AudioGraph.cpp
+	src/flan/Conversions/PVOCGraph.cpp
+
+	src/flan/Audio/Audio.cpp
+	src/flan/Audio/AudioBuffer.cpp 
+	src/flan/Audio/AudioTexture.cpp
+	src/flan/Audio/AudioConversions.cpp
+	src/flan/Audio/AudioInformation.cpp
+	src/flan/Audio/AudioSynthesis.cpp
+	src/flan/Audio/AudioMod.cpp
 	
-	src/PVOC/PVOC.cpp
-	src/PVOC/PVOCBuffer.cpp 
-	src/PVOC/PVOCConversions.cpp 
-	src/PVOC/PVOCInformation.cpp
-	src/PVOC/PVOCModify.cpp
+	src/flan/PVOC/PVOC.cpp
+	src/flan/PVOC/PVOCBuffer.cpp
+	src/flan/PVOC/PVOCInformation.cpp
+	src/flan/PVOC/PVOCModify.cpp
+	src/flan/PVOC/PrismFunc.h
 
-	src/Utility/Color.cpp
-	src/Utility/Bytes.cpp
-	src/Utility/Interpolator.cpp
-	src/Utility/View.cpp
-	src/Utility/Interval.cpp 
-	src/Utility/Rect.cpp 
+	src/flan/SPV/SPVBuffer.cpp
+	src/flan/SPV/SPV.cpp
 
-	src/WindowFunctions.cpp 
-	src/Function.cpp
-	src/CLContext.cpp
-	src/CLProgs.cpp
-	src/FFTHelper.cpp 
-	src/Graph.cpp
-	src/Wavetable.cpp
-	src/DSPUtility.cpp 
+	src/flan/SQPV/SQPVBuffer.cpp
+	src/flan/SQPV/SQPV.cpp
+
+	src/flan/Utility/Color.cpp
+	src/flan/Utility/Bytes.cpp
+	src/flan/Utility/Interpolator.cpp
+	src/flan/Utility/View.cpp
+	src/flan/Utility/Interval.cpp 
+	src/flan/Utility/Rect.cpp 
+	src/flan/Utility/iota_iter.h
+	src/flan/Utility/buffer_access.cpp
+	src/flan/Utility/execution.cpp 
+
+	src/flan/WindowFunctions.cpp 
+	src/flan/Function.cpp
+	src/flan/FFTHelper.cpp 
+	src/flan/Graph.cpp
+	src/flan/Wavetable.cpp
+	src/flan/DSPUtility.cpp 
+	src/flan/phase_vocoder.cpp 
+
+
+	# Included libs 
 	
 	src/WDL/resample.cpp
-	include/r8brain/r8bbase.cpp 
+
+	src/r8brain/r8bbase.cpp 
+
+	src/Iir1/Iir.h
+	src/Iir1/Biquad.cpp
+	src/Iir1/Butterworth.cpp
+	src/Iir1/Cascade.cpp
+	src/Iir1/ChebyshevI.cpp
+	src/Iir1/ChebyshevII.cpp
+	src/Iir1/Custom.cpp
+	src/Iir1/PoleFilter.cpp
+	src/Iir1/RBJ.cpp
+
+	src/constantQ/src/ConstantQ.cpp
+	src/constantQ/src/CQInverse.cpp
+	src/constantQ/src/CQKernel.cpp
+	src/constantQ/src/Pitch.cpp
+	src/constantQ/src/dsp/FFT.cpp
+	src/constantQ/src/dsp/KaiserWindow.cpp
+	src/constantQ/src/dsp/MathUtilities.cpp
+	src/constantQ/src/dsp/Resampler.cpp
+	src/constantQ/src/dsp/SincWindow.cpp
 	)  
 add_library( Flan::Flan ALIAS Flan )
 
@@ -77,8 +115,9 @@ set_target_properties( Flan PROPERTIES
 # Set includes
 target_include_directories( Flan 
 	PUBLIC 
-		$<INSTALL_INTERFACE:include>    
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		$<INSTALL_INTERFACE:src>    
+        $<BUILD_INTERFACE: 
+			${CMAKE_CURRENT_SOURCE_DIR}/src >
 	)
 
 #==================================================================================================
@@ -95,19 +134,15 @@ target_link_libraries( Flan PUBLIC FFTWF::fftwf )
 find_package( SndFile REQUIRED ) # SndFile::sndfile
 target_link_libraries( Flan PUBLIC SndFile::SndFile )
 
-find_package( OpenCL REQUIRED ) # OpenCL::OpenCL
-target_link_libraries( Flan PUBLIC OpenCL::OpenCL )
-
 #==================================================================================================
 # Installation
 #==================================================================================================
 
 include( GNUInstallDirs )
-set( INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/Flan )
+set( INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/flan )
 
 # Copy include folder into install folder
-install( DIRECTORY include/Flan/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/Flan )
-install( DIRECTORY include/bmp/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/bmp )
+install( DIRECTORY src DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/src )
 
 # Create export target, but don't install yet
 install( 
@@ -124,7 +159,7 @@ install(
 	EXPORT FlanTargets
     FILE FlanTargets.cmake
     NAMESPACE Flan::
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/Flan
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/flan
 )
 
 # Create a ConfigVersion.cmake file
