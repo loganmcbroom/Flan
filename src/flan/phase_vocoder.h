@@ -1,16 +1,15 @@
 #pragma once
 
 #include <complex>
+
 #include "defines.h"
+#include "flan/Utility/MF.h"
 
 namespace flan {
 
-struct MF;
+// The phase buffer should be a Radian type, but it needs additional precision in this case to avoid rounding error accumulation.
 
-// This executes the crux of a phase vocoder transform, that is estimating the frequency 
-// of a partial using phase information over time
-MF phase_vocoder( Radian & phase_buffer, std::complex<float> cpx, Frequency bin_frequency, Time hop_time );
-
-std::complex<float> inverse_phase_vocoder( Radian & phase_buffer, MF mf, Time hop_time );
+MF phase_vocoder( double & phase_buffer, std::complex<float> cpx, Frequency bin_frequency, FrameRate analysis_rate, FrameRate sample_rate );
+std::complex<float> inverse_phase_vocoder( double & phase_buffer, MF mf, FrameRate analysis_rate );
 
 }

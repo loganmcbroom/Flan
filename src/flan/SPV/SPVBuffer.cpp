@@ -19,12 +19,12 @@ const SPVBuffer::Format & SPVBuffer::getFormat() const
 	return format;
 	}
 
-fFrame SPVBuffer::timeToFrame( Time t ) const 
+fFrame SPVBuffer::timeToFrame( Second t ) const 
 	{
 	return t * getSampleRate();
 	}
 
-Time SPVBuffer::frameToTime( fFrame f ) const 
+Second SPVBuffer::frameToTime( fFrame f ) const 
 	{
 	return f / getSampleRate();
 	}
@@ -54,11 +54,15 @@ Bin	SPVBuffer::getNumBins() const
 	return format.numBins;
 	}
 
-SampleRate SPVBuffer::getSampleRate() const
+FrameRate SPVBuffer::getSampleRate() const
 	{
 	return format.sampleRate;
 	}
 
+FrameRate SPVBuffer::getAnalysisRate() const
+	{
+	return format.sampleRate;
+	}
 
 bool SPVBuffer::isNull() const 
 	{ 
@@ -68,12 +72,12 @@ bool SPVBuffer::isNull() const
 
 MF SPVBuffer::getMF( Channel channel, Frame frame, Bin bin ) const 
 	{
-	return buffer[ buffer_access( channel, frame, bin ) ];
+	return buffer[ getBufferPos( channel, frame, bin ) ];
 	}
 
 MF & SPVBuffer::getMF( Channel channel, Frame frame, Bin bin )
 	{
-	return buffer[ buffer_access( channel, frame, bin ) ];
+	return buffer[ getBufferPos( channel, frame, bin ) ];
 	}
 
 void SPVBuffer::clearBuffer()
@@ -89,7 +93,7 @@ SPVBuffer SPVBuffer::copy() const
 	return out;
 	}
 
-size_t SPVBuffer::buffer_access( Channel c, Frame f, Bin b ) const
+size_t SPVBuffer::getBufferPos( Channel c, Frame f, Bin b ) const
 	{
 	return ( c * getNumFrames() + f ) * getNumBins() + b;
 	}

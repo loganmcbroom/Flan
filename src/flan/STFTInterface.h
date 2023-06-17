@@ -20,8 +20,8 @@ public:
 		//window type?
 		};
 
-	virtual fFrame timeToFrame( Time ) const = 0;
-	virtual Time frameToTime( fFrame ) const = 0;
+	virtual fFrame timeToFrame( Second ) const = 0;
+	virtual Second frameToTime( fFrame ) const = 0;
 	virtual fBin frequencyToBin( Frequency ) const = 0;
 	virtual Frequency binToFrequency( fBin ) const = 0;
 
@@ -30,7 +30,7 @@ public:
 	virtual Bin	getNumBins( Frame f = -1 ) const = 0;
 	virtual SampleRate getSampleRate() const = 0;
 
-	Time getLength() const { return frameToTime( getNumFrames() ); }
+	Second getLength() const { return frameToTime( getNumFrames() ); }
 	Frequency getHeight() const { return binToFrequency( getNumBins() ); }
 	bool isNull() const 
 		{ 

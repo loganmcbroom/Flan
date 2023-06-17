@@ -275,7 +275,7 @@ PV PV::modifyTime( const Func2x1 & mod, Interpolator interp ) const
 
 	// Sample mod function and convert output to frame/bin
 	auto modSamples = mod.sample( 0, getNumFrames(), frameToTime( 1 ), 0, getNumBins(), binToFrequency( 1 ) );
-	std::for_each( std::execution::par_unseq, modSamples.begin(), modSamples.end(), [&]( Time & t ){ 
+	std::for_each( std::execution::par_unseq, modSamples.begin(), modSamples.end(), [&]( Second & t ){ 
 		t = timeToFrame( t );
 		} );
 
@@ -468,7 +468,7 @@ PV PV::desample( const Func2x1 & eventsPerSecond, Interpolator interp ) const
 	return out;
 	}
 
-PV PV::timeExtrapolate( Time startTime, Time endTime, Time extrapolationTime, Interpolator interpolator ) const
+PV PV::timeExtrapolate( Second startTime, Second endTime, Second extrapolationTime, Interpolator interpolator ) const
 	{
 	flan_PROCESS_START( PV() );
 

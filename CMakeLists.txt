@@ -46,6 +46,7 @@ add_library( Flan STATIC
 	src/flan/Audio/AudioInformation.cpp
 	src/flan/Audio/AudioSynthesis.cpp
 	src/flan/Audio/AudioMod.cpp
+	src/flan/Audio/AudioFilter.cpp
 	
 	src/flan/PV/PV.cpp
 	src/flan/PV/PVBuffer.cpp
@@ -69,6 +70,7 @@ add_library( Flan STATIC
 	src/flan/Utility/buffer_access.cpp
 	src/flan/Utility/execution.cpp 
 
+	src/flan/defines.cpp 
 	src/flan/WindowFunctions.cpp 
 	src/flan/Function.cpp
 	src/flan/FFTHelper.cpp 
@@ -79,30 +81,9 @@ add_library( Flan STATIC
 
 
 	# Included libs 
-	
 	src/WDL/resample.cpp
 
 	src/r8brain/r8bbase.cpp 
-
-	src/Iir1/Iir.h
-	src/Iir1/Biquad.cpp
-	src/Iir1/Butterworth.cpp
-	src/Iir1/Cascade.cpp
-	src/Iir1/ChebyshevI.cpp
-	src/Iir1/ChebyshevII.cpp
-	src/Iir1/Custom.cpp
-	src/Iir1/PoleFilter.cpp
-	src/Iir1/RBJ.cpp
-
-	src/constantQ/src/ConstantQ.cpp
-	src/constantQ/src/CQInverse.cpp
-	src/constantQ/src/CQKernel.cpp
-	src/constantQ/src/Pitch.cpp
-	src/constantQ/src/dsp/FFT.cpp
-	src/constantQ/src/dsp/KaiserWindow.cpp
-	src/constantQ/src/dsp/MathUtilities.cpp
-	src/constantQ/src/dsp/Resampler.cpp
-	src/constantQ/src/dsp/SincWindow.cpp
 	)  
 add_library( Flan::Flan ALIAS Flan )
 

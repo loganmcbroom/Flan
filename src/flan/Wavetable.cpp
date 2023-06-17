@@ -226,7 +226,7 @@ Wavetable::Wavetable()
 	{
 	}
 
-Audio Wavetable::synthesize( Time length, Func1x1 freq, Func1x1 index, Time granularityTime, flan_CANCEL_ARG_CPP ) const
+Audio Wavetable::synthesize( Second length, Func1x1 freq, Func1x1 index, Second granularityTime, flan_CANCEL_ARG_CPP ) const
     {
 	// Ouput setup
 	Audio::Format format = table.getFormat();

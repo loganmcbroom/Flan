@@ -5,7 +5,7 @@
 #include <complex>
 
 #include "flan/defines.h"
-#include "flan/Utility/MF.h"
+#include "flan/Utility/MP.h"
 
 namespace flan {
 
@@ -17,7 +17,7 @@ public:
 		Channel numChannels = 0;
 		Frame numFrames = 0;
 		fBin binsPerOctave = 0;
-		SampleRate sampleRate = 48000; 
+		FrameRate sampleRate = 48000; 
 		std::pair<Frequency, Frequency> bandwidth;
 		};
 
@@ -30,37 +30,51 @@ public:
 	SQPVBuffer();
 	SQPVBuffer( const Format & );
 
-	MF getMF( Channel, Frame, Bin ) const;
-	MF & getMF( Channel, Frame, Bin );
+	MP getMP( Channel, Frame, Bin ) const;
+	MP & getMP( Channel, Frame, Bin );
 
 	const Format & getFormat() const;
 
-	fFrame timeToFrame( Time ) const;
-	Time frameToTime( fFrame ) const;
+	fFrame timeToFrame( Second ) const;
+	Second frameToTime( fFrame ) const;
 	fBin frequencyToBin( Frequency ) const;
 	Frequency binToFrequency( fBin ) const;
+	Pitch frequencyToPitch( Frequency ) const;
+	Frequency pitchToFrequency( Pitch ) const;
+	UnsignedPitch binToPitch( fBin ) const;
+	fBin pitchToBin( UnsignedPitch ) const;
 
 	Channel getNumChannels() const;
 	Frame getNumFrames() const;
 	Bin	getNumBins() const;
-	SampleRate getSampleRate() const;
-	std::pair<Frequency, Frequency> getBandwidth() const;
+	FrameRate getSampleRate() const;
+	FrameRate getAnalysisRate() const;
+	std::pair<Frequency, Frequency> getFrequencyBandwidth() const;
+	std::pair<UnsignedPitch, UnsignedPitch> getPitchBandwidth() const;
 	fBin getBinsPerOctave() const;
-	float getQuality() const;
-
-	Time getLength() const { return frameToTime( getNumFrames() ); }
+	Cycle getQ() const;
+	Frequency getBinFrequency( Bin ) const;
+	Second getLength() const { return frameToTime( getNumFrames() ); }
 	bool isNull() const;
 	void clearBuffer();
 	SQPVBuffer copy() const;
+	Magnitude getMaxPartialMagnitude() const;
+	Magnitude getMaxPartialMagnitude( Frame startFrame, Frame endFrame = 0, Bin startBin = 0, Bin endBin = 0 ) const;
+	Frame getPeriod( Bin ) const;
 
-	size_t buffer_access( Channel, Frame, Bin ) const;
+	size_t getBufferPos( Channel, Frame, Bin ) const;
 
 private:
 
 	const Format format;
+
+	// Commonly used data is computed once at construction
+	const std::pair<UnsignedPitch, UnsignedPitch> pitch_bandwidth;
 	const Bin numBins;
-	const float quality;
-	std::vector<MF> buffer;
+	const Cycle Q; // "The number of cycles needed to make an analysis" - Sliding With A Constant Q
+	const std::vector<Frequency> bin_frequencies;
+
+	std::vector<MP> buffer;
 };
 
 }

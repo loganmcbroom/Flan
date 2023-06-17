@@ -11,6 +11,7 @@
 #include "WDL/resample.h"
 #include "flan/Utility/iota_iter.h"
 #include "flan/Utility/execution.h"
+#include "Audio.h"
 
 using namespace flan;
 using namespace std::ranges;
@@ -21,7 +22,7 @@ Audio::Audio()
 	: AudioBuffer() 
 	{}
 
-Audio::Audio( std::vector<float> && buffer, Channel numChannels, SampleRate sr )
+Audio::Audio( std::vector<float> && buffer, Channel numChannels, FrameRate sr )
 	: AudioBuffer( std::move( buffer ), numChannels, sr )
 	{}
 
@@ -114,6 +115,41 @@ Audio Audio::invertPhase() const
 	return out;
 	}
 
+// std::vector<Audio> Audio::splitChannels() const
+// 	{
+// 	auto format = getFormat();
+// 	format.numChannels = 1;
+
+// 	std::vector<Audio> out( getNumChannels(), format );
+
+// 	for( Channel channel = 0; channel < getNumChannels(); ++channel )
+// 		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( getNumFrames() ), [&]( Frame frame )
+// 			{
+// 			out[channel].getSample( 0, frame ) = getSample( channel, frame );
+// 			} );
+
+// 	return out;
+// 	}
+
+Audio Audio::combineChannels( const Audio & other ) const
+	{
+	Audio::Format format;
+	format.numChannels = getNumChannels() + other.getNumChannels();
+	format.numFrames = std::max( getNumFrames(), other.getNumFrames() );
+	format.sampleRate = getSampleRate();
+	Audio out( format );
+
+	for( Channel channel = 0; channel < getNumChannels(); ++channel )
+		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( getNumFrames() ), [&]( Frame frame )
+			{ out.getSample( channel, frame ) = getSample( channel, frame ); } );
+
+	for( Channel channel = 0; channel < other.getNumChannels(); ++channel )
+		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( other.getNumFrames() ), [&]( Frame frame )
+			{ out.getSample( channel + getNumChannels(), frame ) = other.getSample( channel, frame ); } );
+		
+	return out;
+	}
+
 Audio Audio::modifyVolume( const Func1x1 & volumeLevel ) const
 	{
 	flan_PROCESS_START( Audio() );
@@ -145,7 +181,7 @@ Audio Audio::setVolume( const Func1x1 & level ) const
 	return modifyVolume( [&]( float t ){ return level(t) / maxMag; } );
 	}
 
-Audio Audio::shift( Time shift ) const
+Audio Audio::shift( Second shift ) const
 	{
 	flan_PROCESS_START( Audio() );
 
@@ -177,7 +213,7 @@ Audio Audio::waveshape( const Func1x1 & shaper ) const
 	return out;
 	}
 
-// Audio Audio::pan( Function<Time,vec2> panPosition, Function<Time, vec2> listenerPosition, std::vector<vec2> speakerPositions, bool haasEffect ) const
+// Audio Audio::pan( Function<Second,vec2> panPosition, Function<Second, vec2> listenerPosition, std::vector<vec2> speakerPositions, bool haasEffect ) const
 // 	{
 	/*
 	Panning is a much more complex process than anyone gives it credit for. Panning two speakers isn't difficult, but
@@ -264,12 +300,12 @@ Audio Audio::reverse() const
 	return out;
 	}
 
-Audio Audio::cut( Time startTime, Time endTime, Time startFade, Time endFade ) const
+Audio Audio::cut( Second startTime, Second endTime, Second startFade, Second endFade ) const
 	{
 	flan_PROCESS_START( Audio() );
 
 	return cutFrames( 
-		timeToFrame( startTime 	), 
+		timeToFrame( startTime	), 
 		timeToFrame( endTime 	), 
 		timeToFrame( startFade 	), 
 		timeToFrame( endFade 	)
@@ -300,7 +336,7 @@ Audio Audio::cutFrames( Frame start, Frame end, Frame startFade, Frame endFade )
 	return out;
 	}
 
-Audio Audio::repitch( const Func1x1 & factor, Time granulTime, WDLResampleType quality ) const
+Audio Audio::repitch( const Func1x1 & factor, Second granulTime, WDLResampleType quality ) const
 	{
 	flan_PROCESS_START( Audio() );
 
@@ -365,7 +401,7 @@ Audio Audio::repitch( const Func1x1 & factor, Time granulTime, WDLResampleType q
 	return out;
 	}
 
-Audio Audio::convolve( const Function<Time, std::vector<float>> & ir ) const
+Audio Audio::convolve( const Function<Second, std::vector<float>> & ir ) const
 	{
 	flan_PROCESS_START( Audio() );
 
@@ -431,7 +467,7 @@ Audio Audio::iterate( uint32_t n, const AudioMod & mod, bool feedback ) const
 	return texture( getLength() * ( float( n ) - 0.5f ), 1.0f / getLength(), 0, mod, feedback );
 	}
 
-Audio Audio::delay( Time length, const Func1x1 & delayTime, const Func1x1 & decay, const AudioMod & mod ) const
+Audio Audio::delay( Second length, const Func1x1 & delayTime, const Func1x1 & decay, const AudioMod & mod ) const
 	{
 	flan_PROCESS_START( Audio() );
 
@@ -465,13 +501,13 @@ Audio Audio::delay( Time length, const Func1x1 & delayTime, const Func1x1 & deca
 	return texture( length, eventsPerSecond, 0, delayMod, true );
 	}
 
-Audio Audio::fade( Time start, Time end, Interpolator interp ) const
+Audio Audio::fade( Second start, Second end, Interpolator interp ) const
 	{
 	flan_PROCESS_START( Audio() );
 	return fadeFrames( timeToFrame( start ), timeToFrame( end ), interp );
 	}
 
-void Audio::fadeInPlace( Time start, Time end, Interpolator interp )
+void Audio::fadeInPlace( Second start, Second end, Interpolator interp )
 	{
 	flan_PROCESS_START();
 	fadeFramesInPlace( timeToFrame( start ), timeToFrame( end ), interp );
@@ -535,7 +571,7 @@ void Audio::fadeFramesInPlace( Frame start, Frame end, Interpolator interp )
 // 	return convolve( ir, canceller );
 // 	}
 
-Audio Audio::grainSelect( Time length, const Func1x1 & grainsPerSecond, const Func1x1 & scatter, 
+Audio Audio::grainSelect( Second length, const Func1x1 & grainsPerSecond, const Func1x1 & scatter, 
 		const Func1x1 & selection, const Func1x1 & grainLength, const Func1x1 & fade, const AudioMod & mod ) const
 	{
 	flan_PROCESS_START( Audio() );
@@ -549,9 +585,9 @@ Audio Audio::grainSelect( Time length, const Func1x1 & grainsPerSecond, const Fu
 
 	AudioMod grainMod = [&]( const Audio & in, float t ) -> Audio
 		{
-		const Time selection_c = selectionSamples[ timeToFrame( t ) ];
-		const Time grainLength_c = grainLengthSamples[ timeToFrame( t ) ];
-		const Time fade_c = fadeSamples[ timeToFrame( t ) ];
+		const Second selection_c = selectionSamples[ timeToFrame( t ) ];
+		const Second grainLength_c = grainLengthSamples[ timeToFrame( t ) ];
+		const Second fade_c = fadeSamples[ timeToFrame( t ) ];
 		Audio grain = in.cut( selection_c, selection_c + grainLength_c, fade_c, fade_c );
 		return std::move( grain );
 		};
@@ -559,7 +595,7 @@ Audio Audio::grainSelect( Time length, const Func1x1 & grainsPerSecond, const Fu
 	return texture( length, grainsPerSecond, scatter, mod ? mod( grainMod ) : grainMod, false );
 	}
 
-std::vector<Audio> Audio::chop( Time sliceLength, Time fade ) const
+std::vector<Audio> Audio::chop( Second sliceLength, Second fade ) const
 	{
 	flan_PROCESS_START( std::vector<Audio>() );
 
@@ -568,7 +604,7 @@ std::vector<Audio> Audio::chop( Time sliceLength, Time fade ) const
 
 	// Get all but last slice
 	std::vector<Audio> outs;
-	Time slicePosition = 0;
+	Second slicePosition = 0;
 	while( slicePosition + sliceLength < getLength() )
 		{
 		outs.push_back( cut( slicePosition, slicePosition + sliceLength, fade, fade ) );
@@ -578,7 +614,7 @@ std::vector<Audio> Audio::chop( Time sliceLength, Time fade ) const
 	return outs;
 	}
 
-Audio Audio::rearrange( Time sliceLength, Time fade ) const
+Audio Audio::rearrange( Second sliceLength, Second fade ) const
 	{
 	flan_PROCESS_START( Audio() );
 
@@ -595,13 +631,108 @@ Audio Audio::rearrange( Time sliceLength, Time fade ) const
 
 	return Audio::join( std::move( chops ), -fade );
 	}
-	
+
+Audio Audio::compress( 
+	Function<Second, Decibel> threshold, 
+	Function<Second, float> ratio, 
+	Function<Second, Second> attack, 
+	Function<Second, Second> release, 
+	Function<Second, Decibel> knee_width, 
+	const Audio * sidechain_source ) const
+	{
+	/*
+	For details on compression, both in general and as referenced in this function:
+	"Digital Dynamic Range Compressor Design — A Tutorial and Analysis"
+	https://www.eecs.qmul.ac.uk/~josh/documents/2012/GiannoulisMassbergReiss-dynamicrangecompression-JAES2012.pdf
+	*/
+
+	flan_PROCESS_START( Audio() );
+
+	if( sidechain_source == nullptr )
+		sidechain_source = this;
+
+	Audio out = copy();
+
+	// Sample all inputs
+	auto threshold_sampled 	= threshold .sample( 0, getNumFrames(), frameToTime( 1 ) );
+	auto ratio_sampled 		= ratio     .sample( 0, getNumFrames(), frameToTime( 1 ) );
+	auto attack_sampled 	= attack    .sample( 0, getNumFrames(), frameToTime( 1 ) );
+	auto release_sampled 	= release   .sample( 0, getNumFrames(), frameToTime( 1 ) );
+	auto knee_width_sampled = knee_width.sample( 0, getNumFrames(), frameToTime( 1 ) );
+
+	// (4)
+	auto gain_computer = [&]( Decibel x_G, Decibel threshold, Decibel knee_width, float ratio ) -> Decibel
+		{
+		const Decibel overshoot = x_G - threshold;
+		if( overshoot <= -knee_width/2.0f )
+			return x_G;
+		else if( overshoot >= knee_width / 2.0f )
+			return x_G + overshoot * ( 1 / ratio - 1 );
+		else
+			{
+			const Decibel z = overshoot + knee_width/2.0f;
+			return x_G + ( 1 / ratio - 1 ) * z*z / ( 2.0f * knee_width );
+			}
+		};
+
+	// (7)
+	auto time_to_alpha = [sr = getSampleRate()]( Second t ){ return std::exp( -1.0f / ( t * sr ) ); };
+
+	// (17)
+	// The term "peak detector" is used in the literature. It is more or less a filter.
+	auto smooth_decouple_peak_detector = [&]( float & y_1, float & y_L, Frame f, float x_L )
+		{
+		float a_A = time_to_alpha( attack_sampled[ f ] );
+		float a_R = time_to_alpha( release_sampled[ f ] );
+		y_1 = std::max( x_L, a_R * y_1 );
+		y_L = a_A * y_L + ( 1.0f - a_A ) * y_1;
+		return y_L;
+		};
+
+	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( getNumChannels() ), [&]( Channel channel)
+		{
+		// Peak detector buffers
+		float y_1 = 0;
+		float y_L = 0;
+		for( Frame frame = 0; frame < getNumFrames(); ++frame )
+			{
+			// (23)
+			const Sample x = sidechain_source->getSample( channel, frame );
+			const Decibel x_G = 20.0f * std::log10( std::max( std::abs( x ), 1e-6f ) ); // Max is to avoid -inf from log
+			const Decibel y_G = gain_computer( x_G, 
+				threshold_sampled[ frame ], 
+				knee_width_sampled[ frame ], 
+				ratio_sampled[ frame ] );
+			const Decibel x_L = x_G - y_G;
+			const Decibel c_dB = -smooth_decouple_peak_detector( y_1, y_L, frame, x_L );
+
+			const Sample c = std::pow( 10.0f, c_dB / 20.0f );
+			out.getSample( channel, frame ) *= c;
+			}
+		} );
+
+	return out;
+	}
+
+// Audio Audio::limit(
+// 	Function<Second, Decibel> threshold, 
+// 	Function<Second, float> compression_ratio, 
+// 	Function<Second, Second> attack, 
+// 	Function<Second, Second> release, 
+// 	Function<Second, Decibel> knee_width ) const
+// 	{
+// 	return Audio();
+// 	}
 
 //========================================================
 // Multi-In Procs
 //========================================================
 
-Audio Audio::mix( std::vector<const Audio *> ins, std::vector<Time> startTimes, const std::vector<const Func1x1 *> & gains )
+Audio Audio::mix( 
+	std::vector<const Audio *> ins, 
+	std::vector<Second> startTimes, 
+	const std::vector<const Function<Second, Amplitude> *> & amplitudes 
+	)
 	{
 	flan_FUNCTION_LOG;
 
@@ -614,17 +745,17 @@ Audio Audio::mix( std::vector<const Audio *> ins, std::vector<Time> startTimes, 
 
 	// Convert start times to frames
 	std::vector<Frame> startFrames;
-	transform( startTimes, std::back_inserter( startFrames ), [&]( Time t ) -> Frame { 
+	transform( startTimes, std::back_inserter( startFrames ), [&]( Second t ) -> Frame { 
 		return ins[0]->timeToFrame( t ); 
 		} );
 
 	// Sample each function, if there aren't enough use constant 1
 	// We only sample the gains when they are needed, but because these functions are relative to global time 0, we need to be 
 	// careful later when accessing them
-	std::vector<std::vector<float>> gainsSamples;
-	const Func1x1 oneFunc = 1;
-	std::transform( iota_iter( 0 ), iota_iter( ins.size() ), std::back_inserter( gainsSamples ), [&]( Index i ) {
-		const Func1x1 * f = i < gains.size() ? gains[i] : &oneFunc;
+	std::vector<std::vector<Amplitude>> amplitude_samples;
+	const Function<Second, Amplitude> level_func = 1;
+	std::transform( iota_iter( 0 ), iota_iter( ins.size() ), std::back_inserter( amplitude_samples ), [&]( Index i ) {
+		const Function<Second, Amplitude> * f = i < amplitudes.size() ? amplitudes[i] : &level_func;
 		return f->sample( startFrames[i], startFrames[i] + ins[i]->getNumFrames(), ins[i]->frameToTime( 1 ) );
 		} );
 
@@ -661,7 +792,7 @@ Audio Audio::mix( std::vector<const Audio *> ins, std::vector<Time> startTimes, 
 				{
 				const Frame globalFrame = localFrame + startFrames[in];
 				if( 0 <= globalFrame && globalFrame < format.numFrames ) {
-					const float gain = gainsSamples[in][localFrame];
+					const float gain = amplitude_samples[in][localFrame];
 					out.getSample( channel, globalFrame ) += me.getSample( channel, localFrame ) * gain;
 					}
 				} );
@@ -670,44 +801,48 @@ Audio Audio::mix( std::vector<const Audio *> ins, std::vector<Time> startTimes, 
 	return out;
 	}
 
-Audio Audio::mix( const std::vector<Audio> & ins, const std::vector<Time> & startTimes, const std::vector<Func1x1> & gains )
+Audio Audio::mix( 
+	const std::vector<Audio> & ins, 
+	const std::vector<Second> & startTimes, 
+	const std::vector<Function<Second, Amplitude>> & amplitudes 
+	)
 	{
-	return mix( getPtrs( ins ), startTimes, getPtrs( gains ) );
+	return mix( getPtrs( ins ), startTimes, getPtrs( amplitudes ) );
 	}
 
-Audio Audio::join( const std::vector<const Audio *> & ins, Time offset )
+Audio Audio::join( const std::vector<const Audio *> & ins, Second offset )
 	{
 	flan_FUNCTION_LOG;
 
 	if( ins.empty() ) return Audio();
 
 	// Get input Audio lengths
-	std::vector<Time> jumps( { 0 } );
+	std::vector<Second> jumps( { 0 } );
 	transform( ins, std::back_inserter( jumps ), []( const Audio * a ){ return a->getLength(); } );
 
 	// Sum jumps to get mix positions
-	std::vector<Time> startTimes;
-	std::partial_sum( jumps.begin(), jumps.end() - 1, std::back_inserter( startTimes ), [&]( Time a, Time b ){ 
+	std::vector<Second> startTimes;
+	std::partial_sum( jumps.begin(), jumps.end() - 1, std::back_inserter( startTimes ), [&]( Second a, Second b ){ 
 		return a + b + offset; 
 		} );
 
 	return mix( ins, startTimes, {} );
 	}
 
-Audio Audio::join( const std::vector<Audio> & ins, Time offset )
+Audio Audio::join( const std::vector<Audio> & ins, Second offset )
 	{
 	return join( getPtrs( ins ), offset );
 	}
 
-Audio Audio::select( const std::vector<const Audio *> & ins, const Func1x1 & selection, const std::vector<Time> & startTimes )
+Audio Audio::select( const std::vector<const Audio *> & ins, const Func1x1 & selection, const std::vector<Second> & startTimes )
 	{
 	flan_FUNCTION_LOG;
 
 	// Generate balances from selection
-	std::vector<Func1x1> balances;
+	std::vector<Function<Second, Amplitude>> balances;
 	for( Index i = 0; i < ins.size(); ++i )
 		{
-		balances.emplace_back( [&selection, i]( Time t )
+		balances.emplace_back( [&selection, i]( Second t )
 			{
 			const float distance = std::abs( selection( t ) - i );
 			if( distance >= 1 ) return 0.0f;
@@ -718,7 +853,7 @@ Audio Audio::select( const std::vector<const Audio *> & ins, const Func1x1 & sel
 	return mix( ins, startTimes, getPtrs( balances ) );
 	}
 
-Audio Audio::select( const std::vector<Audio> & ins, const Func1x1 & selection, std::vector<Time> startTimes )
+Audio Audio::select( const std::vector<Audio> & ins, const Func1x1 & selection, std::vector<Second> startTimes )
 	{
 	return select( getPtrs( ins ), selection, startTimes );
 	}

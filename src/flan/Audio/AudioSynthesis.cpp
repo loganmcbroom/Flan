@@ -8,7 +8,7 @@
 
 namespace flan {
 
-Audio Audio::synthesize( const Func1x1 & wave, Time length, const Func1x1 & freq, size_t samplerate, size_t oversample )
+Audio Audio::synthesize( const Func1x1 & wave, Second length, const Func1x1 & freq, size_t samplerate, size_t oversample )
 	{
 	flan_FUNCTION_LOG;
 

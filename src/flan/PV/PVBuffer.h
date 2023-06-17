@@ -46,8 +46,8 @@ public:
 		Channel numChannels = 0;
 		Frame numFrames = 0;
 		Bin numBins = 0;
-		SampleRate sampleRate = 48000; 
-		Frame hopSize = 0;
+		FrameRate sampleRate = 48000; 
+		FrameRate analysisRate = 48000 / 128;
 		Frame windowSize = 0;
 		//window type?
 		};
@@ -153,9 +153,14 @@ public:
 	Bin getNumBins() const;
 
 	/** Returns the frames per second of the audio from which this PVBuffer came.
-	 *	If the frames per second of the PV data is needed, use PVBuffer::timeToFrame.
+	 *	If the frames per second of the PV data is needed, use PVBuffer::getAnalysisRate.
 	 */
-	SampleRate getSampleRate() const;
+	FrameRate getSampleRate() const;
+
+	/** Returns the spectral frames per second.
+	 *	If the frames per second of the auto data is needed, use PVBuffer::getSampleRate.
+	 */
+	FrameRate getAnalysisRate() const;
 
 	/** Returns the hop size used in the phase vocoder to create this PVBuffer.
 	 */
@@ -171,7 +176,7 @@ public:
 
 	/** Returns length in seconds.
 	 */
-	Time getLength() const;
+	Second getLength() const;
 
 	/** Returns height in hz.
 	 */
@@ -192,11 +197,11 @@ public:
 
 	/** Returns a unit fraction for converting seconds to frames
 	 */
-	fFrame timeToFrame( Time ) const;
+	fFrame timeToFrame( Second ) const;
 
 	/** Returns a unit fraction for converting frames to seconds.
 	 */
-	Time frameToTime( fFrame ) const;
+	Second frameToTime( fFrame ) const;
 
 	/** Returns a unit fraction for converting frequencies to bins.
 	 */

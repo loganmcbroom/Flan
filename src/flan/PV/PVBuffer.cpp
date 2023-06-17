@@ -234,7 +234,7 @@ bool PVBuffer::load( const std::string & filename )
 	file.read( (char * ) &int32Buffer, 4 ); format.numFrames = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); format.numBins = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); format.sampleRate = int32Buffer;
-	file.read( (char * ) &int32Buffer, 4 ); format.hopSize = int32Buffer;
+	file.read( (char * ) &int32Buffer, 4 ); format.analysisRate = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); format.windowSize = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); if( int32Buffer != 24 ) return bail( "Bit depth must be 24." );
 	file.read( (char * ) &int16Buffer, 2 ); if( int16Buffer != 1 ) return bail( "PV window must be 1 (Hann)." );
@@ -360,17 +360,22 @@ PVBuffer::Format PVBuffer::getFormat() const
 	return format;
 	}
 
-SampleRate PVBuffer::getSampleRate() const
+FrameRate PVBuffer::getSampleRate() const
 	{
 	return format.sampleRate;
 	}
 
-Frame PVBuffer::getHopSize() const
+FrameRate PVBuffer::getAnalysisRate() const
 	{
-	return format.hopSize;
+	return format.analysisRate;
 	}
 
-Time PVBuffer::getLength() const
+Frame PVBuffer::getHopSize() const
+	{
+	return getSampleRate() / getAnalysisRate();
+	}
+
+Second PVBuffer::getLength() const
 	{
 	return frameToTime( getNumFrames() );
 	}
@@ -412,7 +417,7 @@ Magnitude PVBuffer::getMaxPartialMagnitude( uint32_t startFrame, uint32_t endFra
 	return maxMagnitude;
 	}
 
-fFrame PVBuffer::timeToFrame( Time t ) const
+fFrame PVBuffer::timeToFrame( Second t ) const
 	{
 	return t * float( getSampleRate() ) / float( getHopSize() );
 	}

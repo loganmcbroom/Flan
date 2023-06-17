@@ -10,13 +10,11 @@
 
 using namespace flan;
 
-Audio Audio::texture( Time length, const Func1x1 & eventsPerSecond, const Func1x1 & scatter, const AudioMod & mod, bool feedback ) const
+Audio Audio::texture( Second length, const Func1x1 & eventsPerSecond, const Func1x1 & scatter, const AudioMod & mod, bool feedback ) const
 	{
 	flan_PROCESS_START( Audio() );
 
 	// Get constants
-	const float secondsPerFrame = 1.0f / getSampleRate();
-	const float framesPerSecond = getSampleRate();
 	const Frame lengthFrames = timeToFrame( length );
 
 	// Input validation
@@ -26,10 +24,6 @@ Audio Audio::texture( Time length, const Func1x1 & eventsPerSecond, const Func1x
 		{ 
 		EpS = std::max( 0.0f, EpS );
 		} );
-	auto eventsPerFrame = [&]( Frame f )
-		{
-		return eventsPerSecondSamples[ f ] * secondsPerFrame;
-		};
 
 	auto scatterSamples = scatter.sample( 0, lengthFrames, frameToTime( 1 ) );
 	std::for_each( scatterSamples.begin(), scatterSamples.end(), []( float & scatter )
@@ -37,14 +31,13 @@ Audio Audio::texture( Time length, const Func1x1 & eventsPerSecond, const Func1x
 		scatter = std::max( 0.0f, scatter );
 		} );
 
-
 	// Generate unscattered events by integrating eventsPerFrame
 	// When the integral passes an integer, an event occurs
 	std::vector<Frame> eventFrames;
 	float eventAccumulator = 1.0f;
 	for( Frame frame = 0; frame < lengthFrames; ++frame )
 		{
-		eventAccumulator += eventsPerFrame( frame );
+		eventAccumulator += eventsPerSecondSamples[ frame ] * frameToTime( frame );
 		if( eventAccumulator >= 1.0f )
 			{
 			eventFrames.push_back( frame );
@@ -58,14 +51,14 @@ Audio Audio::texture( Time length, const Func1x1 & eventsPerSecond, const Func1x
 	std::for_each( std::execution::seq, eventFrames.begin(), eventFrames.end(), [&]( Frame & eventFrame )
 		{
 		// Scatter is standard deviation in events.
-		const Time scatter_t = scatterSamples[ eventFrame ];
+		const Second scatter_t = scatterSamples[ eventFrame ];
 		const float eventsPerSecond_t = eventsPerSecondSamples[ eventFrame ];
 		if( scatter_t == 0 ) return; // If there is no scatter, there is nothing to do
 		if( eventsPerSecond_t == 0 ) return; // If there is no EpS, there is nothing to do
 
-		const Time SDInSeconds = scatter_t / eventsPerSecond_t;
-		const float	SDInFrames = SDInSeconds * framesPerSecond;
-		const Frame scatteredFrame = std::normal_distribution<Time>( eventFrame, SDInFrames )( rng );
+		const Second SDInSeconds = scatter_t / eventsPerSecond_t;
+		const fFrame SDInFrames = timeToFrame( SDInSeconds );
+		const Frame scatteredFrame = std::normal_distribution<Second>( eventFrame, SDInFrames )( rng );
 		if( 0 <= scatteredFrame && scatteredFrame < lengthFrames )
 			eventFrame = scatteredFrame;
 		else eventFrame = std::numeric_limits<Frame>::max(); // Using max to indicate "don't use", it will be sorted to the end shortly
@@ -79,9 +72,9 @@ Audio Audio::texture( Time length, const Func1x1 & eventsPerSecond, const Func1x
 		[firstEventFrame]( Frame & f ){ f -= firstEventFrame; } );
 
 	// Convert event frames back to times
-	std::vector<Time> eventTimes( eventFrames.size() );
+	std::vector<Second> eventTimes( eventFrames.size() );
 	std::transform( std::execution::par_unseq, eventFrames.begin(), eventFrames.end(), eventTimes.begin(), 
-		[secondsPerFrame]( Frame frame ){ return frame * secondsPerFrame; } );
+		[&]( Frame frame ){ return frameToTime( frame ); } );
 
 	// We need to handle all mod/no mod, and feedback/no feedback cases
 	// If there is no mod feedback has no effect
@@ -93,18 +86,18 @@ Audio Audio::texture( Time length, const Func1x1 & eventsPerSecond, const Func1x
 			{
 			moddedAudio.push_back( mod( *this, 0 ) );
 			// Sequential execution policy is required by feedback
-			std::transform( eventTimes.begin() + 1, eventTimes.end(), std::back_inserter( moddedAudio ), [&]( Time eventTime )
+			std::transform( eventTimes.begin() + 1, eventTimes.end(), std::back_inserter( moddedAudio ), [&]( Second eventSecond )
 				{
 				const Audio & input = moddedAudio.back();
-				return mod( input, eventTime );
+				return mod( input, eventSecond );
 				} );
 			}
 		else // Convert this using mod at each event time according to the mod execution policy
 			{
 			moddedAudio.resize( eventTimes.size() );
 			runtimeExecutionPolicyHandler( mod.getExecutionPolicy(), [&]( auto policy ) {
-				std::transform( policy, eventTimes.begin(), eventTimes.end(), moddedAudio.begin(), [&]( const Time eventTime ) {
-					return mod( *this, eventTime );
+				std::transform( policy, eventTimes.begin(), eventTimes.end(), moddedAudio.begin(), [&]( const Second eventSecond ) {
+					return mod( *this, eventSecond );
 					} ); 
 				} );
 			}
@@ -119,7 +112,7 @@ Audio Audio::texture( Time length, const Func1x1 & eventsPerSecond, const Func1x
 Audio Audio::textureSimple( float length, const Func1x1 & eventsPerSecond, const Func1x1 & scatter, 
 	const Func1x1 & repitch, const Func1x1 & gain, const Func1x1 & cutEnd, const Func1x1 & pan ) const
 	{
-	return texture( length, eventsPerSecond, scatter, [&]( const Audio & in, Time t )
+	return texture( length, eventsPerSecond, scatter, [&]( const Audio & in, Second t )
 		{
 		Audio out = in.cut( 0, cutEnd( t ) )
 			.repitch( repitch( t ) );

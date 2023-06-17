@@ -10,9 +10,12 @@
 
 using namespace flan;
 
-Audio Audio::resample( double newSampleRate ) const
+Audio Audio::resample( FrameRate newSampleRate ) const
 	{
 	flan_PROCESS_START( Audio() );
+
+	if( newSampleRate == getSampleRate() ) 
+		return copy();
 
 	auto format = getFormat();
 	format.numFrames *= newSampleRate / float( getSampleRate() );
@@ -99,13 +102,13 @@ Audio Audio::convertToMono() const
 	return out;
 	}
 
-Func1x1 Audio::convertToFunction( Time granularity ) const
+Func1x1 Audio::convertToFunction( Second granularity ) const
 	{
 	flan_PROCESS_START( 0 );
 
 	if( granularity <= 0 ) return 0;
 
-	const float granularityFrames = timeToFrame( granularity );
+	const fFrame granularityFrames = timeToFrame( granularity );
 
 	auto safeGetSample = [this]( Frame frame )
 		{
@@ -120,16 +123,19 @@ Func1x1 Audio::convertToFunction( Time granularity ) const
 
 	for( Frame x = 0; x < numSamples; ++x )
 		{
-		const float sampleFrame = x * granularityFrames;
+		const fFrame sampleFrame = x * granularityFrames;
 		float sum = 0;
 		for( Frame i = - granularityFrames; i <= granularityFrames; ++i )
 			{
 			const Sample sample = std::abs( safeGetSample( sampleFrame + i ) );
-			const float windowSample = Windows::Hann( ( float( i ) / granularityFrames + 1 ) * .5f );
-			// granularityFrames / 2 is the integral of the Hann window
-			sum += sample * windowSample * 2.0f / granularityFrames;
+			const Sample windowSample = Windows::Hann( ( float( i ) / granularityFrames + 1 ) * .5f );
+			sum += sample * windowSample;
 			}
-		ys[x] = sum;
+		
+		// Division by granularityFrames is to account for the weighting via the hann window
+		// The integral of that window is 1/2, but we are stretching it by granularity frames in both directions
+		// The pi/2 factor handles that the average absolute value of a sinusoid with amplitude 1 is 2/pi
+		ys[x] = sum / granularityFrames * pi / 2.0f;
 		}
 	
 	const float timeToFrame_f = timeToFrame( 1 );

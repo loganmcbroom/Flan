@@ -59,7 +59,7 @@ class Graph : public bitmap_image {
 		/** Set the view. All other views will be removed. The view will be active for all plane indices.
 		 * \param view The plane area to map to all of pixel space.
 		 */
-		void setView( Rect view ); // note this will remove all other views
+		void setView( Rect view );
 
 		/** Utility for splitting a view evenly along the y-axis into views on consecutive planes.
 		 * \param view The view to add. This maps plane space to pixel space.

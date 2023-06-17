@@ -14,7 +14,7 @@ AudioBuffer::AudioBuffer()
 	, buffer()
 	{}
 
-AudioBuffer::AudioBuffer( std::vector<float> && tempBuffer, Channel numChannels, SampleRate sr )
+AudioBuffer::AudioBuffer( std::vector<float> && tempBuffer, Channel numChannels, FrameRate sr )
 	: format()
 	, buffer( tempBuffer )
 	{
@@ -344,27 +344,27 @@ auto AudioBuffer::getNumFrames() const -> Frame
 	return format.numFrames;
 	}
 
-SampleRate AudioBuffer::getSampleRate() const 
+FrameRate AudioBuffer::getSampleRate() const 
 	{
 	return format.sampleRate;
 	}
 
-Time AudioBuffer::frameToTime( fFrame f ) const
+Second AudioBuffer::frameToTime( fFrame f ) const
 	{
 	return f / getSampleRate();
 	}
 
-fFrame AudioBuffer::timeToFrame( Time t ) const
+fFrame AudioBuffer::timeToFrame( Second t ) const
 	{
 	return t * float( getSampleRate() );
 	}
 
-auto AudioBuffer::getLength() const -> Time
+auto AudioBuffer::getLength() const -> Second
 	{
 	return frameToTime( getNumFrames() );
 	}
 
-float AudioBuffer::getMaxSampleMagnitude( Time startTime, Time endTime ) const
+float AudioBuffer::getMaxSampleMagnitude( Second startTime, Second endTime ) const
 	{
 	if( endTime == 0 ) endTime = getLength();
 	auto startIter = buffer.begin() + timeToFrame( startTime );

@@ -12,7 +12,7 @@ using namespace std::ranges;
 
 namespace flan {
 
-PV PV::getFrame( Time time ) const
+PV PV::getFrame( Second time ) const
 	{
 	flan_PROCESS_START( PV() );
 
@@ -80,12 +80,12 @@ MF PV::getBinInterpolated( Channel channel, Frame frame, float bin, Interpolator
 //	Selection
 //========================================================================
 
-PV PV::select( Time length, const Func2x2 & selector, bool interpolateFrames, Interpolator interp ) const
+PV PV::select( Second length, const Func2x2 & selector, bool interpolateFrames, Interpolator interp ) const
 	{
 	flan_PROCESS_START( PV() );
 
 	// Input validation
-	if( length <= 0 ) return PV();
+	if( length <= 0.0f ) return PV();
 
 	auto format = getFormat();
 	format.numFrames = timeToFrame( length );
@@ -136,7 +136,7 @@ PV PV::select( Time length, const Func2x2 & selector, bool interpolateFrames, In
 	return out;
 	}
 
-PV PV::freeze( const std::vector<std::array<Time,2>> & timing ) const
+PV PV::freeze( const std::vector<std::array<Second,2>> & timing ) const
 	{
 	flan_PROCESS_START( PV() );
 
@@ -144,7 +144,7 @@ PV PV::freeze( const std::vector<std::array<Time,2>> & timing ) const
 
 	//Convert times into frames
 	std::vector<TimingPair> timingFrames( timing.size() );
-	std::ranges::transform( timing, timingFrames.begin(), [this]( const std::array<Time,2> & ts )
+	std::ranges::transform( timing, timingFrames.begin(), [this]( const std::array<Second,2> & ts )
 		{ 
 		return TimingPair{ 
 			std::clamp( Frame( timeToFrame( ts[0] ) ), 0, Frame( getNumFrames() - 1 ) ), 
@@ -224,8 +224,8 @@ PV PV::replaceAmplitudes( const PV & ampSource, const Func2x1 & amount ) const
 				const float amount_c = amountSamples[buffer_access( bin, frame, getNumBins() )];
 				out.setMF( channel, frame, bin,
 					{
-					float( ampSource.getMF( channel, frame, bin ).m * amount_c + currentBin.m * ( 1.0f - amount_c ) ),
-					float( currentBin.f )
+					ampSource.getMF( channel, frame, bin ).m * amount_c + currentBin.m * ( 1.0f - amount_c ),
+					currentBin.f
 					} );
 				}
 			} );
@@ -265,14 +265,14 @@ PV PV::subtractAmplitudes( const PV & ampSource, const Func2x1 & amount ) const
 // Generation
 //========================================================================
 
-PV PV::synthesize( Time length, Func1x1 freq, const Func2x1 & harmonicWeights )
+PV PV::synthesize( Second length, Func1x1 freq, const Func2x1 & harmonicWeights )
 	{
 	PV::Format format;
-	format.hopSize = 128;
 	format.numBins = 2049;
 	format.numChannels = 1;
 	format.sampleRate = 48000;
-	format.numFrames = length * format.sampleRate / format.hopSize;
+	format.analysisRate = format.sampleRate / 128;
+	format.numFrames = length * format.analysisRate;
 	format.windowSize = 2048;
 
 	PV out( format );
@@ -289,7 +289,7 @@ PV PV::synthesize( Time length, Func1x1 freq, const Func2x1 & harmonicWeights )
 		const int numHarmonics = std::floor( out.getHeight() / freq_c );
 		for( int harmonic = 0; harmonic < numHarmonics; ++harmonic )
 			{
-			const float mag = harmonicWeightSamples[buffer_access(harmonic, frame, numHarmonics)] * scale;
+			const Magnitude mag = harmonicWeightSamples[buffer_access(harmonic, frame, numHarmonics)] * scale;
 			const Frequency harmonicFreq = freq_c * ( harmonic + 1 );
 			const Bin bin = out.frequencyToBin( harmonicFreq );
 			out.getMF( 0, frame, bin ) = { mag, harmonicFreq };
@@ -483,7 +483,7 @@ PV PV::perturb( const Func2x1 & magSigma, const Func2x1 & frqSigma, float dampin
 	return out;
 	}
 
-PV predicateNLoudestPartials( const PV & me, const Function<Time, Bin> & numBins, std::function< bool (Bin, Bin) > predicate )
+PV predicateNLoudestPartials( const PV & me, const Function<Second, Bin> & numBins, std::function< bool (Bin, Bin) > predicate )
 	{
 	flan_FUNCTION_LOG;
 
@@ -523,19 +523,19 @@ PV predicateNLoudestPartials( const PV & me, const Function<Time, Bin> & numBins
 	return out;
 	}
 
-PV PV::retainNLoudestPartials( const Function<Time, Bin> & numBins ) const
+PV PV::retainNLoudestPartials( const Function<Second, Bin> & numBins ) const
 	{
 	flan_PROCESS_START( PV() );
 	return predicateNLoudestPartials( *this, numBins, []( Bin a, Bin b ){ return a < b; } );
 	}
 
-PV PV::removeNLoudestPartials( const Function<Time, Bin> & numBins ) const
+PV PV::removeNLoudestPartials( const Function<Second, Bin> & numBins ) const
 	{
 	flan_PROCESS_START( PV() );
 	return predicateNLoudestPartials( *this, numBins, []( Bin a, Bin b ){ return a >= b; } );
 	}
 
-PV PV::resonate( Time length, const Func2x1 & decay ) const
+PV PV::resonate( Second length, const Func2x1 & decay ) const
 	{
 	flan_PROCESS_START( PV() );
 

@@ -19,8 +19,8 @@ Graph Func1x1::convertToGraph( Rect view, Interval domain, Pixel width, Pixel he
 	Graph g( width, height );
 	g.setView( view );
 	g.fillImage( Color::White );
-	g.drawAxes( 0, Color::Black );
 	g.drawLinearGrid( 1, 1, 0, Color( 200, 200, 200 ) );
+	g.drawAxes( 0, Color::Black );
 	g.drawFunction( *this, domain, -1, Color::Black );
 	return g;
 	}

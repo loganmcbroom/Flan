@@ -8,7 +8,7 @@ namespace flan
 {
 
 using Index = int;
-using Time = float;
+using Second = float;
 using Channel = int32_t;
 using Frame = int32_t;
 using Bin = int32_t;
@@ -19,9 +19,14 @@ using Frequency = float;
 using Magnitude = float;
 using Pixel = int32_t;
 using Harmonic = int32_t;
-using SampleRate = float;
+using FrameRate = float;
 using Radian = float;
 using Cycle = float;
+using Amplitude = float;
+using Decibel = float;
+
+Amplitude decibelToAmplitude( Decibel d );
+Decibel amplitudeToDecibel( Amplitude g );
 
 const Radian pi = std::acos( -1.0f );
 const Radian pi2 = pi * 2.0f;

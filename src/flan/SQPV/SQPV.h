@@ -7,6 +7,7 @@
 namespace flan {
 
 class Audio;
+class Graph;
 
 class SQPV : public SQPVBuffer
 {
@@ -17,9 +18,12 @@ public:
 
 	Audio convertToAudio() const;
 	Audio convertToLeftRightAudio() const;
+	Graph convertToGraph() const;
 
-	SQPV modifyFrequency( const Func2x1 & mod ) const;
+	SQPV modifyPitch( const Func2x1 & mod ) const;
 	SQPV repitch( const Func2x1 & mod ) const;
+
+	SQPV select( Second length, const Func2x2 & selector ) const;
 };
 
 }

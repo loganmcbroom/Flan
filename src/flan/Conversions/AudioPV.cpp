@@ -23,7 +23,7 @@ PV Audio::convertToPV( Frame windowSize, Frame hopSize, Frame dftSize, flan_CANC
 	PVFormat.numFrames = numHops;
 	PVFormat.numBins = numBins;
 	PVFormat.sampleRate = getSampleRate();
-	PVFormat.hopSize = hopSize;
+	PVFormat.analysisRate = getSampleRate() / hopSize;
 	PVFormat.windowSize = windowSize;
 	PV out( PVFormat );
 
@@ -35,7 +35,7 @@ PV Audio::convertToPV( Frame windowSize, Frame hopSize, Frame dftSize, flan_CANC
 		} );
 
 	// Allocate fft buffers and phase buffer
-	std::vector<float> phaseBuffer( numBins );
+	std::vector<double> phaseBuffer( numBins );
 	FFTHelper fft( dftSize, true, false, false );
 
 	// For each channel, do the whole thing
@@ -45,12 +45,12 @@ PV Audio::convertToPV( Frame windowSize, Frame hopSize, Frame dftSize, flan_CANC
 		std::fill( std::execution::par_unseq, phaseBuffer.begin(), phaseBuffer.end(), 0 );
 
 		//For each hop, fft and save into buffer
-		for( int hop = 0; hop < numHops; ++hop )
+		for( Frame pvFrame = 0; pvFrame < numHops; ++pvFrame )
 			{
 			flan_CANCEL_POINT( PV() );
 
 			// Where in the input signal we should start reading from
-			const Frame inFrameStart = hopSize * hop - windowSize / 2;
+			const Frame inFrameStart = hopSize * pvFrame - windowSize / 2;
 
 			auto safeGetSample = [&]( Frame f )
 				{ 
@@ -69,7 +69,8 @@ PV Audio::convertToPV( Frame windowSize, Frame hopSize, Frame dftSize, flan_CANC
 
 			std::for_each( std::execution::par_unseq, iota_iter(0), iota_iter(numBins), [&]( Bin bin )
 				{
-				out.getMF( channel, hop, bin ) = phase_vocoder( phaseBuffer[bin], fft.getComplexBuffer()[bin], out.binToFrequency( bin ), frameToTime( hopSize ) );
+				out.getMF( channel, pvFrame, bin ) = phase_vocoder( phaseBuffer[bin], fft.getComplexBuffer()[bin], 
+					out.binToFrequency( bin ), out.getAnalysisRate(), out.getSampleRate() );
 				} );
 			}
 		}
@@ -101,7 +102,7 @@ Audio PV::convertToAudio( flan_CANCEL_ARG_CPP ) const
 		return Windows::Hann( float( i ) / float( getWindowSize() - 1 ) ) * windowScale;
 		} );
 
-	std::vector<float> phaseBuffer( getNumBins() );
+	std::vector<double> phaseBuffer( getNumBins() );
 	FFTHelper fft( getDFTSize(), false, true, false );
 
 	for( Channel channel = 0; channel < getNumChannels(); ++channel )
@@ -115,7 +116,7 @@ Audio PV::convertToAudio( flan_CANCEL_ARG_CPP ) const
 			
 			std::transform( std::execution::par_unseq, iota_iter(0), iota_iter( getNumBins() ), fft.complexBegin(), [&]( Bin bin )
 				{
-				return inverse_phase_vocoder( phaseBuffer[bin], getMF( channel, PVFrame, bin ), frameToTime( 1 ) );
+				return inverse_phase_vocoder( phaseBuffer[bin], getMF( channel, PVFrame, bin ), getAnalysisRate() );
 				} );
 
 			fft.c2rExecute();

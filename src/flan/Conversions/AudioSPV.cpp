@@ -13,7 +13,7 @@ using namespace flan;
 static std::vector<std::complex<float>> createTwiddles( size_t n, Magnitude magnitude )
 	{
 	std::vector<std::complex<float>> twiddles( n );
-    const float omega = -pi2 / n;
+    const Radian omega = -pi2 / n;
 	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( twiddles.size() ), [&]( int i )
 		{
       	twiddles[i] = std::polar( magnitude, omega * i);
@@ -32,7 +32,6 @@ SPV Audio::convertToSPV( Bin numBins ) const
 	format.sampleRate = getSampleRate();
 	SPV out( format );
 
-	// Alloc final output
 	auto buffer_access = [&]( Frame f, Bin b ){ return f * out.getNumBins() + b; };
 
 	// nth roots of unity for n = 2 * dftsize, clockwise order
@@ -42,7 +41,7 @@ SPV Audio::convertToSPV( Bin numBins ) const
 	for( Channel channel = 0; channel < getNumChannels(); ++channel )
 		{
 		// Dirty buffer reuse. MF and complex<float> have the same data layout so this works and avoids a massive alloc.
-		std::complex<float> * sdftBuffer = (std::complex<float> *)( out.getBuffer().data() + out.buffer_access( channel, 0, 0 ) );
+		std::complex<float> * sdftBuffer = (std::complex<float> *)( out.getBuffer().data() + out.getBufferPos( channel, 0, 0 ) );
 
 		// Compute sample deltas
 		std::vector<Sample> deltas( getNumFrames() );
@@ -96,10 +95,11 @@ SPV Audio::convertToSPV( Bin numBins ) const
 		// Phase vocode sdft data
 		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( out.getNumBins() ), [&]( Bin bin )		
 			{
-			Radian phaseBuffer = 0;
+			double phaseBuffer = 0;
 			const Frequency binFrequency = out.binToFrequency( bin );
 			for( Frame frame = 0; frame < out.getNumFrames(); ++frame )
-				out.getMF( channel, frame, bin ) = phase_vocoder( phaseBuffer, sdftBuffer[ frame * numBins + bin ], binFrequency, out.frameToTime( 1 ) );
+				out.getMF( channel, frame, bin ) = phase_vocoder( phaseBuffer, sdftBuffer[ frame * numBins + bin ], binFrequency, 
+					out.getAnalysisRate(), out.getSampleRate() );
 			} );
 		}
 
@@ -127,9 +127,9 @@ Audio SPV::convertToAudio()
 		// Invert phase vocoding
 		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( getNumBins() ), [&]( Bin bin )		
 			{
-			Radian phaseBuffer = 0;
+			double phaseBuffer = 0;
 			for( Frame frame = 0; frame < getNumFrames(); ++frame )
-				isdftIn[buffer_access( 0, frame, bin)] = inverse_phase_vocoder( phaseBuffer, getMF( channel, frame, bin ), frameToTime( 1 ) );
+				isdftIn[getBufferPos( 0, frame, bin)] = inverse_phase_vocoder( phaseBuffer, getMF( channel, frame, bin ), getAnalysisRate() );
 			} );
 
 		// Invert sdft
@@ -137,7 +137,7 @@ Audio SPV::convertToAudio()
 			{
 			float sample = 0.0f;
 			for( Bin bin = 0; bin < getNumBins(); ++bin )
-				sample += isdftIn[buffer_access( 0, frame, bin)].real() * ( bin % 2 == 0 ? 1 : -1 );
+				sample += isdftIn[getBufferPos( 0, frame, bin)].real() * ( bin % 2 == 0 ? 1 : -1 );
 
 			out.getSample( channel, frame ) = sample * 2.0f;
 			} );

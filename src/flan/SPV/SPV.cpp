@@ -2,7 +2,6 @@
 
 #include <iostream>
 
-#include "flan/Utility/buffer_access.h"
 #include "flan/Utility/execution.h"
 
 using namespace flan;
@@ -30,7 +29,7 @@ SPV SPV::modifyFrequency( const Func2x1 & mod ) const
 		runtimeExecutionPolicyHandler( mod.getExecutionPolicy(), [&]( auto policy ){
 		std::for_each( policy, iota_iter( 0 ), iota_iter( getNumFrames() ), [&]( Frame frame )
 			{
-			const Time time = frameToTime( frame );
+			const Second time = frameToTime( frame );
 			for( Bin bin = 0; bin < getNumBins(); ++bin )
 				out.getMF( channel, frame, bin ).f = mod( time, out.getMF( channel, frame, bin ).f );
 			} ); } );

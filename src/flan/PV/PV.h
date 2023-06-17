@@ -138,7 +138,7 @@ public:
 	 *	The returned frame in a linear interpolation of the frame surrounding the selected time.
 	 *	\param time The time at which the frame should be taken. 
 	 */
-	PV getFrame( Time time ) const;
+	PV getFrame( Second time ) const;
 
 	/** This computes a weighted approximation of the 4 surrounding bins using the provided interpolator */
 	MF getBinInterpolated( Channel channel, float frame, float bin, Interpolator interp = Interpolators::linear ) const;
@@ -160,7 +160,7 @@ public:
 	 		Using interpolation takes around twice as long to compute.
 	 *	\param interp This determines how input points surrounding selected points are interpolated
 	 */
-	PV select( Time length, const Func2x2 & selector, bool interpolateFrames = false, Interpolator interp = Interpolators::linear ) const;
+	PV select( Second length, const Func2x2 & selector, bool interpolateFrames = false, Interpolator interp = Interpolators::linear ) const;
 
 	/** This is a classic "time-freeze" effect. At supplied times playback is "frozen", repeating the current frame 
 	 *	(or a linear interpolation of surrounding frames), for a specified amount of time. After this time has elapsed,
@@ -168,7 +168,7 @@ public:
 	 *	\param timing Each element of timing describes a point of time to freeze, and for 
 	 *		how long it should be frozen, in that order
 	 */
-	PV freeze( const std::vector<std::array<Time,2>> & timing ) const;
+	PV freeze( const std::vector<std::array<Second,2>> & timing ) const;
 
 
 
@@ -205,7 +205,7 @@ public:
 	 */
 	PV repitch( const Func2x1 & factor, Interpolator = Interpolators::linear ) const;
 
-	/** This is functionally equivalent to using PV::modifyTime with the mod output multiplied by input time
+	/** This is functionally equivalent to using PV::modifySecond with the mod output multiplied by input time
 	 *	\param factor Takes time/frequency pairs and returns time multiplier
 	 *	\param interp Interpolator used in frequency mapping
 	 */
@@ -231,12 +231,12 @@ public:
 	 *	of the frames at startTime and endTime. After endTime, the interpolation continues into the realm of extrapolation
 	 *	for extrapDuration seconds. High frequency partials in the input can cause unpleasant sine sweeps in the output,
 	 *	so you may want to use a mild low pass filter before processing.
-	 *	\param startTime Time at which interpolation starts.
-	 *	\param endTime Time at which interpolation ends and extrapolation begins. -1 indicates end of file.
+	 *	\param startTime Second at which interpolation starts.
+	 *	\param endTime Second at which interpolation ends and extrapolation begins. -1 indicates end of file.
 	 *	\param extrapDuration Duration of the extrapolation
 	 *	\param interp Interpolator used throughout
 	 */
-	PV timeExtrapolate( Time startTime, Time endTime, Time extrapDuration, Interpolator interp = Interpolators::linear) const;
+	PV timeExtrapolate( Second startTime, Second endTime, Second extrapDuration, Interpolator interp = Interpolators::linear) const;
 
 
 	//============================================================================================================================================================
@@ -248,7 +248,7 @@ public:
 	 *	\param freq
 	 *	\param harmonicWeights This takes time and a harmonic index, and returns a magnitude.
 	 */
-	static PV synthesize( Time length, Func1x1 freq, const Func2x1 & harmonicWeights );
+	static PV synthesize( Second length, Func1x1 freq, const Func2x1 & harmonicWeights );
 
 
 
@@ -303,14 +303,14 @@ public:
 	 *	All other output bins are 0 filled.
 	 *	\param numPartials Number of partials to retain as a function of time
 	 */
-	PV retainNLoudestPartials( const Function<Time, Bin> & numPartials ) const;
+	PV retainNLoudestPartials( const Function<Second, Bin> & numPartials ) const;
 
 	/** At any given time, numPartials should return a number of bins, N, to remove.
 	 *	The N loudest bin positions are 0 filled in the output.
 	 *	All other bins are copied to the output.
 	 *	\param numPartials Number of partials to remove as a function of time
 	 */
-	PV removeNLoudestPartials( const Function<Time, Bin> & numPartials ) const;
+	PV removeNLoudestPartials( const Function<Second, Bin> & numPartials ) const;
 
 	/** Each bin has its frequency copied to subsequent output bins with decaying magnitude until a 
 	 *	bin with magnitude greater than the current decayed magnitude is read from the input. 
@@ -319,7 +319,7 @@ public:
 	 *		For example, a constant decay of .5 applied to an impulse will lose half it's magnitude every second.
 	 *	\param length Because the decay is exponential, an output length is needed. 
 	 */
-	PV resonate( Time length, const Func2x1 & decay ) const;
+	PV resonate( Second length, const Func2x1 & decay ) const;
 
 };
 

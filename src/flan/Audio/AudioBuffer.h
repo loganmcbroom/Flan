@@ -35,7 +35,7 @@ public:
 		{
 		Channel numChannels = 0;
 		Frame numFrames = 0;
-		SampleRate sampleRate = 48000;
+		FrameRate sampleRate = 48000;
 		};
 
 	struct ChannelSlice
@@ -55,7 +55,7 @@ public:
 
 	/** Construct from temporary buffer.
 	 */
-	AudioBuffer( std::vector<float> && buffer, Channel numChannels, SampleRate = 48000 );
+	AudioBuffer( std::vector<float> && buffer, Channel numChannels, FrameRate = 48000 );
 
 	/** Format copy constructor, constructs an AudioBuffer with the given format and an uninitialized buffer.
 	 *	\param format Format to use in construction.
@@ -121,25 +121,25 @@ public:
 
 	/** Returns the sample rate.
 	 */
-	SampleRate getSampleRate() const;
+	FrameRate getSampleRate() const;
 
 	/** Returns length in seconds.
 	 */
-	Time getLength() const;
+	Second getLength() const;
 
 	/** Returns the magnitude of whichever sample has the largest magnitude in the given range.
 	 *	\param startTime Start of range.
 	 *	\param endTime End of range. Passing 0 will use the maximum time.
 	 */
-	Sample getMaxSampleMagnitude( Time startTime = 0, Time endTime = 0 ) const;
+	Sample getMaxSampleMagnitude( Second startTime = 0, Second endTime = 0 ) const;
 
 	/** Returns a unit fraction for converting frames to seconds.
 	 */
-	Time frameToTime( fFrame ) const;
+	Second frameToTime( fFrame ) const;
 
 	/** Returns a unit fraction for converting seconds to frames
 	 */
-	fFrame timeToFrame( Time ) const;
+	fFrame timeToFrame( Second ) const;
 
 
 	//======================================================

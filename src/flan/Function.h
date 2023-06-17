@@ -152,24 +152,42 @@ struct Function
 		{
 		std::vector<O> out( end - start );
 		runtimeExecutionPolicyHandler( getExecutionPolicy(), [&]( auto policy ){
-		std::for_each( policy, iota_iter( start ), iota_iter( end ), [&]( int x ){ 
-			out[x-start] = operator()( x * scale ); 
-			} ); } );
+			std::for_each( policy, iota_iter( start ), iota_iter( end ), [&]( int x ){ 
+				out[x-start] = operator()( x * scale ); 
+				} ); 
+			} );
 		return out;
 		}
 
 	template<typename Input = I>
 	requires std::convertible_to<Input, vec2>
-	std::vector<O> sample( int xStart, int xEnd, float xScale, int yStart, int yEnd, float yScale ) const
+	std::vector<O> sample( float xStart, float xEnd, float xScale, float yStart, float yEnd, float yScale ) const
 		{
-		const int xSize = xEnd - xStart;
-		const int ySize = yEnd - yStart;
+		const int xSize = std::ceil( xEnd - xStart );
+		const int ySize = std::ceil( yEnd - yStart );
 		std::vector<O> out( xSize * ySize );
 		runtimeExecutionPolicyHandler( getExecutionPolicy(), [&]( auto policy ){
-		std::for_each( policy, iota_iter( xStart ), iota_iter( xEnd ), [&]( int x ){ 
-			for( int y = yStart; y < yEnd; ++y )
-				out[ buffer_access( (y-yStart), (x-xStart), ySize ) ] = operator()( vec2( x * xScale, y * yScale ) ); 
-			} ); } );
+			std::for_each( policy, iota_iter( xStart ), iota_iter( xEnd ), [&]( int x ){ 
+				for( int y = yStart; y < yEnd; ++y )
+					out[ buffer_access( (y-yStart), (x-xStart), ySize ) ] = operator()( vec2( x * xScale, y * yScale ) ); 
+				} ); 
+			} );
+		return out;
+		}
+
+	template<typename Input = I>
+	requires std::convertible_to<Input, vec2>
+	std::vector<O> sample( int xStart, int xEnd, float xScale, const std::vector<float> & yPositions ) const
+		{
+		const int xSize = xEnd - xStart;
+		const int ySize = yPositions.size();
+		std::vector<O> out( xSize * ySize );
+		runtimeExecutionPolicyHandler( getExecutionPolicy(), [&]( auto policy ){
+			std::for_each( policy, iota_iter( xStart ), iota_iter( xEnd ), [&]( int x ){ 
+				for( int y = 0; y < ySize; ++y )
+					out[ buffer_access( y, (x-xStart), ySize ) ] = operator()( vec2( x * xScale, yPositions[y] ) ); 
+				} ); 
+			} );
 		return out;
 		}
 
@@ -317,6 +335,10 @@ struct Func2x2 : public Function<vec2, vec2>
 	/** Default
 	 */
 	Func2x2() : Function() {}
+
+	template<typename T>
+	requires std::convertible_to< T, std::function< vec2 ( float, float ) > >
+	Func2x2( T f ) : Function( [f]( vec2 v ) { return f( v.x(), v.y() ); } ) {}
 
 	/** Helper for calling without converting parameters to vec2 */
 	vec2 operator()( float x, float y ) const { return Function::operator()( { x, y } ); }

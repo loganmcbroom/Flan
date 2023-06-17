@@ -59,7 +59,7 @@ public:
      * \param index The waveform to read from. Choosing not-integer indices will read a linear interpolation of the surrounding waveforms.
      * \param granularity The time between input function evaluations.
      */
-    Audio synthesize( Time length, Func1x1 freq, Func1x1 index, Time granularity = 0.001f, flan_CANCEL_ARG ) const;
+    Audio synthesize( Second length, Func1x1 freq, Func1x1 index, Second granularity = 0.001f, flan_CANCEL_ARG ) const;
 
     /** Fade the edges of target waveforms towards zero.
      * \param fadeFrames The fade length.

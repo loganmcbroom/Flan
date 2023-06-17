@@ -16,7 +16,7 @@ public:
 		Channel numChannels = 0;
 		Frame numFrames = 0;
 		Bin numBins = 0;
-		SampleRate sampleRate = 48000;
+		FrameRate sampleRate = 48000;
 		};
 
 	SPVBuffer( const SPVBuffer & ) = delete;
@@ -29,17 +29,18 @@ public:
 	SPVBuffer( Format );
 
 	const Format & getFormat() const;
-	fFrame timeToFrame( Time ) const;
-	Time frameToTime( fFrame ) const;
+	fFrame timeToFrame( Second ) const;
+	Second frameToTime( fFrame ) const;
 	fBin frequencyToBin( Frequency ) const;
 	Frequency binToFrequency( fBin ) const;
 
 	Channel getNumChannels() const;
 	Frame getNumFrames() const;
 	Bin	getNumBins() const;
-	SampleRate getSampleRate() const;
+	FrameRate getSampleRate() const;
+	FrameRate getAnalysisRate() const;
 
-	Time getLength() const { return frameToTime( getNumFrames() ); }
+	Second getLength() const { return frameToTime( getNumFrames() ); }
 	Frequency getHeight() const { return binToFrequency( getNumBins() ); }
 	bool isNull() const;
 
@@ -48,7 +49,7 @@ public:
 	void clearBuffer();
 	SPVBuffer copy() const;
 
-	size_t buffer_access( Channel, Frame, Bin ) const;
+	size_t getBufferPos( Channel, Frame, Bin ) const;
 
 	// Avoid using this when possible
 	std::vector<MF> & getBuffer();

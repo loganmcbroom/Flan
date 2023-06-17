@@ -20,7 +20,7 @@ Graph PV::convertToGraph( Rect D, Pixel width, Pixel height, float timelineScale
 	const float maxMag = getMaxPartialMagnitude( startFrame, endFrame, startBin, endBin );
 	std::vector<Func2x1> fs;
 	for( Channel channel = 0; channel < getNumChannels(); ++channel )
-		fs.push_back( [&]( Time x, Frequency y )
+		fs.push_back( [channel, maxMag, this]( Second x, Frequency y )
 			{
 			const float m = getMF( channel, timeToFrame( x ), frequencyToBin( y ) ).m;
 			return std::sqrt( std::abs( m ) / maxMag ) * log2( 2.0f + y ) / 4.0f; // sqrt brings up dark areas, log scaling brings up high frequencies

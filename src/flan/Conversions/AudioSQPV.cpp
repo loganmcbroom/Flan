@@ -15,11 +15,13 @@
 using namespace flan;
 
 // Container for three complex numbers with component-wise arithmetic overloads
+template<typename T>
 struct Twiddle 
 	{
-	std::array<std::complex<float>, 3> data;
-	std::complex<float> & operator[]( size_t i ) { return data[i]; }
-	const std::complex<float> & operator[]( size_t i ) const { return data[i]; }
+	using cpx = std::complex<T>;
+	std::array<cpx, 3> data;
+	cpx & operator[]( size_t i ) { return data[i]; }
+	const cpx & operator[]( size_t i ) const { return data[i]; }
 
 	Twiddle operator+( const Twiddle & other ) const
 		{
@@ -39,7 +41,7 @@ struct Twiddle
 			};
 		};
 
-	Twiddle operator+( float x ) const
+	Twiddle operator+( cpx x ) const
 		{
 		return {
 			data[0] + x,
@@ -47,47 +49,24 @@ struct Twiddle
 			data[2] + x,
 			};
 		}
-
-	Twiddle operator-( float x ) const
-		{
-		return {
-			data[0] - x,
-			data[1] - x,
-			data[2] - x,
-			};
-		}
-
-	Twiddle operator*( float x ) const
-		{
-		return {
-			data[0] * x,
-			data[1] * x,
-			data[2] * x,
-			};
-		}
-
-	Twiddle operator/( float x ) const
-		{
-		return {
-			data[0] / x,
-			data[1] / x,
-			data[2] / x,
-			};
-		}
 	};
 
-
-static inline Twiddle make_twiddle( float quality, fFrame period )
+template<typename T>
+static inline Twiddle<T> make_twiddle( T quality, T period )
 	{
 	return {
-		std::polar( 1.0f, pi2 * ( quality - 1 ) / period ),
-		std::polar( 1.0f, pi2 * ( quality + 0 ) / period ),
-		std::polar( 1.0f, pi2 * ( quality + 1 ) / period ),
+		std::polar( T( 1 ), pi2 * ( quality - 1 ) / period ),
+		std::polar( T( 1 ), pi2 * ( quality + 0 ) / period ),
+		std::polar( T( 1 ), pi2 * ( quality + 1 ) / period ),
 		};
 	}
 
-SQPV Audio::convertToSQPV( std::pair<float, float> bandwidth, Bin binsPerOctave ) const
+SQPV Audio::convertToSQPV( std::pair<Frequency, Frequency> bandwidth, Bin binsPerOctave ) const
 	{
+	/*
+	See "Sliding With A Constant-Q" - https://www.dafx.de/paper-archive/2008/papers/dafx08_63.pdf - for details on this algorithm.
+	*/
+
 	flan_FUNCTION_LOG;
 
 	SQPV::Format format;
@@ -98,37 +77,39 @@ SQPV Audio::convertToSQPV( std::pair<float, float> bandwidth, Bin binsPerOctave 
 	format.sampleRate = getSampleRate();
 	SQPV out( format );
 
-	std::pair<float, float> window = std::make_pair( 0.5, -0.5 );
-	const Frame longest_period = std::ceil( out.getQuality() * out.getSampleRate() / out.binToFrequency( 0 ) );
-	const Frame start_offset = longest_period / 2.0f;
-	
-	// Compute fiddle
-	const Twiddle fiddle = make_twiddle( out.getQuality(), -1.0f );
+	std::pair<double, double> window = std::make_pair( 0.5, -0.5 ); // Hann window
+	const Frame N = out.getPeriod( 0 );	
+	const std::complex<double> fiddle = std::polar( 1.0, double( -pi2 * out.getQ() ) );
 
 	for( Channel channel = 0; channel < getNumChannels(); ++channel )
 		{
 		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( out.getNumBins() ), [&]( Bin bin )
 			{
-			const size_t period = std::ceil( out.getQuality() * out.getSampleRate() / out.binToFrequency( bin ) );
-			const Frame offset = -std::ceil( 1 + ( longest_period + period ) / 2.0f );
-			const Twiddle twiddle = make_twiddle( out.getQuality(), period );
+			const Frame N_k = out.getPeriod( bin );
+			const Twiddle twiddle = make_twiddle<double>( out.getQ(), N_k );
 
-			const Frequency binFrequency = out.binToFrequency( bin );
-			Twiddle twiddleBuffer = {0,0,0};
-			Radian phaseBuffer = 0;
-			for( Frame frame = 0; frame < out.getNumFrames() + start_offset; ++frame )
+			const Frequency binFrequency = out.getBinFrequency( bin );
+			Twiddle<double> F_tk = {0,0,0};
+			double phaseBuffer = 0;
+			if( bin == out.getNumBins() - 1 )
+				std::cout << "f";
+			
+			for( Frame frame = std::floor(-N_k/2-1); frame < out.getNumFrames(); ++frame )
 				{
 				auto getSample_s = [&]( Frame frame ){ return frame < 0 || out.getNumFrames() <= frame ? 0.0f : getSample( channel, frame ); };
-				const Sample left  = getSample_s( frame + offset + period );
-				const Sample right = getSample_s( frame + offset       	  );
+				const double new_sample = getSample_s( frame + N_k/2.0f );
+				const double old_sample = getSample_s( frame - N_k/2.0f );
 
-				twiddleBuffer = twiddle * ( twiddleBuffer + ( fiddle * left - right ) / period );
+				const auto fiddled = ( fiddle * new_sample - old_sample )/ double( N_k );
+				F_tk = twiddle * ( F_tk + fiddled  ); // (6)
 
-				// The sliding CQT has a delay before it starts producing output. This check waits until the output begins.
-				if( frame >= start_offset )
+				if( frame >= 0 )
 					{
-					const std::complex<float> cpx = window.first * twiddleBuffer[1] + window.second * ( twiddleBuffer[0] + twiddleBuffer[2] ) / 2.0f;
-					out.getMF( channel, frame - start_offset, bin ) = phase_vocoder( phaseBuffer, cpx, binFrequency, out.frameToTime( 1 ) );
+					// If you are reading the paper on this step note that a factor of j is missing for several steps of the derivation, but it is correct.
+					const std::complex<float> F_tk_windowed = static_cast<std::complex<float>>( 
+						window.first * F_tk[1] + window.second / 2.0 * ( F_tk[0] + F_tk[2] ) ); // (10)
+					const MF mf = phase_vocoder( phaseBuffer, F_tk_windowed, binFrequency, out.getAnalysisRate(), out.getSampleRate() );
+					out.getMP( channel, frame, bin ) = { mf.m, out.frequencyToPitch( mf.f ) };
 					}
 				}
 			} );
@@ -147,12 +128,9 @@ Audio SQPV::convertToAudio() const
 	flan_FUNCTION_LOG;
 
 	// Compute twiddles
-	std::vector<Twiddle> twiddles( getNumBins() );
+	std::vector<std::complex<float>> twiddles( getNumBins() );
 	for( Bin bin = 0; bin < getNumBins(); ++bin )
-    	{
-		const float currentPeriod = std::ceil( getQuality() * getSampleRate() / binToFrequency( bin ) );
-		twiddles[bin] = make_twiddle( getQuality(), currentPeriod );
-    	}
+		twiddles[bin] = std::polar( 1.0f, pi2 * getQ() / getPeriod( bin ) ); // Rotation in (11)
 
 	// Setup done
 	Audio::Format format;
@@ -167,9 +145,13 @@ Audio SQPV::convertToAudio() const
 		std::vector<std::complex<float>> cpxBuffer( getNumFrames() * getNumBins(), 0 );
 		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( getNumBins() ), [&]( Bin bin )		
 			{
-			Radian phaseBuffer = 0;
+			double phaseBuffer = 0;
+			const Radian phase_diff_0 = pitchToFrequency( getMP( channel, 0, bin ).p ) / getAnalysisRate() * pi2;
 			for( Frame frame = 0; frame < getNumFrames(); ++frame )
-				cpxBuffer[buffer_access( 0, frame, bin )] = inverse_phase_vocoder( phaseBuffer, getMF( channel, frame, bin ), frameToTime( 1 ) );
+				{
+				const MP mp = getMP( channel, frame, bin );
+				cpxBuffer[getBufferPos( 0, frame, bin )] = inverse_phase_vocoder( phaseBuffer, { mp.m, pitchToFrequency( mp.p ) }, getAnalysisRate() );
+				}
 			} );
 
 		// Invert scqt
@@ -177,7 +159,7 @@ Audio SQPV::convertToAudio() const
 			{
 			Sample sample = 0;
 			for( Bin bin = 0; bin < getNumBins(); ++bin )
-				sample += ( cpxBuffer[ buffer_access( 0, frame, bin ) ] * twiddles[bin][1] ).real();
+				sample += ( cpxBuffer[ getBufferPos( 0, frame, bin ) ] * twiddles[bin] ).real();
 			out.getSample( channel, frame ) = sample;
 			} );
 		}
