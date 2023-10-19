@@ -10,36 +10,31 @@
 
 namespace flan {
 
-size_t autocorrelationFFTSize( size_t windowSize )
-	{
-	return std::pow( 2, 1 + (int) std::ceil( std::log2( windowSize ) ) );
-	}
-
 // std::vector<float> autocorrelation( const float * signal, Frame n, std::shared_ptr<FFTHelper> fft ) 
 // 	{
 // 	// Forced power of 2 for faster fft, at least twice as big to avoid time-aliasing
-// 	const Frame realBufferSize = autocorrelationFFTSize( n );
+// 	const Frame real_buffer_size = autocorrelation_fft_size( n );
 
 // 	//Allocate fft
-// 	if( ! fft ) fft = std::make_shared<FFTHelper>( realBufferSize, true, true, false );
+// 	if( ! fft ) fft = std::make_shared<FFTHelper>( real_buffer_size, true, true, false );
 
 // 	// Read buffer data ( and zero fill padding ) into fftIn and execute fft
-// 	std::copy( std::execution::par_unseq, signal, signal + n, fft->realBegin() );
-// 	std::fill( std::execution::par_unseq, fft->realBegin() + n, fft->realEnd(), 0 );
-// 	fft->r2cExecute();
+// 	std::copy( std::execution::par_unseq, signal, signal + n, fft->real_begin() );
+// 	std::fill( std::execution::par_unseq, fft->real_begin() + n, fft->real_end(), 0 );
+// 	fft->r2c_execute();
 
 // 	// Transform out buffer to squared magnitudes
-// 	std::for_each( std::execution::par_unseq, fft->complexBegin(), fft->complexEnd(), []( std::complex<float> & c ){ c = std::norm( c ); } );
+// 	std::for_each( std::execution::par_unseq, fft->complex_begin(), fft->complex_end(), []( std::complex<float> & c ){ c = std::norm( c ); } );
 
 // 	// FFT back and copy to output, normalizing
-// 	fft->c2rExecute();
-// 	std::vector<float> out( realBufferSize / 2 );
-// 	std::transform( std::execution::par_unseq, fft->realBegin(), fft->realBegin() + out.size(), out.begin(), [realBufferSize]( float f ){ return f / realBufferSize; } );
+// 	fft->c2r_execute();
+// 	std::vector<float> out( real_buffer_size / 2 );
+// 	std::transform( std::execution::par_unseq, fft->real_begin(), fft->real_begin() + out.size(), out.begin(), [real_buffer_size]( float f ){ return f / real_buffer_size; } );
 
 // 	return out;
 // 	}
 
-std::pair<float,float> parabolicInterpolation( float y0, float y1, float y2, int x1 )  
+std::pair<float,float> parabolic_interpolation( float y0, float y1, float y2, int x1 )  
     {
     const float delta_x = 0.5f * ( y0 - y2 ) / ( y0 - 2 * y1 + y2 );
     const float X = x1 + delta_x;
@@ -47,17 +42,17 @@ std::pair<float,float> parabolicInterpolation( float y0, float y1, float y2, int
     return { X, Y };
     }
 
-std::pair<float,float> parabolicInterpolation( const std::vector<float> & d, int tau ) 
+std::pair<float,float> parabolic_interpolation( const std::vector<float> & d, int tau ) 
 	{
-    return parabolicInterpolation( d[tau-1], d[tau], d[tau+1], tau );
+    return parabolic_interpolation( d[tau-1], d[tau], d[tau+1], tau );
 	}
 
-std::pair<float,float> parabolicInterpolation( std::function< float ( int ) > f, int tau ) 
+std::pair<float,float> parabolic_interpolation( std::function< float ( int ) > f, int tau ) 
 	{
-    return parabolicInterpolation( f(tau-1), f(tau), f(tau+1), tau );
+    return parabolic_interpolation( f(tau-1), f(tau), f(tau+1), tau );
 	}
 
-std::vector<vec2> findPeaks( std::function< float ( int ) > data, int size,  int maxPeaks, bool ampOrder, bool interpolate ) 
+std::vector<vec2> find_peaks( std::function< float ( int ) > data, int size,  int maxPeaks, bool ampOrder, bool interpolate ) 
     {
     if( maxPeaks == -1 ) maxPeaks = size / 2;
 
@@ -111,7 +106,7 @@ std::vector<vec2> findPeaks( std::function< float ( int ) > data, int size,  int
             if( interpolate )
                 {
                 std::lock_guard<std::mutex> lock(mutex);
-                const auto interpolatedData = parabolicInterpolation( data, frame );
+                const auto interpolatedData = parabolic_interpolation( data, frame );
                 peaks.emplace_back( interpolatedData.first, interpolatedData.second );
                 }
             else
@@ -134,21 +129,21 @@ std::vector<vec2> findPeaks( std::function< float ( int ) > data, int size,  int
     return peaks;
     }
 
-std::vector<vec2> findPeaks( const std::vector<float> & data, int maxPeaks, bool ampOrder, bool interpolate )
+std::vector<vec2> find_peaks( const std::vector<float> & data, int maxPeaks, bool ampOrder, bool interpolate )
     {
-    return findPeaks( [&data]( int i ){ return data[i]; }, data.size(), maxPeaks, ampOrder, interpolate );
+    return find_peaks( [&data]( int i ){ return data[i]; }, data.size(), maxPeaks, ampOrder, interpolate );
     }
 
-std::vector<vec2> findValleys( std::function< float ( int ) > data, int size, int maxPeaks, bool ampOrder, bool interpolate )
+std::vector<vec2> find_valleys( std::function< float ( int ) > data, int size, int maxPeaks, bool ampOrder, bool interpolate )
     {
-    std::vector<vec2> flippedPeaks = findPeaks( [&data]( int i ){ return -data( i ); }, size, maxPeaks, ampOrder, interpolate );
+    std::vector<vec2> flippedPeaks = find_peaks( [&data]( int i ){ return -data( i ); }, size, maxPeaks, ampOrder, interpolate );
     std::for_each( std::execution::par_unseq, flippedPeaks.begin(), flippedPeaks.end(), []( vec2 & v ){ v.y() *= -1; } );
     return flippedPeaks;
     }
    
-std::vector<vec2> findValleys( const std::vector<float> & data, int maxPeaks, bool ampOrder, bool interpolate )
+std::vector<vec2> find_valleys( const std::vector<float> & data, int maxPeaks, bool ampOrder, bool interpolate )
     {
-    return findValleys( [&data]( int i ){ return data[i]; }, data.size(), maxPeaks, ampOrder, interpolate );
+    return find_valleys( [&data]( int i ){ return data[i]; }, data.size(), maxPeaks, ampOrder, interpolate );
     }
 
 float mean( const std::vector<float> & data )
@@ -172,7 +167,7 @@ float mean( std::function< float ( int ) > data, int n )
     return sum / n;
     }
 
-vec2 meanAndStandardDeviation( std::function< float ( int ) > data, int n )
+vec2 mean_and_sd( std::function< float ( int ) > data, int n )
     { 
     if( n <= 0 ) return { 0, 0 };
     const float mean_c = mean( data, n );
@@ -189,9 +184,9 @@ vec2 meanAndStandardDeviation( std::function< float ( int ) > data, int n )
     return { mean_c, std::sqrt( variance ) };
     }
 
-vec2 meanAndStandardDeviation( const std::vector<float> & data  )
+vec2 mean_and_sd( const std::vector<float> & data  )
     {
-    return meanAndStandardDeviation( [&data]( int i ){ return data[i]; }, data.size() );
+    return mean_and_sd( [&data]( int i ){ return data[i]; }, data.size() );
     }
 
 };

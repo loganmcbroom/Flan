@@ -4,6 +4,7 @@
 #include <set>
 #include <limits>
 #include <numeric>
+#include <execution>
 
 #include "flan/WindowFunctions.h"
 #include "flan/FFTHelper.h"
@@ -13,53 +14,49 @@
 
 using namespace flan;
 
-//============================================================================================================================================================
-// Helpers
-//============================================================================================================================================================
-
 // Computes sum of squared differences for set number of lag values
 static std::vector<float> compute_d( const float * in, Frame n )
 	{
-    const size_t fftSize = n; //std::pow( 2, 1 + (int) std::ceil( std::log2( n ) ) );
-	auto fft = std::make_shared<FFTHelper>( fftSize, true, true, false );
+    const size_t fft_size = n; //std::pow( 2, 1 + (int) std::ceil( std::log2( n ) ) );
+	auto fft = std::make_shared<FFTHelper>( fft_size, true, true, false );
 
     // Calculate power terms
-	std::vector<float> powerTerms( n / 2 );
-    powerTerms[0] = 0.0;
+	std::vector<float> power_terms( n / 2 );
+    power_terms[0] = 0.0;
     for( int j = 0; j < n / 2; ++j ) 
-        powerTerms[0] += in[j] * in[j];
-    for( int tau = 1; tau < powerTerms.size(); ++tau ) 
-        powerTerms[tau] = powerTerms[tau-1] - in[tau-1] * in[tau-1] + in[tau-1 + n / 2] * in[tau-1 + n / 2];  
+        power_terms[0] += in[j] * in[j];
+    for( int tau = 1; tau < power_terms.size(); ++tau ) 
+        power_terms[tau] = power_terms[tau-1] - in[tau-1] * in[tau-1] + in[tau-1 + n / 2] * in[tau-1 + n / 2];  
 		
     // Get modified autocorrelation. Note this needs two ffts, one of a full window and one of a zero padded half window
     
     // Get half fft
-    std::vector<std::complex<float>> halfFFT( fft->complexBufferSize() );
-    std::copy( in, in + n/2, fft->realBegin() );
-    std::fill( fft->realBegin() + n / 2, fft->realEnd(), 0 );
-    fft->r2cExecute();
-    std::copy( fft->complexBegin(), fft->complexEnd(), halfFFT.begin() );
+    std::vector<std::complex<float>> half_fft( fft->complex_buffer_size() );
+    std::copy( in, in + n/2, fft->real_begin() );
+    std::fill( fft->real_begin() + n / 2, fft->real_end(), 0 );
+    fft->r2c_execute();
+    std::copy( fft->complex_begin(), fft->complex_end(), half_fft.begin() );
 
     // Get full fft
-    std::copy( in, in + n, fft->realBegin() );
-    fft->r2cExecute();
+    std::copy( in, in + n, fft->real_begin() );
+    fft->r2c_execute();
 
     // Multiply
-    for( int i = 0; i < fft->complexBufferSize(); ++i ) 
-		fft->getComplexBuffer()[i] *= std::conj( halfFFT[i] );
+    for( int i = 0; i < fft->complex_buffer_size(); ++i ) 
+		fft->get_complex_buffer()[i] *= std::conj( half_fft[i] );
 
     // IFFT
-    fft->c2rExecute();
+    fft->c2r_execute();
     
     // Find difference function d.
 	std::vector<float> d( n / 2 );
     for( int j = 0; j < n / 2; ++j ) 
-        d[j] = powerTerms[0] + powerTerms[j] - 2 * fft->getRealBuffer()[j] / n;
+        d[j] = power_terms[0] + power_terms[j] - 2 * fft->get_real_buffer()[j] / n;
 
 	return d;
 	}
 
-static std::vector<float> compute_dPrime( const float * in, Frame n )
+static std::vector<float> compute_d_prime( const float * in, Frame n )
 	{
 	// Get d
 	std::vector<float> d = compute_d( in, n );
@@ -88,13 +85,13 @@ static std::vector<float> compute_dPrime( const float * in, Frame n )
 //
 //	// Find potential peak frames using local maxima
 //	std::set<Frame> peakFrames;
-//	const Frame windowSize = 128;
-//	const Frame hopSize = windowSize / 2;
+//	const Frame window_size = 128;
+//	const Frame hopSize = window_size / 2;
 //	for( ; searchFrame < end; searchFrame += hopSize )
 //		{
 //		// If local maxima is close to the center, it's a fine guess
-//		auto localMaxFrameIter = std::max_element( data + searchFrame, data + searchFrame + windowSize );
-//		if( std::abs( std::distance( data + searchFrame + windowSize / 2, localMaxFrameIter ) ) <= windowSize / 4 )
+//		auto localMaxFrameIter = std::max_element( data + searchFrame, data + searchFrame + window_size );
+//		if( std::abs( std::distance( data + searchFrame + window_size / 2, localMaxFrameIter ) ) <= window_size / 4 )
 //			{
 //			const Frame localMaxFrame = std::distance( data, localMaxFrameIter );
 //			peakFrames.insert( localMaxFrame );
@@ -121,131 +118,205 @@ static std::vector<float> compute_dPrime( const float * in, Frame n )
 //	return bestFrame;
 //	}
 
-std::vector<float> Audio::getTotalEnergy() const
+std::vector<float> Audio::get_total_energy() const
 	{
-	std::vector<float> energies( getNumChannels() );
-	std::transform( std::execution::par_unseq, iota_iter( 0 ), iota_iter( getNumChannels() ), energies.begin(), [&]( Channel channel ) {
-		return std::accumulate( channelBegin( channel ), channelEnd( channel ), 0.0f, []( float x, Sample s ){ return x + s * s; } );
+	std::vector<float> energies( get_num_channels() );
+	std::transform( std::execution::par_unseq, iota_iter( 0 ), iota_iter( get_num_channels() ), energies.begin(), [&]( Channel channel ) {
+		return std::accumulate( channel_begin( channel ), channel_end( channel ), 0.0f, []( float x, Sample s ){ return x + s * s; } );
 		} );
 	return energies;
 	}
 
-std::vector<float> Audio::getEnergyDifference( const Audio & other ) const
-	{
-	const Audio inv = other.invertPhase();
-	return Audio::mix( std::vector<const Audio *>{ this, &inv } ).getTotalEnergy();
+std::vector<float> Audio::get_energy_difference( const Audio & other ) const
+	{	
+	const Audio resampled =	get_sample_rate() == other.get_sample_rate() ? Audio() : other.resample( get_sample_rate() );
+	const Audio * sr_correct_source = get_sample_rate() == other.get_sample_rate() ? &other : &resampled;
+	return Audio::mix( std::vector<const Audio *>{ this, sr_correct_source }, {0, 0}, { 1, -1 } ).get_total_energy();
 	}
 
-//============================================================================================================================================================
-// Wavelengths
-//============================================================================================================================================================
-
-float Audio::getLocalWavelength( Channel channel, Frame start, Frame windowSize ) const
+float Audio::get_local_wavelength( Channel channel, Frame start, Frame window_size ) const
 	{
-	const float absoluteCutoff = 0.2f;
+	const float absolute_cutoff = 0.2f;
 
 	flan_PROCESS_START( 0 );
 
 	// Get d' - Cumulative mean normalized difference function (search for YIN algorithm for details)
-	const std::vector<float> dPrime = compute_dPrime( getSamplePointer( channel, start ), windowSize );
+	const std::vector<float> d_prime = compute_d_prime( get_sample_pointer( channel, start ), window_size );
 	
-	// Get local minima of dPrime, sorted from largest to smallest
-	const std::vector<vec2> minima = findValleys( dPrime );
+	// Get local minima of d_prime, sorted from largest to smallest
+	const std::vector<vec2> minima = find_valleys( d_prime );
 	
 	// For wavelength finding, we want absolute minimum, as long as it's low enough
-	vec2 bestMinima = {0,-1};
+	vec2 best_minima = {0,-1};
 	for( const vec2 & m : minima )
-		if( m.y() < absoluteCutoff ) 
-			bestMinima = m;
+		if( m.y() < absolute_cutoff ) 
+			best_minima = m;
     
-    return bestMinima.x();
+    return best_minima.x();
 	}
 
-std::vector<float> Audio::getLocalWavelengths( Channel channel, Frame start, Frame end, Frame windowSize, Frame hop, flan_CANCEL_ARG_CPP ) const
+std::vector<float> Audio::get_local_wavelengths( Channel channel, Frame start, Frame end, Frame window_size, Frame hop, flan_CANCEL_ARG_CPP ) const
 	{
 	flan_PROCESS_START( std::vector<float>() );
 
-    if( end == -1 ) end = getNumFrames();
+    if( end == -1 ) end = get_num_frames();
 
     std::vector<Frequency> out;
-    for( Frame frame = start; frame + windowSize < end; frame += hop )
+    for( Frame frame = start; frame + window_size < end; frame += hop )
 		{
 		flan_CANCEL_POINT( std::vector<float>() );
-        out.push_back( getLocalWavelength( channel, frame, windowSize ) );
+        out.push_back( get_local_wavelength( channel, frame, window_size ) );
 		}
         
     return out;
 	}
 
-float Audio::getAverageWavelength( Channel channel, float minActiveRatio, float maxLengthSigma, 
-	Frame start, Frame end, Frame windowSize, Frame hop, flan_CANCEL_ARG_CPP ) const
+float Audio::get_average_wavelength( Channel channel, float min_active_ratio, float max_length_sigma, 
+	Frame start, Frame end, Frame window_size, Frame hop, flan_CANCEL_ARG_CPP ) const
 	{
 	flan_PROCESS_START( 0 );
-	return getAverageWavelength( getLocalWavelengths( channel, start, end, windowSize, hop, canceller ), minActiveRatio, maxLengthSigma );
+	return get_average_wavelength( get_local_wavelengths( channel, start, end, window_size, hop, canceller ), min_active_ratio, max_length_sigma );
 	}
 
-float Audio::getAverageWavelength( const std::vector<float> & locals, float minActiveRatio, float maxLengthSigma ) const
+float Audio::get_average_wavelength( const std::vector<float> & locals, float min_active_ratio, float max_length_sigma ) const
 	{
 	flan_PROCESS_START( 0 );
 
 	// Copy valid wavelengths
-	std::vector<float> validLengths;
+	std::vector<float> valid_lengths;
 
-	const int numValids = locals.size() - std::count( locals.begin(), locals.end(), -1 );
-	if( numValids <= minActiveRatio * locals.size() ) return -1; // Check that a sufficient amount of data had a detectable wavelength
+	const int num_valids = locals.size() - std::count( locals.begin(), locals.end(), -1 );
+	if( num_valids <= min_active_ratio * locals.size() ) return -1; // Check that a sufficient amount of data had a detectable wavelength
 
-	std::copy_if( locals.begin(), locals.end(), std::back_inserter( validLengths ), []( float x ){ return x != -1; } );
+	std::copy_if( locals.begin(), locals.end(), std::back_inserter( valid_lengths ), []( float x ){ return x != -1; } );
 
-	const vec2 msd = meanAndStandardDeviation( validLengths );
-	if( maxLengthSigma != -1 && msd.y() > maxLengthSigma ) return -1; // Check that the lengths didn't vary too much
+	const vec2 msd = mean_and_sd( valid_lengths );
+	if( max_length_sigma != -1 && msd.y() > max_length_sigma ) return -1; // Check that the lengths didn't vary too much
 
 	return msd.x();
 	}
 
-//============================================================================================================================================================
-// Frequencies
-//============================================================================================================================================================
-
-Frequency Audio::getLocalFrequency( Channel channel, Frame start, Frame windowSize, flan_CANCEL_ARG_CPP ) const
+Frequency Audio::get_local_frequency( Channel channel, Frame start, Frame window_size, flan_CANCEL_ARG_CPP ) const
 	{
-	const float minimumProximityCutoff = 0.2f;
-	const float absoluteCutoff = 0.15f;
+	const float minimum_proximity_cutoff = 0.2f;
+	const float absolute_cutoff = 0.15f;
 
     flan_PROCESS_START( 0 );
 
 	// Get d' - Cumulative mean normalized difference function (search for YIN algorithm for details)
-	const std::vector<float> dPrime = compute_dPrime( getSamplePointer( channel, start ), windowSize );
+	const std::vector<float> d_prime = compute_d_prime( get_sample_pointer( channel, start ), window_size );
 	
-	// Get local minima of dPrime, sorted from largest to smallest
-	const std::vector<vec2> minima = findValleys( dPrime, -1, true );
+	// Get local minima of d_prime, sorted from largest to smallest
+	const std::vector<vec2> minima = find_valleys( d_prime, -1, true );
 
 	// Filter out anything that isn't at least within 20% of the minimum minima.
-	// Also filter anything that isn't below a global cutoff ( dPrime is normalized to some degree ).
-	const float cutoff = std::min( minima.back().y() * ( 1.0f + minimumProximityCutoff ), absoluteCutoff );
+	// Also filter anything that isn't below a global cutoff ( d_prime is normalized to some degree ).
+	const float cutoff = std::min( minima.back().y() * ( 1.0f + minimum_proximity_cutoff ), absolute_cutoff );
 	
 	// For frequency finding, we want small wavelength to minimize octave errors
-	vec2 bestMinima = { float( windowSize ),-1 };
+	vec2 best_minima = { float( window_size ),-1 };
 	for( const vec2 & m : minima )
-		if( m.y() < cutoff && m.x() < bestMinima.x() ) 
-			bestMinima = m;
+		if( m.y() < cutoff && m.x() < best_minima.x() ) 
+			best_minima = m;
     
-    return float( getSampleRate() ) / bestMinima.x();
+    return float( get_sample_rate() ) / best_minima.x();
     }
 
-std::vector<Frequency> Audio::getLocalFrequencies( Channel channel, Frame start, Frame end, Frame windowSize, Frame hop, flan_CANCEL_ARG_CPP ) const
+std::vector<Frequency> Audio::get_local_frequencies( Channel channel, Frame start, Frame end, Frame window_size, Frame hop, flan_CANCEL_ARG_CPP ) const
     {
     flan_PROCESS_START( std::vector<Frequency>() );
 
-    if( end == -1 ) end = getNumFrames();
+    if( end == -1 ) end = get_num_frames();
 
-    std::vector<Frequency> out;
-    for( Frame frame = start; frame + windowSize < end; frame += hop )
-        out.push_back( getLocalFrequency( channel, frame, windowSize, canceller ) );
+    std::vector<Frequency> out( (end - window_size - start) / hop ); // This will round toward zero
+	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( out.size() ), [&]( int i )
+		{
+		const Frame frame = start + i * hop;
+        out[i] = get_local_frequency( channel, frame, window_size, canceller );
+		} );
         
     return out;
     }
 
+Function<Second, Amplitude> Audio::get_amplitude_envelope(
+	Second window_width
+	) const
+	{
+	flan_PROCESS_START( 0 );
 
+	if( window_width <= 0 ) return 0;
 
+	Audio mono = convert_to_mono();
 
+	// Rectify
+	for( Frame frame = 0; frame < get_num_frames(); ++frame )
+		if( mono.get_sample( 0, frame ) < 0 )
+			mono.get_sample( 0, frame ) *= -1;
+
+	const fFrame window_width_frames = time_to_frame( window_width );
+
+	Audio hann_window = Audio::create_empty_with_frames( window_width_frames, 1, get_sample_rate() );
+	for( Frame i = 0; i < hann_window.get_num_frames(); ++i )
+		hann_window.get_sample( 0, i ) = Windows::hann( float( i ) / ( window_width_frames - 1 ) );
+
+	auto convolved = mono.convolve( hann_window );
+	
+	std::vector<float> ys = std::move( convolved.get_buffer() );
+	return [ys = std::move( ys ), sr = get_sample_rate() ]( float t )
+		{
+		// Get the image sample index as a float
+		const float x = t * sr;
+		if( 0 <= x && x < ys.size() - 1 )
+			{
+			Frame x1 = std::floor( x );
+			float y1 = ys[x1];
+			float y2 = ys[x1 + 1];
+			return y1 + ( y2 - y1 ) * ( x - x1 );
+			}
+		else return 0.0f;
+		};
+
+	// flan_PROCESS_START( 0 );
+
+	// Audio out = convert_to_mono();
+
+	// // Rectify
+	// for( Frame frame = 0; frame < get_num_frames(); ++frame )
+	// 	if( out.get_sample( 0, frame ) < 0 )
+	// 		out.get_sample( 0, frame ) *= -1;
+
+	// out = out.filter_1pole_lowpass( 10, 4 );
+
+	// // Needing this is a c++ issue, not stealing the vector makes the lamba capture initialization get flagged as trying to call Audio copy ctor
+	// std::vector<Sample> buffer = std::move( out.get_buffer() );
+
+	// return [buffer = std::move( buffer ), sample_rate = get_sample_rate()]( Second t )
+	// 	{
+	// 	const Frame frame = t * sample_rate;
+	// 	if( 0 <= frame && frame < buffer.size() )
+	// 		return buffer[frame];
+	// 	return 0.0f;
+	// 	};
+	}
+	
+Function<Second, Amplitude> Audio::get_frequency_envelope( 
+	) const
+	{
+	const int hop_size = 128;
+	const std::vector<Frequency> frequencies = convert_to_mono().get_local_frequencies( 0, 0, -1, 2048, hop_size );
+
+	return [frequencies = std::move( frequencies ), sample_rate = get_sample_rate(), hop_size]( Second t )
+		{
+		const float x = t * sample_rate / hop_size;
+		if( 0 <= x && x < frequencies.size() - 1 )
+			{
+			const Frame x1 = std::floor( x );
+			const float y1 = frequencies[x1];
+			const float y2 = frequencies[x1 + 1];
+			const float m = ( y2 - y1 ) / 1;
+			return y1 + m * ( x - x1 ); // Point-slope form for lerp
+			}
+		else return 0.0f;
+		};
+	}
 	

@@ -28,7 +28,37 @@ class PV : public PVBuffer
 {
 public:
 
-	using Vec = const std::vector<const PV &> &;
+	template<typename T>
+	std::vector<T> sample_function_over_domain( const Function<TF, T> & f ) const	
+		{
+		std::vector<T> out( get_num_frames() * get_num_bins() );
+		runtime_execution_policy_handler( f.get_execution_policy(), [&]( auto policy )
+			{
+			std::for_each( policy, iota_iter( 0 ), iota_iter( out.size() ), [&]( Index i )
+				{
+				const Frame frame = i / get_num_bins();
+				const Bin bin = i % get_num_bins();
+				out[i] = f( TF{ frame_to_time( frame ), bin_to_frequency( bin ) } );
+				} );
+			} );
+		return out;
+		}
+
+	template<typename T>
+	std::vector<T> sample_function_over_time_domain( const Function<Second, T> & f ) const	
+		{
+		std::vector<T> out( get_num_frames() );
+		runtime_execution_policy_handler( f.get_execution_policy(), [&]( auto policy )
+			{
+			std::for_each( policy, iota_iter( 0 ), iota_iter( out.size() ), [&]( Frame frame )
+				{
+				out[frame] = f( frame_to_time( frame ) );
+				} );
+			} );
+		return out;
+		}
+
+	//using Vec = const std::vector<const PV &> &;
 
 	/** Constructs 0 size PV with default PVBuffer::Format. */
 	PV() : PVBuffer( PVBuffer::Format() ) {}
@@ -56,18 +86,27 @@ public:
 
 	/** Transforms this PV to an Audio using the overlaps and samplerate given in format. 
 	 */
-	Audio convertToAudio( flan_CANCEL_ARG ) const;
+	Audio convert_to_audio( 
+		flan_CANCEL_ARG 
+		) const;
 
-	/** The inverse transform of Audio::convertToMidSidePV.
+	/** The inverse transform of Audio::convert_to_ms_PV.
 	 */
-	Audio convertToLeftRightAudio( flan_CANCEL_ARG ) const;
+	Audio convert_to_lr_audio( 
+		flan_CANCEL_ARG 
+		) const;
 
 	/** Converts the PV to a spectrograph bmp.
 	 *  \param domain The time/frequency rectangle to graph. Negative 1 for time or frequency end will use the maximum.
 	 *  \param width The bmp width.
 	 *  \param height The bmp height.
 	 */
-	Graph convertToGraph( Rect domain = { 0, 0, -1, -1 }, Pixel width = -1, Pixel height = -1, float timelineScale = 0 ) const;
+	Graph convert_to_graph( 
+		Rect domain = { 0, 0, -1, -1 }, 
+		Pixel width = -1, 
+		Pixel height = -1, 
+		float timeline_scale = 0 
+		) const;
 
 	/** Creates and saves a bmp spectrograph of the PV, then returns this.
 	 *	\param filename A filename at which to save the generated bmp.
@@ -75,7 +114,12 @@ public:
 	 *  \param width The bmp width.
 	 *  \param height The bmp height.
 	 */
-	const PV & saveToBMP( const std::string & filename, Rect domain = { 0, 0, -1, -1 }, Pixel width = -1, Pixel height = -1 ) const;
+	const PV & save_to_bmp( 
+		const std::string & filename, 
+		Rect domain = { 0, 0, -1, -1 }, 
+		Pixel width = -1, 
+		Pixel height = -1 
+		) const;
 
 
 
@@ -83,52 +127,67 @@ public:
 	// Contours
 	//============================================================================================================================================================
 
-	/** Container for salience (percieved volume) extracted by PV::getSalience.
+	/** Container for salience (percieved volume) extracted by PV::get_salience.
 	 */
 	struct Salience
 		{
-		float & get( Frame f, Bin b ) { return buffer[ f * numBins + b ]; }
-		Frame numFrames;
-		Bin numBins;
+		float & get( Frame f, Bin b ) { return buffer[ f * num_bins + b ]; }
+		Frame num_frames;
+		Bin num_bins;
 		std::vector<float> buffer;
 		};
 
-	/** This attempts to find the percieved volume at every tenth of a note over time. Meant to be used by PV::getContours.
+	/** This attempts to find the percieved volume at every tenth of a note over time. Meant to be used by PV::get_contours.
 	 *    Note this doesn't use a percieved volume filter like it maybe should. I didn't want to deal with it.
 	 *	\param channel The channel to analyze.
-	 *	\param minFreq Frequency of the lowest pitch bin.
-	 *	\param maxFreq Frequency of the highest pitch bin.
+	 *	\param min_frequency Frequency of the lowest pitch bin.
+	 *	\param max_frequency Frequency of the highest pitch bin.
 	 */
-	Salience getSalience( Channel channel, Frequency minFreq = 55, Frequency maxFreq = 1760 ) const;
+	Salience get_salience( 
+		Channel channel, 
+		Frequency min_frequency = 55, 
+		Frequency max_frequency = 1760 
+		) const;
 
-	/** Container for a contour (note) extracted by PV::getContours, with some commonly needed details.
+	/** Container for a contour (note) extracted by PV::get_contours, with some commonly needed details.
 	 */
 	struct Contour
 		{
-		float pitchMean;
-		float pitchSD;
-		float salienceMean;
-		float salienceSD;
+		float pitch_mean;
+		float pitch_std_dev;
+		float salience_mean;
+		float salience_std_dev;
 
-		Frame startFrame;
+		Frame start_frame;
 		std::vector<vec2> bins; // Each vec2 contains { pitchBin, mag (?) }
 		};
 
 	/** This is a piece of the melodia melody finding algorithm, which attempts to extract note information from PV data.
 	 *  \param channel The channel to analyze.
-	 *  \param minFreq
-	 *  \param maxFreq
-	 *  \param filterShort Contours with lengths less than this will be removed.
-	 *  \param filterQuiet Contours with salienceMean less than the largest salienceMean divided by this are removed
+	 *  \param min_frequency
+	 *  \param max_frequency
+	 *  \param filter_short Contours with lengths less than this will be removed.
+	 *  \param filter_quiet Contours with salience_mean less than the largest salience_mean divided by this are removed
 	 */
-	std::vector<Contour> getContours( Channel channel, Frequency minFreq = 55, Frequency maxFreq = 1760, Frame filterShort = 30, float filterQuiet = 20, flan_CANCEL_ARG ) const;
+	std::vector<Contour> get_contours( 
+		Channel channel, 
+		Frequency min_frequency = 55, 
+		Frequency max_frequency = 1760, 
+		Frame filter_short = 30, 
+		float filter_quiet = 20, 
+		flan_CANCEL_ARG 
+		) const;
 
 	/** Prism, in theory, allows complete control over the frequency and magnitude of every harmonic of every note in the input.
-	 *  \param harmonicFunction This takes the global or local time (see perNote), the harmonic index (starting at 0), the base frequency and the 
+	 *  \param harmonic_function This takes the global or local time (see use_local_contour_time), the harmonic index (starting at 0), the base frequency and the 
 	 *  	magnitudes of all harmonics. It should return the MF that the input harmonic should be modified to. This function type is defined in Function.h.
-	 *  \param perNote This decides if the time passed to harmonicFunction should be the time elapsed since the start of the PV (false), or the start of the contour (true).
+	 *  \param use_local_contour_time This decides if the time passed to harmonic_function should be the time elapsed since the start of the PV (false), or the start of the contour (true).
 	 */
-	PV prism( const PrismFunc & harmonicFunction, bool perNote = true, flan_CANCEL_ARG ) const;
+	PV prism( 
+		const PrismFunc & harmonic_function, 
+		bool use_local_contour_time = true, 
+		flan_CANCEL_ARG 
+		) const;
 
 	//============================================================================================================================================================
 	// Utility
@@ -138,12 +197,31 @@ public:
 	 *	The returned frame in a linear interpolation of the frame surrounding the selected time.
 	 *	\param time The time at which the frame should be taken. 
 	 */
-	PV getFrame( Second time ) const;
+	PV get_frame( 
+		Second time 
+		) const;
 
 	/** This computes a weighted approximation of the 4 surrounding bins using the provided interpolator */
-	MF getBinInterpolated( Channel channel, float frame, float bin, Interpolator interp = Interpolators::linear ) const;
-	MF getBinInterpolated( Channel channel, float frame, Bin bin, Interpolator interp = Interpolators::linear ) const;
-	MF getBinInterpolated( Channel channel, Frame frame, float bin, Interpolator interp = Interpolators::linear ) const;
+	MF getBinInterpolated( 
+		Channel channel, 
+		fFrame frame, 
+		fBin bin, 
+		Interpolator interp = Interpolators::linear 
+		) const;
+
+	MF getBinInterpolated( 
+		Channel channel, 
+		fFrame frame, 
+		Bin bin, 
+		Interpolator interp = Interpolators::linear 
+		) const;
+
+	MF getBinInterpolated( 
+		Channel channel, 
+		Frame frame, 
+		fBin bin, 
+		Interpolator interp = Interpolators::linear 
+		) const;
 
 
 
@@ -156,11 +234,16 @@ public:
 	 *	\param length The length of the output PV
 	 *	\param selector This function takes each time/frequency point in the output and returns 
 	 *		the time/frequency that should be read from the input into that output
-	 *	\param interpolateFrames Decides if selecting a point between frames should interpolate the surrounding frames or round to the nearest frame.
+	 *	\param interpolate_frames Decides if selecting a point between frames should interpolate the surrounding frames or round to the nearest frame.
 	 		Using interpolation takes around twice as long to compute.
 	 *	\param interp This determines how input points surrounding selected points are interpolated
 	 */
-	PV select( Second length, const Func2x2 & selector, bool interpolateFrames = false, Interpolator interp = Interpolators::linear ) const;
+	PV select( 
+		Second length, 
+		const Function<TF, TF> & selector, 
+		bool interpolate_frames = false, 
+		Interpolator interp = Interpolators::linear 
+		) const;
 
 	/** This is a classic "time-freeze" effect. At supplied times playback is "frozen", repeating the current frame 
 	 *	(or a linear interpolation of surrounding frames), for a specified amount of time. After this time has elapsed,
@@ -168,7 +251,9 @@ public:
 	 *	\param timing Each element of timing describes a point of time to freeze, and for 
 	 *		how long it should be frozen, in that order
 	 */
-	PV freeze( const std::vector<std::array<Second,2>> & timing ) const;
+	PV freeze( 
+		const std::vector<std::array<Second,2>> & timing 
+		) const;
 
 
 
@@ -185,31 +270,46 @@ public:
 	 *	\param mod Takes and returns time/frequency pairs as either flan::vec2 or std::complex<float>
 	 *	\param interp Interpolator used in quad mapping
 	 */
-	PV modify( const Func2x2 & mod, Interpolator interp = Interpolators::linear ) const;
+	PV modify( 
+		const Function<TF, TF> & mod, 
+		Interpolator interp = Interpolators::linear 
+		) const;
 
 	/** This is functionally equivalent to using PV::modify_cpu and only outputting the input time
 	 *	\param mod Takes time/frequency pairs and returns frequency
 	 *	\param interp Interpolator used in frequency mapping
 	 */
-	PV modifyFrequency( const Func2x1 & mod, Interpolator = Interpolators::linear ) const;
+	PV modify_frequency( 
+		const Function<TF, Frequency> & mod, 
+		Interpolator = Interpolators::linear 
+		) const;
 
 	/** This is functionally equivalent to using PV::modify_cpu and only outputting the input frequency
 	 *	\param mod Takes time/frequency pairs and returns time
 	 *	\param interp Interpolator used in time mapping
 	 */
-	PV modifyTime( const Func2x1 & mod, Interpolator = Interpolators::linear ) const;
+	PV modify_time( 
+		const Function<TF, Second> & mod, 
+		Interpolator = Interpolators::linear 
+		) const;
 
-	/** This is functionally equivalent to using PV::modifyFrequency with the mod output multiplied by input frequency
+	/** This is functionally equivalent to using PV::modify_frequency with the mod output multiplied by input frequency
 	 *	\param factor Takes time/frequency pairs and returns frequency multiplier
 	 *	\param interp Disabled for gpu methods.
 	 */
-	PV repitch( const Func2x1 & factor, Interpolator = Interpolators::linear ) const;
+	PV repitch( 
+		const Function<TF, float> & factor, 
+		Interpolator = Interpolators::linear 
+		) const;
 
 	/** This is functionally equivalent to using PV::modifySecond with the mod output multiplied by input time
 	 *	\param factor Takes time/frequency pairs and returns time multiplier
 	 *	\param interp Interpolator used in frequency mapping
 	 */
-	PV stretch( const Func2x1 & factor, Interpolator = Interpolators::linear ) const;
+	PV stretch( 
+		const Function<TF, float> & factor, 
+		Interpolator = Interpolators::linear 
+		) const;
 
 	/** This is close to PV::stretch, but can only expand the input by integer quantities at any given time.
 	 *	It is also restricted to choosing the local expansion amount as a function of time, not frequency.
@@ -217,26 +317,36 @@ public:
 	 *	\param expansion This returns the local expansion amount as a function of time. 
 	 *		Output will be rounded to the nearest integer and clamped to positive integers.
 	 */
-	PV stretch_spline( const Func1x1 & expansion ) const;
+	PV stretch_spline( 
+		const Function<Second, float> & expansion 
+		) const;
 
 	/** This is functionally equivalent to stretching the input down by factor, and then up.
 	 *	Resolution is lost, but the lost resolution is filled via interpolation
-	 *	\param eventsPerSecond The number of MFs per second that are not removed before interpolation.
+	 *	\param events_per_second The number of MFs per second that are not removed before interpolation.
 	 *	\param interp Interpolator deciding how lost frames are restored from their surroundings
 	 */
-	PV desample( const Func2x1 & eventsPerSecond, Interpolator interp = Interpolators::linear ) const;
+	PV desample( 
+		const Function<TF, float> & events_per_second, 
+		Interpolator interp = Interpolators::linear 
+		) const;
 
 	/** Warning: this process can produce very loud outputs with unscrupulouss parameters.
-	 *	The input is left alone until startTime. Between startTime and endTime the output is an interpolation
-	 *	of the frames at startTime and endTime. After endTime, the interpolation continues into the realm of extrapolation
-	 *	for extrapDuration seconds. High frequency partials in the input can cause unpleasant sine sweeps in the output,
+	 *	The input is left alone until start_time. Between start_time and end_time the output is an interpolation
+	 *	of the frames at start_time and end_time. After end_time, the interpolation continues into the realm of extrapolation
+	 *	for extrap_time seconds. High frequency partials in the input can cause unpleasant sine sweeps in the output,
 	 *	so you may want to use a mild low pass filter before processing.
-	 *	\param startTime Second at which interpolation starts.
-	 *	\param endTime Second at which interpolation ends and extrapolation begins. -1 indicates end of file.
-	 *	\param extrapDuration Duration of the extrapolation
+	 *	\param start_time Second at which interpolation starts.
+	 *	\param end_time Second at which interpolation ends and extrapolation begins. -1 indicates end of file.
+	 *	\param extrap_time Duration of the extrapolation
 	 *	\param interp Interpolator used throughout
 	 */
-	PV timeExtrapolate( Second startTime, Second endTime, Second extrapDuration, Interpolator interp = Interpolators::linear) const;
+	PV time_extrapolate( 
+		Second start_time, 
+		Second end_time, 
+		Second extrap_time, 
+		Interpolator interp = Interpolators::linear
+		) const;
 
 
 	//============================================================================================================================================================
@@ -246,9 +356,16 @@ public:
 	/** Generates a PV from a spectrum.
 	 *	\param length 
 	 *	\param freq
-	 *	\param harmonicWeights This takes time and a harmonic index, and returns a magnitude.
+	 *	\param harmonic_weights This takes time and a harmonic index starting at 0, and returns a magnitude.
+	 *	\param harmonic_bandwidth Each generated harmonic is spread over this amount of frequency
 	 */
-	static PV synthesize( Second length, Func1x1 freq, const Func2x1 & harmonicWeights );
+	static PV synthesize( 
+		Second length, 
+		const Function<Second, Frequency> & freq, 
+		const Function<std::pair<Second, Harmonic>, Magnitude> & harmonic_weights = []( std::pair<Second, Harmonic> sh ){ return 1.0f / ( 1.0f + sh.second ); },
+		const Function<Second, Frequency> & harmonic_bandwidth = 60,
+		const Function<TF, Frequency> & harmonic_frequency_std_dev = 0
+		);
 
 
 
@@ -256,61 +373,82 @@ public:
 	// Extras
 	//============================================================================================================================================================
 
-	/** For all frequencies, every octave above it is set to a copy of the base, scaled by seriesScale
-	 *	\param seriesScale The scaling function. The inputs to this are time and harmonic index starting at 0.
+	/** For all frequencies, every octave above it is set to a copy of the base, scaled by series_scale
+	 *	\param series_scale The scaling function. The inputs to this are time and harmonic index starting at 0.
 	 */
-	PV addOctaves( const Func2x1 & seriesScale ) const;
+	PV add_octaves( 
+		const Function<std::pair<Second, Harmonic>, float> & series_scale 
+		) const;
 
-	/** For all frequencies, every harmonic above it is set to a copy of the base, scaled by seriesScale
-	 *	\param seriesScale The scaling function. The inputs to this are time and harmonic index starting at 0.
+	/** For all frequencies, every harmonic above it is set to a copy of the base, scaled by series_scale
+	 *	\param series_scale The scaling function. The inputs to this are time and harmonic index starting at 0.
 	 */
-	PV addHarmonics( const Func2x1 & seriesScale ) const;
+	PV add_harmonics( 
+		const Function<std::pair<Second, Harmonic>, float> & series_scale 
+		) const;
 
-	/** Replaces the Amplitudes (Magnitudes) of bins in the input with those in ampSource
-	 *	\param ampSource Source PV from which to draw amplitudes
+	/** Replaces the Amplitudes (Magnitudes) of bins in the input with those in amp_source
+	 *	\param amp_source Source PV from which to draw amplitudes
 	 *	\param amount An amount of 1 fully replaces the amplitudes, 0 does nothing, and amounts between
 	 *		give a linear interpolation of the two.
-	 *	\returns A PV with dimensions equal to the shorter of this and ampSource
+	 *	\returns A PV with dimensions equal to the shorter of this and amp_source
 	 */
-	PV replaceAmplitudes( const PV & ampSource, const Func2x1 & amount = 1 ) const;
+	PV replace_amplitudes( 
+		const PV & amp_source, 
+		const Function<TF, float> & amount = 1 
+		) const;
 
 	/** Subtracts the Amplitudes (Magnitudes) of bins in other with those in this
-	 *	\param ampSource Source PV from which to draw amplitudes to subtract.
+	 *	\param amp_source Source PV from which to draw amplitudes to subtract.
 	 *	\param amount A scalar on the subtraction amount. This isn't clamped to [0,1].
-	 *	\returns A PV with dimensions equal to the shorter of this and ampSource.
+	 *	\returns A PV with dimensions equal to the shorter of this and amp_source.
 	 */
-	PV subtractAmplitudes( const PV & other, const Func2x1 & amount = 1 ) const;
+	PV subtract_amplitudes( 
+		const PV & other, 
+		const Function<TF, float> & amount = 1 
+		) const;
 
 	/** Passes each MF through the shaper.
 	 *	\param shaper A function which takes each input MF and returns an MF to be written to the output.
-	 *	\param useShiftAlignment If enabled, for each input MF the difference between the bin the MF came from and the bin its
+	 *	\param use_shift_alignment If enabled, for each input MF the difference between the bin the MF came from and the bin its
 	 *		frequency would naturally land in is found. That is the bin shift. After shaping, rather than placing data back into the bin it 
 	 *		came from, the natural bin for the shaped frequency is found, and the bin shift is added. This makes an effort to maintain the
 	 *		cohesion of partials when the shaper is shifting frequency information.
 	 */
-	PV shape( const Function<MF,MF> & shaper, bool useShiftAlignment = false ) const;
+	PV shape( 
+		const Function<MF,MF> & shaper, 
+		bool use_shift_alignment = false 
+		) const;
 
 	/** Modifies the input data in random ways using normal distributions.
-	 *	\param magSigma Standard deviation for magnitude distribution.
-	 *	\param frqSigma Standard deviation for frequency distribution.
+	 *	\param magnitude_std_dev Standard deviation for magnitude distribution.
+	 *	\param frequency_std_dev Standard deviation for frequency distribution.
 	 *	\param damping How much each perturbation should be brought back towards zero per frame.
 	 		One will do nothing, zero gives complete damping, and values over one will cause the sound to explode.
 	 */
-	PV perturb( const Func2x1 & magSigma, const Func2x1 & frqSigma, float damping = 0.99 ) const;
+	PV perturb( 
+		const Function<TF, Magnitude> & magnitude_std_dev, 
+		const Function<TF, Frequency> & frequency_std_dev, 
+		float damping = 0.99 
+		) const;
 
-	/** At any given time, numPartials should return a number of bins, N, to retain.
+	/** At any given time, num_partials should return a number of bins, N, to retain.
 	 *	The N loudest bins are copied to the output.
 	 *	All other output bins are 0 filled.
-	 *	\param numPartials Number of partials to retain as a function of time
+	 *	\param num_partials Number of partials to retain as a function of time
 	 */
-	PV retainNLoudestPartials( const Function<Second, Bin> & numPartials ) const;
+	PV retain_n_loudest_partials( 
+		const Function<Second, Bin> & num_partials 
+		) const;
 
-	/** At any given time, numPartials should return a number of bins, N, to remove.
+	/** At any given time, num_partials should return a number of bins, N, to remove.
 	 *	The N loudest bin positions are 0 filled in the output.
 	 *	All other bins are copied to the output.
-	 *	\param numPartials Number of partials to remove as a function of time
+	 *	\param num_partials Number of partials to remove as a function of time
 	 */
-	PV removeNLoudestPartials( const Function<Second, Bin> & numPartials ) const;
+	PV remove_n_loudest_partials( 
+		const Function<Second, Bin> & num_partials 
+		) const;
 
 	/** Each bin has its frequency copied to subsequent output bins with decaying magnitude until a 
 	 *	bin with magnitude greater than the current decayed magnitude is read from the input. 
@@ -319,7 +457,10 @@ public:
 	 *		For example, a constant decay of .5 applied to an impulse will lose half it's magnitude every second.
 	 *	\param length Because the decay is exponential, an output length is needed. 
 	 */
-	PV resonate( Second length, const Func2x1 & decay ) const;
+	PV resonate( 
+		Second length, 
+		const Function<TF, float> & decay 
+		) const;
 
 };
 

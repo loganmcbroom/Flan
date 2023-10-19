@@ -6,13 +6,12 @@
 
 #include "flan/defines.h"
 #include "flan/Utility/vec2.h"
-#include "flan/Utility/MF.h"
 
 namespace flan {
 
 /** PVBuffer stores PV data and provides basic buffer access, conversion constants, loading, and saving.
- *	Access to the raw sample buffer is given, but PVBuffer::getMF and 
- *	PVBuffer::setMF are preferred when speed is not a factor.
+ *	Access to the raw sample buffer is given, but PVBuffer::get_MF and 
+ *	PVBuffer::set_MF are preferred when speed is not a factor.
  *	Data is stored in channel -> frame -> bin order, in other words, the entire first channel 
  *	is stored in memory before the second, and within each channel the entire first frame is stored before the second.
  *
@@ -36,19 +35,19 @@ public:
 
 	/** PVBuffer::Format stores all required information outside of the buffer. 
 	 *	This is used to easily transfer the way an PVBuffer is stored on disk to a new PVBuffer without copying the buffer.
-	 *	In practice, a function transforming a PVBuffer will call PVBuffer::getFormat(), modify members as needed, and
+	 *	In practice, a function transforming a PVBuffer will call PVBuffer::get_format(), modify members as needed, and
 	 *	then construct a blank PVBuffer with the Format copy constructor.
 	 *	Note that sample rate describes audio frames per second rather than flan frames per second. This is generally easier to work with
 	 *	because flan frame rates can be non-integer values.
 	 */
 	struct Format 
 		{ 
-		Channel numChannels = 0;
-		Frame numFrames = 0;
-		Bin numBins = 0;
-		FrameRate sampleRate = 48000; 
-		FrameRate analysisRate = 48000 / 128;
-		Frame windowSize = 0;
+		Channel num_channels = 0;
+		Frame num_frames = 0;
+		Bin num_bins = 0;
+		FrameRate sample_rate = 48000; 
+		FrameRate analysis_rate = 48000 / 128;
+		Frame window_size = 0;
 		//window type?
 		};
 
@@ -62,7 +61,7 @@ public:
 	PVBuffer( const Format & format );
 
 	/** Load constructor, calls PVBuffer::load.
-	 *	\param filePath A PV file to load.
+	 *	\param filepath A PV file to load.
 	 */
 	PVBuffer( const std::string & filename );
 
@@ -73,7 +72,7 @@ public:
 	/** Return true if the PV is in a state which cannot be processed. This includes a 0-channel buffer,
 	 *	a 0-frame buffer, a 0-bin buffer, or a buffer with a 0 sample rate.
 	 */
-	bool isNull() const;
+	bool is_null() const;
 
 	//======================================================
 	//	I/O
@@ -97,7 +96,7 @@ public:
 	 *		Bytes 20-23 is the audio sample rate used to create the PV data. This is used because the PV frame rate can be a non-integer value.
 	 *		Bytes 24-27 is the hop size used in the phase vocoder (uint32_t).
 	 *		Bytes 28-31 is the number of bytes used to store buffer information (uint32_t). Each MF pair stores twice this number of bytes.
-	 *		Bytes 32-33 is a phase vocoder window function id. Currently only 1 is defined and represents a Hann window.
+	 *		Bytes 32-33 is a phase vocoder window function id. Currently only 1 is defined and represents a hann window.
 	 *	
 	 *	Chunk three is the data chunk.
 	 *		Bytes 0-3 is "data".
@@ -107,18 +106,18 @@ public:
 	 *		Note that magnitudes will likely need to be normalized before storage.
 	 *		Frequency data should be scaled so the max 24bit signed int value maps to the audio sample rate corresponding to the PV saved.
 	 *
-	 *	\param filePath A PV file to load.
+	 *	\param filepath A PV file to load.
 	 */
 	bool load( const std::string & filename );
 
 	/** File saving. See PVBuffer::load for format information.
-	 *	\param filePath A PV file to load.
+	 *	\param filepath A PV file to load.
 	 */
 	bool save( const std::string & filename ) const;
 
 	/** Prints format data.
 	 */
-	void printSummary() const;
+	void print_summary() const;
 
 	//======================================================
 	//	Getters
@@ -129,103 +128,103 @@ public:
 	 *	\param frame
 	 *	\param bin
 	 */
-	MF getMF( Channel channel, Frame frame, Bin bin ) const;
+	MF get_MF( Channel channel, Frame frame, Bin bin ) const;
 
 	/** Returns a single frame PVBuffer with data from the given input frame.
 	 * \param frame
 	 */
-	PVBuffer getFrame( Frame frame ) const;
+	PVBuffer get_frame( Frame frame ) const;
 
 	/** Returns the format being used.
 	 */
-	Format getFormat() const;
+	Format get_format() const;
 
 	/** Returns the number of channels.
 	 */
-	Channel getNumChannels() const;
+	Channel get_num_channels() const;
 
 	/** Returns the number of frames.
 	 */
-	Frame getNumFrames() const;
+	Frame get_num_frames() const;
 
 	/** Returns the number of bins.
 	 */
-	Bin getNumBins() const;
+	Bin get_num_bins() const;
 
 	/** Returns the frames per second of the audio from which this PVBuffer came.
-	 *	If the frames per second of the PV data is needed, use PVBuffer::getAnalysisRate.
+	 *	If the frames per second of the PV data is needed, use PVBuffer::get_analysis_rate.
 	 */
-	FrameRate getSampleRate() const;
+	FrameRate get_sample_rate() const;
 
 	/** Returns the spectral frames per second.
-	 *	If the frames per second of the auto data is needed, use PVBuffer::getSampleRate.
+	 *	If the frames per second of the auto data is needed, use PVBuffer::get_sample_rate.
 	 */
-	FrameRate getAnalysisRate() const;
+	FrameRate get_analysis_rate() const;
 
 	/** Returns the hop size used in the phase vocoder to create this PVBuffer.
 	 */
-	Frame getHopSize() const;
+	Frame get_hop_size() const;
 
 	/** Returns the size of the transform used in the phase vocoder to create this PVBuffer.
 	 */
-	Frame getDFTSize() const;
+	Frame get_dft_size() const;
 
 	/** Returns the size of the input data window used in the phase vocoder to create this PVBuffer.
 	 */
-	Frame getWindowSize() const;
+	Frame get_window_size() const;
 
 	/** Returns length in seconds.
 	 */
-	Second getLength() const;
+	Second get_length() const;
 
 	/** Returns height in hz.
 	 */
-	Frequency getHeight() const;
+	Frequency get_height() const;
 
 	/** Returns the magnitude of whichever MF has the largest magnitude.
 	 */
-	Magnitude getMaxPartialMagnitude() const;
+	Magnitude get_max_partial_magnitude() const;
 
 	/** Returns the magnitude of whichever MF has the largest magnitude in the given range.
-	 * \param startFrame The start of the time range.
-	 * \param endFrame The end of the time range. Passing 0 will use the maximum time.
-	 * \param startBin The start of the frequency range.
-	 * \param endBin The end of the frequency range. Passing 0 will use the maximum frequency.
+	 * \param start_frame The start of the time range.
+	 * \param end_frame The end of the time range. Passing 0 will use the maximum time.
+	 * \param start_bin The start of the frequency range.
+	 * \param end_bin The end of the frequency range. Passing 0 will use the maximum frequency.
 	 */
-	Magnitude getMaxPartialMagnitude( uint32_t startFrame, uint32_t endFrame = 0, 
-		uint32_t startBin = 0, uint32_t endBin = 0 ) const;
+	Magnitude get_max_partial_magnitude( uint32_t start_frame, uint32_t end_frame = 0, 
+		uint32_t start_bin = 0, uint32_t end_bin = 0 ) const;
 
 	/** Returns a unit fraction for converting seconds to frames
 	 */
-	fFrame timeToFrame( Second ) const;
+	fFrame time_to_frame( Second ) const;
 
 	/** Returns a unit fraction for converting frames to seconds.
 	 */
-	Second frameToTime( fFrame ) const;
+	Second frame_to_time( fFrame ) const;
 
 	/** Returns a unit fraction for converting frequencies to bins.
 	 */
-	fBin frequencyToBin( Frequency ) const;
+	fBin frequency_to_bin( Frequency ) const;
 
 	/** Returns a unit fraction for converting bins to frequencies.
 	 */
-	Frequency binToFrequency( fBin ) const;
+	Frequency bin_to_frequency( fBin ) const;
 
 	/** Returns how far the frequency recorded at the given position is from the bin frequency.
 	 */
-	Frequency getFrequencyOffset( Channel c, Frame f, Bin b ) const;
+	Frequency get_frequency_offset( Channel c, Frame f, Bin b ) const;
 
 	/** Returns the input channel clamped to the buffer bounds
 	 */
-	Channel boundChannel( Channel c ) const;
+	Channel bound_channel( Channel c ) const;
 
 	/** Returns the input frame clamped to the buffer bounds
 	 */
-	Frame boundFrame( Frame c ) const;
+	Frame bound_frame( Frame c ) const;
 
 	/** Returns the input bin clamped to the buffer bounds
 	 */
-	Bin boundBin( Bin c ) const;
+	Bin bound_bin( Bin c ) const;
 
 	//======================================================
 	//	Setters
@@ -237,18 +236,18 @@ public:
 	 *	\param bin
 	 *	\param mf The value to write.
 	 */
-	void setMF( Channel channel, Frame frame, Bin bin, MF mf );
+	void set_MF( Channel channel, Frame frame, Bin bin, MF mf );
 
 	/** Additional MF setter method. It is occasionally syntactically easier to assign MFs by reference access.
 	 *	\param channel
 	 *	\param frame
 	 *	\param bin
 	 */
-	MF & getMF( Channel channel, Frame frame, Bin bin );
+	MF & get_MF( Channel channel, Frame frame, Bin bin );
 
 	/** This zero fills the buffer.
 	 */
-	void clearBuffer();
+	void clear_buffer();
 
 	/** Raw buffer access. Inderect access is preferred, but for computationally expensive 
 	 *	transformations, raw access usually provides an optimization.
@@ -256,7 +255,7 @@ public:
 	 *	\param frame
 	 *	\param bin
 	 */
-	MF * getMFPointer( Channel channel, Frame frame, Bin bin );
+	MF * get_MFPointer( Channel channel, Frame frame, Bin bin );
 
 	/** Read-only raw buffer access. Inderect access is preferred, but for computationally expensive 
 	 *	transformations, raw access usually provides an optimization.
@@ -264,19 +263,19 @@ public:
 	 *	\param frame
 	 *	\param bin
 	 */
-	const MF * getMFPointer( Channel channel, Frame frame, Bin bin  ) const;
+	const MF * get_MFPointer( Channel channel, Frame frame, Bin bin  ) const;
 
-	std::vector<MF> & getBuffer();
-	const std::vector<MF> & getBuffer() const;
+	std::vector<MF> & get_buffer();
+	const std::vector<MF> & get_buffer() const;
 
-	std::vector<MF>::iterator channelBegin( Channel channel );
-	std::vector<MF>::iterator channelEnd( Channel channel );
-	std::vector<MF>::const_iterator channelBegin( Channel channel ) const;
-	std::vector<MF>::const_iterator channelEnd( Channel channel ) const;
+	std::vector<MF>::iterator channel_begin( Channel channel );
+	std::vector<MF>::iterator channel_end( Channel channel );
+	std::vector<MF>::const_iterator channel_begin( Channel channel ) const;
+	std::vector<MF>::const_iterator channel_end( Channel channel ) const;
 
 	/** This converts from a channel, frame, and bin, to the appropriate position in the buffer.
 	 */
-	size_t getBufferPos( Channel, Frame, Bin ) const;
+	size_t get_buffer_pos( Channel, Frame, Bin ) const;
 
 private: //=================================================================================================
 	

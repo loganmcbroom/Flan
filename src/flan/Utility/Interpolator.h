@@ -51,7 +51,7 @@ namespace Interpolators
 * \param points Points that the generated function must pass through.
 * \param interp How the generated function should move between points.
 */
-Func1x1 interpolatePoints( const std::vector< std::pair< float, float > > & points, Interpolator interp = Interpolators::linear );
+Function<float, float> interpolate_points( const std::vector< std::pair< float, float > > & points, Interpolator interp = Interpolators::linear );
 
 /** Generate a function that passes through a given set of points.
 *
@@ -59,12 +59,12 @@ Func1x1 interpolatePoints( const std::vector< std::pair< float, float > > & poin
 * \param points Y values that the generated function must pass through.
 * \param interp How the generated function should move between points.
 */
-Func1x1 interpolateIntervals( float deltaX, const std::vector< float > ys, Interpolator interp = Interpolators::linear );
+Function<float, float> interpolate_intervals( float deltaX, const std::vector< float > ys, Interpolator interp = Interpolators::linear );
 
 /** Generate a cubic spline that passes through a given set of points.
 	*
 	* \param points Points that the generated function must pass through.
 	*/
-Func1x1 spline( const std::vector< std::pair< float, float > > points );
+Function<float, float> spline( const std::vector< std::pair< float, float > > points );
 
 }

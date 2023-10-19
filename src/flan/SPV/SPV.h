@@ -14,11 +14,11 @@ public:
 	SPV( SPVBuffer && );
 	SPV( Format );
 
-	Audio convertToAudio();
-	Audio convertToLeftRightAudio();
+	Audio convert_to_audio();
+	Audio convert_to_lr_audio();
 
-	SPV modifyFrequency( const Func2x1 & mod ) const;
-	SPV repitch( const Func2x1 & mod ) const;
+	SPV modify_frequency( const Function<TF, Frequency> & mod ) const;
+	SPV repitch( const Function<TF, Frequency> & mod ) const;
 };
 
 }

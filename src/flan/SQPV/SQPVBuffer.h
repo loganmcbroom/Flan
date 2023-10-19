@@ -14,10 +14,10 @@ class SQPVBuffer
 public:
 	struct Format 
 		{ 
-		Channel numChannels = 0;
-		Frame numFrames = 0;
-		fBin binsPerOctave = 0;
-		FrameRate sampleRate = 48000; 
+		Channel num_channels = 0;
+		Frame num_frames = 0;
+		fBin bins_per_octave = 0;
+		FrameRate sample_rate = 48000; 
 		std::pair<Frequency, Frequency> bandwidth;
 		};
 
@@ -33,36 +33,36 @@ public:
 	MP getMP( Channel, Frame, Bin ) const;
 	MP & getMP( Channel, Frame, Bin );
 
-	const Format & getFormat() const;
+	const Format & get_format() const;
 
-	fFrame timeToFrame( Second ) const;
-	Second frameToTime( fFrame ) const;
-	fBin frequencyToBin( Frequency ) const;
-	Frequency binToFrequency( fBin ) const;
+	fFrame time_to_frame( Second ) const;
+	Second frame_to_time( fFrame ) const;
+	fBin frequency_to_bin( Frequency ) const;
+	Frequency bin_to_frequency( fBin ) const;
 	Pitch frequencyToPitch( Frequency ) const;
 	Frequency pitchToFrequency( Pitch ) const;
 	UnsignedPitch binToPitch( fBin ) const;
 	fBin pitchToBin( UnsignedPitch ) const;
 
-	Channel getNumChannels() const;
-	Frame getNumFrames() const;
-	Bin	getNumBins() const;
-	FrameRate getSampleRate() const;
-	FrameRate getAnalysisRate() const;
+	Channel get_num_channels() const;
+	Frame get_num_frames() const;
+	Bin	get_num_bins() const;
+	FrameRate get_sample_rate() const;
+	FrameRate get_analysis_rate() const;
 	std::pair<Frequency, Frequency> getFrequencyBandwidth() const;
 	std::pair<UnsignedPitch, UnsignedPitch> getPitchBandwidth() const;
 	fBin getBinsPerOctave() const;
 	Cycle getQ() const;
 	Frequency getBinFrequency( Bin ) const;
-	Second getLength() const { return frameToTime( getNumFrames() ); }
-	bool isNull() const;
-	void clearBuffer();
+	Second get_length() const { return frame_to_time( get_num_frames() ); }
+	bool is_null() const;
+	void clear_buffer();
 	SQPVBuffer copy() const;
-	Magnitude getMaxPartialMagnitude() const;
-	Magnitude getMaxPartialMagnitude( Frame startFrame, Frame endFrame = 0, Bin startBin = 0, Bin endBin = 0 ) const;
+	Magnitude get_max_partial_magnitude() const;
+	Magnitude get_max_partial_magnitude( Frame start_frame, Frame end_frame = 0, Bin start_bin = 0, Bin end_bin = 0 ) const;
 	Frame getPeriod( Bin ) const;
 
-	size_t getBufferPos( Channel, Frame, Bin ) const;
+	size_t get_buffer_pos( Channel, Frame, Bin ) const;
 
 private:
 
@@ -70,7 +70,7 @@ private:
 
 	// Commonly used data is computed once at construction
 	const std::pair<UnsignedPitch, UnsignedPitch> pitch_bandwidth;
-	const Bin numBins;
+	const Bin num_bins;
 	const Cycle Q; // "The number of cycles needed to make an analysis" - Sliding With A Constant Q
 	const std::vector<Frequency> bin_frequencies;
 

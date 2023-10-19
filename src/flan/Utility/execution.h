@@ -17,7 +17,7 @@ enum class ExecutionPolicy
 // Because of that, you can't just decide at runtime what execution policy to use without a wrapper like this.
 // Flan functions carry a flan::ExecutionPolicy around and use this function to decide which stl policy overload should be used at runtime.
 template<class F>
-auto runtimeExecutionPolicyHandler( ExecutionPolicy policy, F f )
+auto runtime_execution_policy_handler( ExecutionPolicy policy, F f )
 	{
 	switch( policy )
 		{
@@ -30,11 +30,23 @@ auto runtimeExecutionPolicyHandler( ExecutionPolicy policy, F f )
 		};
 	}
 
-bool isLinear( ExecutionPolicy a );
-bool isParallel( ExecutionPolicy a );
-bool isSequenced( ExecutionPolicy a );
-bool isUnsequenced( ExecutionPolicy a );
+bool is_linear( ExecutionPolicy a );
+bool is_parallel( ExecutionPolicy a );
+bool is_sequenced( ExecutionPolicy a );
+bool is_unsequenced( ExecutionPolicy a );
 
-ExecutionPolicy lowestExecution( ExecutionPolicy a, ExecutionPolicy b );
+ExecutionPolicy lowest_execution( const std::vector<ExecutionPolicy> & );
+
+template<typename... Ts>
+using AllExePolicies = typename std::enable_if_t<std::conjunction_v< std::is_convertible<Ts, ExecutionPolicy>... >>;
+template<typename ... Ts, typename = AllExePolicies<Ts...> >
+ExecutionPolicy lowest_execution( 
+	Ts ... ins 
+	)
+	{
+	std::vector<ExecutionPolicy> policies;
+	( policies.push_back( ins ), ... ); // Fold expression
+	return lowest_execution( policies );
+	}
 
 }

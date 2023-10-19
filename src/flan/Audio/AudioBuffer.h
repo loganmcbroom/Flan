@@ -9,8 +9,8 @@
 namespace flan {
 
 /** AudioBuffer stores audio data and provides basic buffer access, conversion constants, loading, and saving.
- *	Access to the raw sample buffer is given, but AudioBuffer::getSample and 
- *	AudioBuffer::setSample are preferred when speed is not a factor.
+ *	Access to the raw sample buffer is given, but AudioBuffer::get_sample and 
+ *	AudioBuffer::set_sample are preferred when speed is not a factor.
  *	Data is stored in channel-major order, in other words, the entire first channel 
  *	is stored in memory before the second channel's storage begins.
  *
@@ -28,14 +28,14 @@ public:
 
 	/** AudioBuffer::Format stores all required information outside of the buffer. 
 	 *	This is used to easily transfer the way an AudioBuffer is stored on disk to a new AudioBuffer without copying the buffer.
-	 *	In practice, a function transforming an AudioBuffer will call AudioBuffer::getFormat(), modify members as needed, and
+	 *	In practice, a function transforming an AudioBuffer will call AudioBuffer::get_format(), modify members as needed, and
 	 *	then construct a blank AudioBuffer with the Format constructor.
 	 */
 	struct Format 
 		{
-		Channel numChannels = 0;
-		Frame numFrames = 0;
-		FrameRate sampleRate = 48000;
+		Channel num_channels = 0;
+		Frame num_frames = 0;
+		FrameRate sample_rate = 48000;
 		};
 
 	struct ChannelSlice
@@ -55,7 +55,7 @@ public:
 
 	/** Construct from temporary buffer.
 	 */
-	AudioBuffer( std::vector<float> && buffer, Channel numChannels, FrameRate = 48000 );
+	AudioBuffer( std::vector<float> && buffer, Channel num_channels, FrameRate = 48000 );
 
 	/** Format copy constructor, constructs an AudioBuffer with the given format and an uninitialized buffer.
 	 *	\param format Format to use in construction.
@@ -63,9 +63,9 @@ public:
 	AudioBuffer( const Format & format ); 
 
 	/** Load constructor, calls AudioBuffer::load.
-	 *	\param filePath File to load. Accepts any format accepted by libsndfile. Notably cannot load mp3.
+	 *	\param filepath File to load. Accepts any format accepted by libsndfile. Notably cannot load mp3.
 	 */
-	AudioBuffer( const std::string & filePath );
+	AudioBuffer( const std::string & filepath );
 
 	/** Returns a deep copy of the AudioBuffer.
 	 */
@@ -74,28 +74,28 @@ public:
 	/** Return true if the Audio is in a state which cannot be processed. This includes a 0-channel buffer,
 	 *	a 0-frame buffer, or a buffer with a 0 sample rate.
 	 */
-	bool isNull() const;
+	bool is_null() const;
 
 	//======================================================
 	//	I/O
 	//======================================================
 
 	/** File loading.
-	 *	\param filePath File to load. If libsndfile is enabled this can be any format accepted by libsndfile, notably not mp3.
+	 *	\param filepath File to load. If libsndfile is enabled this can be any format accepted by libsndfile, notably not mp3.
 	 *		If libsndfile is disabled this can only be a wave file.
 	 */
-	bool load( const std::string & filePath );
+	bool load( const std::string & filepath );
 
 	/** File saving.
-	 *	\param filePath File path to save at.
+	 *	\param filepath File path to save at.
 	 *	\param format The libsndfile format to save to. The default of -1 will save as 24bit PCM WAVE.
 	 *		If libsndfile is disabled this does nothing, and 24bit PCM WAVE will always be used.
 	 */
-	bool save( const std::string & filePath, int format = -1 ) const;
+	bool save( const std::string & filepath, int format = -1 ) const;
 
 	/** Prints buffer dimensions and sample rate to cout.
 	 */
-	void printSummary() const;
+	void print_summary() const;
 
 	//======================================================
 	//	Getters
@@ -105,41 +105,41 @@ public:
 	 *	\param channel
 	 *	\param frame
 	 */
-	Sample getSample( Channel channel, Frame frame ) const;
+	Sample get_sample( Channel channel, Frame frame ) const;
 	
 	/** Returns the format being used.
 	 */
-	Format getFormat() const;
+	Format get_format() const;
 
 	/** Returns the number of channels.
 	 */
-	Channel getNumChannels() const;
+	Channel get_num_channels() const;
 
 	/** Returns the number of frames.
 	 */
-	Frame getNumFrames() const;
+	Frame get_num_frames() const;
 
 	/** Returns the sample rate.
 	 */
-	FrameRate getSampleRate() const;
+	FrameRate get_sample_rate() const;
 
 	/** Returns length in seconds.
 	 */
-	Second getLength() const;
+	Second get_length() const;
 
 	/** Returns the magnitude of whichever sample has the largest magnitude in the given range.
-	 *	\param startTime Start of range.
-	 *	\param endTime End of range. Passing 0 will use the maximum time.
+	 *	\param start_time Start of range.
+	 *	\param end_time End of range. Passing 0 will use the maximum time.
 	 */
-	Sample getMaxSampleMagnitude( Second startTime = 0, Second endTime = 0 ) const;
+	Sample get_max_sample_magnitude( Second start_time = 0, Second end_time = 0 ) const;
 
 	/** Returns a unit fraction for converting frames to seconds.
 	 */
-	Second frameToTime( fFrame ) const;
+	Second frame_to_time( fFrame ) const;
 
 	/** Returns a unit fraction for converting seconds to frames
 	 */
-	fFrame timeToFrame( Second ) const;
+	fFrame time_to_frame( Second ) const;
 
 
 	//======================================================
@@ -151,41 +151,41 @@ public:
 	 *	\param frame
 	 *	\param sample The value to write.
 	 */
-	void setSample( Channel channel, Frame frame, Sample sample );
+	void set_sample( Channel channel, Frame frame, Sample sample );
 
 	/** Additional sample setter method. It is occasionally syntactically easier to assign samples by reference access.
 	 *	\param channel
 	 *	\param frame
 	 */
-	Sample & getSample( Channel channel, Frame frame );
+	Sample & get_sample( Channel channel, Frame frame );
 	
 	/** This zero fills the buffer.
 	 */
-	void clearBuffer();
+	void clear_buffer();
 
 	/** Raw buffer access. Inderect access is preferred, but for computationally expensive 
 	 *	transformations, raw access usually provides an optimization.
 	 *	\param channel
 	 *	\param frame
 	 */
-	Sample * getSamplePointer( Channel channel, Frame frame );
+	Sample * get_sample_pointer( Channel channel, Frame frame );
 
 	/** Read-only raw buffer access. Inderect access is preferred, but for computationally expensive 
 	 *	transformations, raw access usually provides an optimization.
 	 *	\param channel
 	 *	\param frame
 	 */
-	const Sample * getSamplePointer( Channel channel, Frame frame ) const;
+	const Sample * get_sample_pointer( Channel channel, Frame frame ) const;
 
 	/** Direct buffer access. Only use this if the data layout doesn't matter or an api requires it.
 	 */
-	std::vector<Sample> & getBuffer();
-	const std::vector<Sample> & getBuffer() const;
+	std::vector<Sample> & get_buffer();
+	const std::vector<Sample> & get_buffer() const;
 
-	std::vector<Sample>::const_iterator channelBegin( Channel channel ) const;
-	std::vector<Sample>::const_iterator channelEnd( Channel channel ) const;
+	std::vector<Sample>::const_iterator channel_begin( Channel channel ) const;
+	std::vector<Sample>::const_iterator channel_end( Channel channel ) const;
 
-	inline size_t getBufferPos( Channel, Frame ) const;
+	inline size_t get_buffer_pos( Channel, Frame ) const;
 
 private://=================================================================================================
 

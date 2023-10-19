@@ -8,6 +8,7 @@ namespace flan
 {
 
 using Index = int;
+using Meter = float;
 using Second = float;
 using Channel = int32_t;
 using Frame = int32_t;
@@ -25,8 +26,20 @@ using Cycle = float;
 using Amplitude = float;
 using Decibel = float;
 
-Amplitude decibelToAmplitude( Decibel d );
-Decibel amplitudeToDecibel( Amplitude g );
+struct MF 
+	{
+	Magnitude m;
+	Frequency f; 
+	};
+
+struct TF
+	{
+	Second t;
+	Frequency f;
+	};
+
+Amplitude decibel_to_amplitude( Decibel d );
+Decibel amplitude_to_decibel( Amplitude g );
 
 const Radian pi = std::acos( -1.0f );
 const Radian pi2 = pi * 2.0f;
@@ -41,7 +54,7 @@ const Radian pi2 = pi * 2.0f;
 #define flan_FUNCTION_LOG
 #endif
 
-#define flan_PROCESS_START( T ) flan_FUNCTION_LOG if( isNull() ) \
+#define flan_PROCESS_START( T ) flan_FUNCTION_LOG if( is_null() ) \
 	{ std::cout << "Null input" << std::endl; return T; }
 
 /** These macros are used to inject voluntary cancellation points into flan algorithms

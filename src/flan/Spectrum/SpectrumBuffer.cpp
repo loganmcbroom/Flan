@@ -11,7 +11,7 @@
 //
 //SpectrumBuffer::SpectrumBuffer( const Format & f )
 //	: format( f )
-//	, buffer( getNumChannels() * getNumBins() )
+//	, buffer( get_num_channels() * get_num_bins() )
 //	{}
 //
 ////======================================================
@@ -22,29 +22,29 @@
 //	{
 //	return buffer[getPos( channel, bin )];
 //	}
-//SpectrumBuffer::Format SpectrumBuffer::getFormat() const
+//SpectrumBuffer::Format SpectrumBuffer::get_format() const
 //	{
 //	return format;
 //	}
-//size_t SpectrumBuffer::getNumChannels() const
+//size_t SpectrumBuffer::get_num_channels() const
 //	{
-//	return format.numChannels;
+//	return format.num_channels;
 //	}
-//size_t SpectrumBuffer::getNumBins() const
+//size_t SpectrumBuffer::get_num_bins() const
 //	{
-//	return format.numBins;
+//	return format.num_bins;
 //	}
-//size_t SpectrumBuffer::getSampleRate() const
+//size_t SpectrumBuffer::get_sample_rate() const
 //	{
-//	return format.sampleRate;
+//	return format.sample_rate;
 //	}
-//float SpectrumBuffer::binToFrequency() const
+//float SpectrumBuffer::bin_to_frequency() const
 //	{
-//	return 1.0f / frequencyToBin();
+//	return 1.0f / frequency_to_bin();
 //	}
-//float SpectrumBuffer::frequencyToBin() const
+//float SpectrumBuffer::frequency_to_bin() const
 //	{
-//	return float( getNumBins() ) / float( format.sampleRate );
+//	return float( get_num_bins() ) / float( format.sample_rate );
 //	}
 //float SpectrumBuffer::getMaxSpectraMagnitude() const
 //	{
@@ -66,7 +66,7 @@
 //	{
 //	return buffer[getPos( channel, bin )];
 //	}
-//void SpectrumBuffer::clearBuffer()
+//void SpectrumBuffer::clear_buffer()
 //	{
 //	std::fill( buffer.begin(), buffer.end(), 0 );
 //	}
@@ -77,7 +77,7 @@
 //
 //size_t SpectrumBuffer::getPos( size_t channel, size_t bin ) const
 //	{
-//	return channel * getNumBins() + bin;
+//	return channel * get_num_bins() + bin;
 //	}
 //
 //}

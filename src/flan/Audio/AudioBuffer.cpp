@@ -14,18 +14,18 @@ AudioBuffer::AudioBuffer()
 	, buffer()
 	{}
 
-AudioBuffer::AudioBuffer( std::vector<float> && tempBuffer, Channel numChannels, FrameRate sr )
+AudioBuffer::AudioBuffer( std::vector<float> && temp_buffer, Channel num_channels, FrameRate sr )
 	: format()
-	, buffer( tempBuffer )
+	, buffer( temp_buffer )
 	{
-	format.numChannels = numChannels;
-	format.numFrames = tempBuffer.size() / numChannels;
-	format.sampleRate = sr;
+	format.num_channels = num_channels;
+	format.num_frames = temp_buffer.size() / num_channels;
+	format.sample_rate = sr;
 	}
 
 AudioBuffer::AudioBuffer( const Format & other )
 	: format( other )
-	, buffer( getNumChannels() * getNumFrames() )
+	, buffer( get_num_channels() * get_num_frames() )
 	{}
 
 AudioBuffer::AudioBuffer( const std::string & filename )
@@ -43,9 +43,9 @@ AudioBuffer AudioBuffer::copy() const
 	return out;
 	}
 
-bool AudioBuffer::isNull() const
+bool AudioBuffer::is_null() const
 	{
-	return buffer.empty() || getSampleRate() == 0;
+	return buffer.empty() || get_sample_rate() == 0;
 	}
 
 //======================================================
@@ -56,81 +56,81 @@ bool AudioBuffer::isNull() const
 
 #include <sndfile.h>
 
-bool AudioBuffer::load( const std::string & filePath ) 
+bool AudioBuffer::load( const std::string & filepath ) 
 	{
 	//Open file and check validity, save the sample rate
 	SF_INFO info;
-	SNDFILE * file = sf_open( filePath.data(), SFM_READ, &info ); 
+	SNDFILE * file = sf_open( filepath.data(), SFM_READ, &info ); 
 	if( file == nullptr )
 		{
-		std::cout << filePath + " could not be opened.\n";
+		std::cout << filepath + " could not be opened.\n";
 		return false;
 		}
 
 	//Copy file info into format
-	format.sampleRate = info.samplerate;
-	format.numChannels = info.channels;
-	format.numFrames = info.frames;
+	format.sample_rate = info.samplerate;
+	format.num_channels = info.channels;
+	format.num_frames = info.frames;
 	*this = AudioBuffer( format );
 
 	//Create temporary buffer for interleaved data in file, read data in, close the file
-	std::vector<float> interleavedBuffer( info.frames * info.channels );
-	sf_readf_float( file, interleavedBuffer.data(), info.frames );
+	std::vector<float> interleaved_buffer( info.frames * info.channels );
+	sf_readf_float( file, interleaved_buffer.data(), info.frames );
 
 	if( sf_close( file ) != 0 )
 		{
-		std::cout << std::string( "Error closing " ) + filePath + ".\n";
+		std::cout << std::string( "Error closing " ) + filepath + ".\n";
 		return false;
 		}
 
 	//Convert interleaved data in
 	for( Channel channel = 0; channel < info.channels; ++channel )
 		for( Frame frame = 0; frame < Frame(info.frames); ++frame )
-			setSample( channel, frame, interleavedBuffer[ frame * info.channels + channel ] );
+			set_sample( channel, frame, interleaved_buffer[ frame * info.channels + channel ] );
 
 	return true;
 	}
 
-bool AudioBuffer::save( const std::string & filePath, int format ) const 
+bool AudioBuffer::save( const std::string & filepath, int format ) const 
 	{
 	if( format == -1 ) format = SF_FORMAT_WAV | SF_FORMAT_PCM_24;
 
 	//Check that nothing silly is going on with the file formatting
 	SF_INFO info = {};
-	info.channels	= int( getNumChannels() );
-	info.frames		= int( getNumFrames()	);
-	info.samplerate = int( getSampleRate() );
+	info.channels	= int( get_num_channels() );
+	info.frames		= int( get_num_frames()	);
+	info.samplerate = int( get_sample_rate() );
 	info.format = format;
 	if( !sf_format_check( &info ) )
 		{
-		std::cout << std::string( "Sound file formatting invalid while attempting to save to " ) + filePath + ",\n";
-		printSummary();
+		std::cout << std::string( "Sound file formatting invalid while attempting to save to " ) + filepath + ",\n";
+		print_summary();
 		return false;
 		}
 
 	//Create a temporary buffer for interleaved data and copy the buffer in
-	std::vector<float> interleavedBuffer( getNumFrames() * getNumChannels() );
-	for( Channel channel = 0; channel < getNumChannels(); ++channel )
-		for( Frame frame : iota_view( 0, getNumFrames() ) )
-			interleavedBuffer[ frame * info.channels + channel ] = getSample( channel, frame );
+	std::vector<float> interleaved_buffer( get_num_frames() * get_num_channels() );
+	for( Channel channel = 0; channel < get_num_channels(); ++channel )
+		for( Frame frame : iota_view( 0, get_num_frames() ) )
+			interleaved_buffer[ frame * info.channels + channel ] = get_sample( channel, frame );
 
 	//Clip all samples in the interleaved buffer
-	std::for_each( interleavedBuffer.begin(), interleavedBuffer.end(), []( float & s )
+	std::for_each( interleaved_buffer.begin(), interleaved_buffer.end(), []( float & s )
 		{
 		s = std::clamp( s, -1.0f, 1.0f );
 		});
 
 	//Open the file and write in the interleaved buffer
-	SF_INFO outInfo = info;
-	SNDFILE * file = sf_open( filePath.data(), SFM_WRITE, &outInfo );
+	SF_INFO out_info = info;
+	SNDFILE * file = sf_open( filepath.data(), SFM_WRITE, &out_info );
 	if( file == nullptr )
 		{
-		std::cout << filePath + " could not be opened for saving.\n";
+		std::cout << filepath + " could not be opened for saving.\n";
 		return false;
 		}
-	if( sf_writef_float( file, interleavedBuffer.data(), info.frames ) != info.frames )	
+	if( sf_writef_float( file, interleaved_buffer.data(), info.frames ) != info.frames )	
 		{
-		std::cout << std::string( "Error writing data into " ) + filePath + ".\n";
+		std::cout << std::string( "Error writing data into " ) + filepath + ".\n";
 		return false;
 		}
 	sf_close( file );
@@ -140,16 +140,16 @@ bool AudioBuffer::save( const std::string & filePath, int format ) const
 
 #else // io using custom wave handler
 
-bool AudioBuffer::load( const std::string & filePath ) 
+bool AudioBuffer::load( const std::string & filepath ) 
 	{
-	auto bail = [filePath]( const std::string & s )
+	auto bail = [filepath]( const std::string & s )
 		{
-		std::cout << "Couldn't load " << filePath << ": " << s << std::endl;
+		std::cout << "Couldn't load " << filepath << ": " << s << std::endl;
 		return false;
 		};
 
-	std::ifstream file( filePath, std::ios::binary );
-	if( !file ) return bail( "Error opening " + filePath + "." );
+	std::ifstream file( filepath, std::ios::binary );
+	if( !file ) return bail( "Error opening " + filepath + "." );
 
 	uint16_t int16Buffer;
 	uint32_t int32Buffer;
@@ -168,8 +168,8 @@ bool AudioBuffer::load( const std::string & filePath )
 	file.read( strBuffer, 4 );
 	file.read( (char * ) &int32Buffer, 4 ); //Chunk size
 	file.read( (char * ) &int16Buffer, 2 ); wavFormat = int16Buffer;
-	file.read( (char * ) &int16Buffer, 2 ); format.numChannels = int16Buffer;
-	file.read( (char * ) &int32Buffer, 4 ); format.sampleRate = int32Buffer;
+	file.read( (char * ) &int16Buffer, 2 ); format.num_channels = int16Buffer;
+	file.read( (char * ) &int32Buffer, 4 ); format.sample_rate = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); // byte rate
 	file.read( (char * ) &int16Buffer, 2 ); blockAlign = int16Buffer;
 	file.read( (char * ) &int16Buffer, 2 ); bitsPerSample = int16Buffer;
@@ -189,7 +189,7 @@ bool AudioBuffer::load( const std::string & filePath )
 			}
 		} 
 
-	format.numFrames = int32Buffer / blockAlign;
+	format.num_frames = int32Buffer / blockAlign;
 
 	*this = AudioBuffer( format );
 
@@ -200,13 +200,13 @@ bool AudioBuffer::load( const std::string & filePath )
 			const double limit = std::pow( 2.0, 8.0 - 1.0 );
 
 			//Read data buffer
-			for( uint32_t frame = 0; frame < getNumFrames(); ++frame )
-				for( uint32_t channel = 0; channel < getNumChannels(); ++channel )
+			for( uint32_t frame = 0; frame < get_num_frames(); ++frame )
+				for( uint32_t channel = 0; channel < get_num_channels(); ++channel )
 					{
 					uint8_t intSample = 0;
 					file.read( ( (char*) &intSample ), 1 );
 					
-					setSample( channel, frame, double( intSample - 128 ) / limit );
+					set_sample( channel, frame, double( intSample - 128 ) / limit );
 					}
 			}
         else if( bitsPerSample == 16 )
@@ -214,13 +214,13 @@ bool AudioBuffer::load( const std::string & filePath )
 			const double limit = std::pow( 2.0, 16.0 - 1.0 );
 
 			//Read data buffer
-			for( uint32_t frame = 0; frame < getNumFrames(); ++frame )
-				for( uint32_t channel = 0; channel < getNumChannels(); ++channel )
+			for( uint32_t frame = 0; frame < get_num_frames(); ++frame )
+				for( uint32_t channel = 0; channel < get_num_channels(); ++channel )
 					{
 					int16_t intSample = 0;
 					file.read( ( (char*) &intSample ), 2 );
 			
-					setSample( channel, frame, double( intSample ) / limit );
+					set_sample( channel, frame, double( intSample ) / limit );
 					}
 			}
         else if( bitsPerSample == 24 )
@@ -228,8 +228,8 @@ bool AudioBuffer::load( const std::string & filePath )
 			const double limit = std::pow( 2.0, 24.0 - 1.0 );
 
            //Read data buffer
-			for( uint32_t frame = 0; frame < getNumFrames(); ++frame )
-				for( uint32_t channel = 0; channel < getNumChannels(); ++channel )
+			for( uint32_t frame = 0; frame < get_num_frames(); ++frame )
+				for( uint32_t channel = 0; channel < get_num_channels(); ++channel )
 					{
 					int32_t intSample = 0;
 					file.read( ( (char*) &intSample ), 3 );
@@ -237,7 +237,7 @@ bool AudioBuffer::load( const std::string & filePath )
 					//If sign bit is on, this is negative and its highest byte should be filled via 2s compliment
 					if( intSample & 0x800000 ) intSample |= 0xFF000000;
 			
-					setSample( channel, frame, double( intSample ) / limit );
+					set_sample( channel, frame, double( intSample ) / limit );
 					}
 			}
 		else if( bitsPerSample == 32 )
@@ -245,13 +245,13 @@ bool AudioBuffer::load( const std::string & filePath )
 			const double limit = std::pow( 2.0, 32.0 - 1.0 );
 
            //Read data buffer
-			for( uint32_t frame = 0; frame < getNumFrames(); ++frame )
-				for( uint32_t channel = 0; channel < getNumChannels(); ++channel )
+			for( uint32_t frame = 0; frame < get_num_frames(); ++frame )
+				for( uint32_t channel = 0; channel < get_num_channels(); ++channel )
 					{
 					int32_t intSample = 0;
 					file.read( ( (char*) &intSample ), 4 );
 			
-					setSample( channel, frame, double( intSample ) / limit );
+					set_sample( channel, frame, double( intSample ) / limit );
 					}
 			}
 		else
@@ -261,12 +261,12 @@ bool AudioBuffer::load( const std::string & filePath )
 		}
 	else if( wavFormat == 3 ) // float data
 		{
-		for( uint32_t frame = 0; frame < getNumFrames(); ++frame )
-			for( uint32_t channel = 0; channel < getNumChannels(); ++channel )
+		for( uint32_t frame = 0; frame < get_num_frames(); ++frame )
+			for( uint32_t channel = 0; channel < get_num_channels(); ++channel )
 				{
 				float f;
 				file.read( (char *) &f, 4 );
-				setSample( channel, frame, littleEndianToCurrent( f ) );
+				set_sample( channel, frame, littleEndianToCurrent( f ) );
 				}
 		}
 	else
@@ -275,13 +275,13 @@ bool AudioBuffer::load( const std::string & filePath )
 	return true;
 	}
 
-bool AudioBuffer::save( const std::string & filePath, int format ) const 
+bool AudioBuffer::save( const std::string & filepath, int format ) const 
 	{
 	//Make sure path ends in wav
-	if( filePath.substr( filePath.size() - 4, 4 ) != ".wav" )
+	if( filepath.substr( filepath.size() - 4, 4 ) != ".wav" )
 		{
 		std::cout << "Libsndfile is required for saving audio in formats other than wave"
-			<< " (attempted to save a " << filePath.substr( filePath.size() - 4, 4 ) << " file ).\n";
+			<< " (attempted to save a " << filepath.substr( filepath.size() - 4, 4 ) << " file ).\n";
 		return false;
 		}
 
@@ -290,33 +290,33 @@ bool AudioBuffer::save( const std::string & filePath, int format ) const
 
 	//Convert buffer to 24bit ints
 	std::vector<uint8_t> byteBuffer( buffer->size() * byteDepth );
-	for( uint32_t channel = 0; channel < getNumChannels(); ++channel )
-		for( uint32_t frame = 0; frame < getNumFrames(); ++frame )
+	for( uint32_t channel = 0; channel < get_num_channels(); ++channel )
+		for( uint32_t frame = 0; frame < get_num_frames(); ++frame )
 			{
-			double clamped = std::clamp( getSample( channel, frame ), -1.0f, 1.0f );
+			double clamped = std::clamp( get_sample( channel, frame ), -1.0f, 1.0f );
 			clamped *= limit;
 			int32_t intSample = clamped;
 
-			byteBuffer[ ( frame * getNumChannels() + channel ) * byteDepth + 0 ] = (uint8_t) ( intSample >> 0  ) & 0xFF;
-			byteBuffer[ ( frame * getNumChannels() + channel ) * byteDepth + 1 ] = (uint8_t) ( intSample >> 8  ) & 0xFF;
-			byteBuffer[ ( frame * getNumChannels() + channel ) * byteDepth + 2 ] = (uint8_t) ( intSample >> 16 ) & 0xFF;
+			byteBuffer[ ( frame * get_num_channels() + channel ) * byteDepth + 0 ] = (uint8_t) ( intSample >> 0  ) & 0xFF;
+			byteBuffer[ ( frame * get_num_channels() + channel ) * byteDepth + 1 ] = (uint8_t) ( intSample >> 8  ) & 0xFF;
+			byteBuffer[ ( frame * get_num_channels() + channel ) * byteDepth + 2 ] = (uint8_t) ( intSample >> 16 ) & 0xFF;
 			}
 
 	//Write to file
-	return writeRIFF( filePath, "WAVE", byteBuffer.data(), byteBuffer.size(),
+	return writeRIFF( filepath, "WAVE", byteBuffer.data(), byteBuffer.size(),
 		{
 		uint16_t( 1 ),													// Formatting
-		uint16_t( getNumChannels() ),									// Channel Count
-		uint32_t( getSampleRate() ),									// Sample rate
-		uint32_t( getSampleRate() * getNumChannels() * byteDepth ),		// Byte rate
-		uint16_t( getNumChannels() * byteDepth ),						// Blockalign
+		uint16_t( get_num_channels() ),									// Channel Count
+		uint32_t( get_sample_rate() ),									// Sample rate
+		uint32_t( get_sample_rate() * get_num_channels() * byteDepth ),		// Byte rate
+		uint16_t( get_num_channels() * byteDepth ),						// Blockalign
 		uint16_t( byteDepth * 8 )										// Bits per sample
 		});
 	}
 
 #endif
 
-void AudioBuffer::printSummary() const
+void AudioBuffer::print_summary() const
 	{
 	std::cout << *this;
 	}
@@ -324,107 +324,112 @@ void AudioBuffer::printSummary() const
 //======================================================
 //	Getters
 //======================================================
-auto AudioBuffer::getSample( Channel channel, Frame frame ) const -> Sample
+auto AudioBuffer::get_sample( Channel channel, Frame frame ) const -> Sample
 	{
-	return buffer[getBufferPos( channel, frame )];
+	return buffer[get_buffer_pos( channel, frame )];
 	}
 
-AudioBuffer::Format flan::AudioBuffer::getFormat() const
+AudioBuffer::Format flan::AudioBuffer::get_format() const
 	{
 	return format;
 	}
 
-auto AudioBuffer::getNumChannels() const -> Channel
+auto AudioBuffer::get_num_channels() const -> Channel
 	{
-	return format.numChannels;
+	return format.num_channels;
 	}
 
-auto AudioBuffer::getNumFrames() const -> Frame
+auto AudioBuffer::get_num_frames() const -> Frame
 	{
-	return format.numFrames;
+	return format.num_frames;
 	}
 
-FrameRate AudioBuffer::getSampleRate() const 
+FrameRate AudioBuffer::get_sample_rate() const 
 	{
-	return format.sampleRate;
+	return format.sample_rate;
 	}
 
-Second AudioBuffer::frameToTime( fFrame f ) const
+Second AudioBuffer::frame_to_time( fFrame f ) const
 	{
-	return f / getSampleRate();
+	return f / get_sample_rate();
 	}
 
-fFrame AudioBuffer::timeToFrame( Second t ) const
+fFrame AudioBuffer::time_to_frame( Second t ) const
 	{
-	return t * float( getSampleRate() );
+	return t * float( get_sample_rate() );
 	}
 
-auto AudioBuffer::getLength() const -> Second
+auto AudioBuffer::get_length() const -> Second
 	{
-	return frameToTime( getNumFrames() );
+	return frame_to_time( get_num_frames() );
 	}
 
-float AudioBuffer::getMaxSampleMagnitude( Second startTime, Second endTime ) const
+float AudioBuffer::get_max_sample_magnitude( Second start_time, Second end_time ) const
 	{
-	if( endTime == 0 ) endTime = getLength();
-	auto startIter = buffer.begin() + timeToFrame( startTime );
-	auto endIter   = buffer.begin() + timeToFrame( endTime );
-	return std::abs(*std::max_element( startIter, endIter, []( float a, float b )
-		{
-		return std::abs( a ) < std::abs( b );
-		}));
+	if( end_time == 0 ) end_time = get_length();
+	auto start_frame = time_to_frame( start_time );
+	auto end_frame   = time_to_frame( end_time );
+	Magnitude m = 0;
+	for( Channel channel = 0; channel < get_num_channels(); ++channel )
+		for( Frame frame = start_frame; frame < end_frame; ++frame )
+			{
+			const Sample & s = get_sample( channel, frame );
+			if( std::abs( s ) > m )
+				m = std::abs( s );
+			}
+	return m;
 	}
 
 //======================================================
 //	Setters
 //======================================================
-void AudioBuffer::setSample( Channel channel, Frame frame, Sample sample ) 
+void AudioBuffer::set_sample( Channel channel, Frame frame, Sample sample ) 
 	{
-	buffer[getBufferPos( channel, frame )] = sample;
+	buffer[get_buffer_pos( channel, frame )] = sample;
 	}
 
-auto AudioBuffer::getSample( Channel channel, Frame frame ) -> Sample &
+auto AudioBuffer::get_sample( Channel channel, Frame frame ) -> Sample &
 	{
-	return buffer[getBufferPos( channel, frame )];
+	return buffer[get_buffer_pos( channel, frame )];
 	}
 
-void flan::AudioBuffer::clearBuffer()
+void flan::AudioBuffer::clear_buffer()
 	{
 	std::fill( buffer.begin(), buffer.end(), 0 );
 	}
 
-auto AudioBuffer::getSamplePointer( Channel channel, Frame frame ) -> Sample *
+auto AudioBuffer::get_sample_pointer( Channel channel, Frame frame ) -> Sample *
 	{ 
-	return buffer.data() + getBufferPos( channel, frame );
+	return buffer.data() + get_buffer_pos( channel, frame );
 	}
 
-auto AudioBuffer::getSamplePointer( Channel channel, Frame frame ) const -> const Sample *
+auto AudioBuffer::get_sample_pointer( Channel channel, Frame frame ) const -> const Sample *
 	{ 
-	return buffer.data() + getBufferPos( channel, frame );
+	return buffer.data() + get_buffer_pos( channel, frame );
 	}
 
-std::vector<Sample> & AudioBuffer::getBuffer() 
+std::vector<Sample> & AudioBuffer::get_buffer() 
 	{ 
 	return buffer; 
 	}
-const std::vector<Sample> & AudioBuffer::getBuffer() const
+const std::vector<Sample> & AudioBuffer::get_buffer() const
 	{
 	return buffer; 
 	}
 
-std::vector<Sample>::const_iterator AudioBuffer::channelBegin( Channel channel ) const
+std::vector<Sample>::const_iterator AudioBuffer::channel_begin( Channel channel ) const
 	{
-	return buffer.begin() + channel * getNumFrames();
+	return buffer.begin() + channel * get_num_frames();
 	}
 
-std::vector<Sample>::const_iterator AudioBuffer::channelEnd( Channel channel ) const
+std::vector<Sample>::const_iterator AudioBuffer::channel_end( Channel channel ) const
 	{
-	return buffer.begin() + ( channel + 1 ) * getNumFrames();
+	return buffer.begin() + ( channel + 1 ) * get_num_frames();
 	}
 
-size_t AudioBuffer::getBufferPos( Channel channel, Frame sample ) const
+size_t AudioBuffer::get_buffer_pos( Channel channel, Frame sample ) const
 	{
-	return channel * getNumFrames() + sample;
+	return channel * get_num_frames() + sample;
 	}
 
 //======================================================
@@ -433,9 +438,9 @@ size_t AudioBuffer::getBufferPos( Channel channel, Frame sample ) const
 std::ostream & operator<<( std::ostream & os, const AudioBuffer & audio )
 	{
 	os << "\n=========================== Audio Info ==========================="
-	   << "\nChannels:\t"		<< audio.getNumChannels() 
-	   << "\nSamples:\t"		<< audio.getNumFrames() 
-	   << "\nSample Rate:\t"	<< audio.getSampleRate()
+	   << "\nChannels:\t"		<< audio.get_num_channels() 
+	   << "\nSamples:\t"		<< audio.get_num_frames() 
+	   << "\nSample Rate:\t"	<< audio.get_sample_rate()
 	   << "\n==================================================================" 
 	   << "\n\n";
 	return os;

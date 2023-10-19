@@ -39,14 +39,18 @@ add_library( Flan STATIC
 	src/flan/Conversions/AudioGraph.cpp
 	src/flan/Conversions/PVGraph.cpp
 
-	src/flan/Audio/Audio.cpp
 	src/flan/Audio/AudioBuffer.cpp 
-	src/flan/Audio/AudioTexture.cpp
-	src/flan/Audio/AudioConversions.cpp
-	src/flan/Audio/AudioInformation.cpp
-	src/flan/Audio/AudioSynthesis.cpp
 	src/flan/Audio/AudioMod.cpp
+	src/flan/Audio/AudioConstructors.cpp
+	src/flan/Audio/AudioConversions.cpp
+	src/flan/Audio/AudioChannels.cpp
+	src/flan/Audio/AudioInformation.cpp
+	src/flan/Audio/AudioTemporal.cpp
+	src/flan/Audio/AudioVolume.cpp
+	src/flan/Audio/AudioSpatial.cpp
 	src/flan/Audio/AudioFilter.cpp
+	src/flan/Audio/AudioCombination.cpp
+	src/flan/Audio/AudioSynthesis.cpp
 	
 	src/flan/PV/PV.cpp
 	src/flan/PV/PVBuffer.cpp
@@ -78,6 +82,7 @@ add_library( Flan STATIC
 	src/flan/Wavetable.cpp
 	src/flan/DSPUtility.cpp 
 	src/flan/phase_vocoder.cpp 
+
 
 
 	# Included libs 

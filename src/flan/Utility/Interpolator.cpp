@@ -69,7 +69,7 @@ const Interpolator Interpolators::sqrt = []( float x )
 	return std::sqrt( x ); 
 	};
 
-Func1x1 flan::interpolatePoints( const std::vector< std::pair< float, float > > & ps, Interpolator interp )
+Function<float, float> flan::interpolate_points( const std::vector< std::pair< float, float > > & ps, Interpolator interp )
 	{
 	return [ps, interp]( float t )
 		{
@@ -84,7 +84,7 @@ Func1x1 flan::interpolatePoints( const std::vector< std::pair< float, float > > 
 		};
 	}
 
-Func1x1 flan::interpolateIntervals( float deltaX, const std::vector< float > ys, Interpolator interp )
+Function<float, float> flan::interpolate_intervals( float deltaX, const std::vector< float > ys, Interpolator interp )
 	{
 	std::vector<std::pair< float, float >> points( ys.size() );
 
@@ -96,10 +96,10 @@ Func1x1 flan::interpolateIntervals( float deltaX, const std::vector< float > ys,
 		return point;
 		} );
 
-	return interpolatePoints( points, interp );
+	return interpolate_points( points, interp );
 	}
 
-Func1x1 flan::spline( const std::vector< std::pair< float, float > > points )
+Function<float, float> flan::spline( const std::vector< std::pair< float, float > > points )
 	{
 	// Split points into xs and ys
 	std::vector<double> xs( points.size() );

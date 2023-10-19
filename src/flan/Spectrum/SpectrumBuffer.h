@@ -12,8 +12,8 @@
 //public:
 //	struct Format 
 //		{
-//		size_t numChannels = 0, numBins = 0;
-//		size_t sampleRate = 48000;
+//		size_t num_channels = 0, num_bins = 0;
+//		size_t sample_rate = 48000;
 //		};
 //	
 //	SpectrumBuffer();
@@ -25,13 +25,13 @@
 //
 //	complex_f getSpectra( size_t channel, size_t bin ) const;
 //	
-//	Format getFormat() const;
-//	size_t getNumChannels() const;
-//	size_t getNumBins() const;
-//	size_t getSampleRate() const;
+//	Format get_format() const;
+//	size_t get_num_channels() const;
+//	size_t get_num_bins() const;
+//	size_t get_sample_rate() const;
 //
-//	float binToFrequency() const;
-//	float frequencyToBin() const;
+//	float bin_to_frequency() const;
+//	float frequency_to_bin() const;
 //
 //	float getMaxSpectraMagnitude() const;
 //
@@ -41,7 +41,7 @@
 //
 //	void setSpectra( size_t channel, size_t bin, complex_f sample );
 //	complex_f & getSpectra( size_t channel, size_t bin );
-//	void clearBuffer();
+//	void clear_buffer();
 //
 //private://=================================================================================================
 //

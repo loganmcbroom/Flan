@@ -19,7 +19,7 @@
 
 // 	std::vector<std::views::take> channels()
 // 		{
-// 		std::vector<std::views::take> channel_vec( numChannels );
+// 		std::vector<std::views::take> channel_vec( num_channels );
 // 		for( const int i : std::views::iota( 0, num_channels ) )
 // 			{
 // 			channel_vec[i] = std::views::take

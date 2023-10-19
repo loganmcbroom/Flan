@@ -10,66 +10,66 @@
 
 using namespace flan;
 
-Audio Audio::resample( FrameRate newSampleRate ) const
+Audio Audio::resample( FrameRate new_sample_rate ) const
 	{
-	flan_PROCESS_START( Audio() );
+	flan_PROCESS_START( Audio() ); 
 
-	if( newSampleRate == getSampleRate() ) 
+	if( new_sample_rate == get_sample_rate() ) 
 		return copy();
 
-	auto format = getFormat();
-	format.numFrames *= newSampleRate / float( getSampleRate() );
-	format.sampleRate = newSampleRate;
+	auto format = get_format();
+	format.num_frames *= new_sample_rate / get_sample_rate();
+	format.sample_rate = new_sample_rate;
 	Audio out( format );
 
-	r8b::CDSPResampler resampler( getSampleRate(), newSampleRate, getNumFrames() );
-	resampler.oneshot<float, float>( &getBuffer()[0], getBuffer().size(), &out.getBuffer()[0], out.getBuffer().size() );
+	r8b::CDSPResampler resampler( get_sample_rate(), new_sample_rate, get_num_frames() );
+	resampler.oneshot<float, float>( &get_buffer()[0], get_buffer().size(), &out.get_buffer()[0], out.get_buffer().size() );
 
 	return out;
 	}
 
-Audio Audio::convertToMidSide() const
+Audio Audio::convert_to_mid_side() const
 	{
 	flan_PROCESS_START( Audio() );
 
-	if( getNumChannels() != 2 )
+	if( get_num_channels() != 2 )
 		{
 		std::cout << "Can't transform non-stereo Audio between Mid-Side and Left-Right formats." << std::endl;
 		return copy();
 		}
-	Audio out( getFormat() );
-	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( getNumFrames() ), [&]( Frame frame )
+	Audio out( get_format() );
+	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
 		{
-		out.setSample( 0, frame, getSample( 0, frame ) + getSample( 1, frame ) );
-		out.setSample( 1, frame, getSample( 0, frame ) - getSample( 1, frame ) );
+		out.set_sample( 0, frame, get_sample( 0, frame ) + get_sample( 1, frame ) );
+		out.set_sample( 1, frame, get_sample( 0, frame ) - get_sample( 1, frame ) );
 		} );
 	return out;
 	}
 
-Audio Audio::convertToLeftRight() const
+Audio Audio::convert_to_left_right() const
 	{
 	flan_FUNCTION_LOG;
-	return convertToMidSide();
+	return convert_to_mid_side();
 	}
 
-Audio Audio::convertToStereo() const
+Audio Audio::convert_to_stereo() const
 	{
 	flan_PROCESS_START( Audio() );
 
-	auto format = getFormat();
-	format.numChannels = 2;
+	auto format = get_format();
+	format.num_channels = 2;
 	Audio out( format );
 
-	switch( getNumChannels() )
+	switch( get_num_channels() )
 		{
 		case 1:
 			{
 			// Copy input channel one into the output channel one while scaling down by sqrt2
-			std::transform( std::execution::par_unseq, getBuffer().begin(), getBuffer().end(), out.getBuffer().begin(), 
+			std::transform( std::execution::par_unseq, get_buffer().begin(), get_buffer().end(), out.get_buffer().begin(), 
 				[sqrt2 = std::sqrt( 2.0f )]( Sample s ){ return s / sqrt2; } );
 
 			// // Copy output channel one to output channel two
-			std::copy( std::execution::par_unseq, out.getBuffer().begin(), out.getBuffer().begin() + getNumFrames(), out.getBuffer().begin() + getNumFrames() );
+			std::copy( std::execution::par_unseq, out.get_buffer().begin(), out.get_buffer().begin() + get_num_frames(), out.get_buffer().begin() + get_num_frames() );
 			break;
 			}
 		case 2:
@@ -81,76 +81,41 @@ Audio Audio::convertToStereo() const
 	return out;
 	}
 
-Audio Audio::convertToMono() const
+Audio Audio::convert_to_mono() const
 	{
 	flan_PROCESS_START( Audio() );
 
-	auto format = getFormat();
-	format.numChannels = 1;
+	auto format = get_format();
+	format.num_channels = 1;
 	Audio out( format );
 
-	const float sqrtChannels = std::sqrt( getNumChannels() );
-
-	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( getNumFrames() ), [&]( Frame frame )
+	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
 		{
 		Sample sampleAccumulator = 0;
-		for( Channel channel = 0; channel < getNumChannels(); ++channel )
-			sampleAccumulator += getSample( channel, frame );
-		out.setSample( 0, frame, sampleAccumulator / sqrtChannels );
+		for( Channel channel = 0; channel < get_num_channels(); ++channel )
+			sampleAccumulator += get_sample( channel, frame );
+		out.set_sample( 0, frame, sampleAccumulator / get_num_channels() );
 		} );
 
 	return out;
 	}
 
-Func1x1 Audio::convertToFunction( Second granularity ) const
+Function<Second, Amplitude> Audio::convert_to_function(
+	) const
 	{
 	flan_PROCESS_START( 0 );
 
-	if( granularity <= 0 ) return 0;
+	Audio out = convert_to_mono();
 
-	const fFrame granularityFrames = timeToFrame( granularity );
+	// Needing this is a c++ issue, not stealing the vector makes the lamba capture initialization get flagged as trying to call Audio copy ctor
+	std::vector<Sample> buffer = std::move( out.get_buffer() );
 
-	auto safeGetSample = [this]( Frame frame )
+	return [buffer = std::move( buffer ), sample_rate = get_sample_rate()]( Second t )
 		{
-		if( frame < 0 || frame >= getNumFrames() )
-			return 0.0f;
-		else
-			return getSample( 0, frame );
-		};
-
-	const Frame numSamples = std::ceil( float( getNumFrames() ) / granularityFrames );
-	std::vector<float> ys( numSamples );
-
-	for( Frame x = 0; x < numSamples; ++x )
-		{
-		const fFrame sampleFrame = x * granularityFrames;
-		float sum = 0;
-		for( Frame i = - granularityFrames; i <= granularityFrames; ++i )
-			{
-			const Sample sample = std::abs( safeGetSample( sampleFrame + i ) );
-			const Sample windowSample = Windows::Hann( ( float( i ) / granularityFrames + 1 ) * .5f );
-			sum += sample * windowSample;
-			}
-		
-		// Division by granularityFrames is to account for the weighting via the hann window
-		// The integral of that window is 1/2, but we are stretching it by granularity frames in both directions
-		// The pi/2 factor handles that the average absolute value of a sinusoid with amplitude 1 is 2/pi
-		ys[x] = sum / granularityFrames * pi / 2.0f;
-		}
-	
-	const float timeToFrame_f = timeToFrame( 1 );
-	return [ys = std::move( ys ), timeToFrame_f, granularityFrames ]( float t )
-		{
-		// Get the image sample index as a float
-		const float x = t * timeToFrame_f / granularityFrames;
-		if( 0 <= x && x < ys.size() - 1 )
-			{
-			Frame x1 = std::floor( x );
-			float y1 = ys[x1];
-			float y2 = ys[x1 + 1];
-			return y1 + ( y2 - y1 ) * ( x - x1 );
-			}
-		else return 0.0f;
+		const Frame frame = t * sample_rate;
+		if( 0 <= frame && frame < buffer.size() )
+			return buffer[frame];
+		return 0.0f;
 		};
 	}
 
@@ -175,14 +140,14 @@ Func1x1 Audio::convertToFunction( Second granularity ) const
 // 			buffer.resize( getChannelSize() );
 // 			}
 
-// 		MF & getMF( Channel channel, Frame frame, Bin bin )
+// 		MF & get_MF( Channel channel, Frame frame, Bin bin )
 // 			{
 // 			return buffer[ getChannelSize() * channel + index_buffer[frame] + bin ];
 // 			}
 
 // 		size_t getChannelSize() const { return index_buffer.back(); }
-// 		Frame getNumFrames() const { return index_buffer.size() - 1; }
-// 		Bin getNumBins( Frame f ) const { return index_buffer[f+1] - index_buffer[f]; }
+// 		Frame get_num_frames() const { return index_buffer.size() - 1; }
+// 		Bin get_num_bins( Frame f ) const { return index_buffer[f+1] - index_buffer[f]; }
 
 // 	private:
 // 		std::vector<size_t> index_buffer;
@@ -193,19 +158,19 @@ Func1x1 Audio::convertToFunction( Second granularity ) const
 // #include "constantQ/src/CQInverse.h"
 // Audio Audio::convertToQVOC() const
 // 	{
-// 	CQParameters params( getSampleRate(), 20, 20000, 128 );
+// 	CQParameters params( get_sample_rate(), 20, 20000, 128 );
 
 // 	// Forward constant-q transform
 // 	ConstantQ cq( params );
-// 	auto cqOut = cq.process( getBuffer() );
+// 	auto cqOut = cq.process( get_buffer() );
 // 	auto cqOutR = cq.getRemainingOutput();
 // 	cqOut.insert( cqOut.end(), cqOutR.begin(), cqOutR.end() );
 // 	auto cqOutProperties = cq.getKernalProperties();
-// 	const float dftSize = cqOutProperties.fftSize; 
+// 	const float dft_size = cqOutProperties.fft_size; 
 
 // 	// Transform from cq output format to QVOCBuffer (MF format)
 // 	QVOCBuffer QVOC( cqOut );
-// 	std::vector<float> phaseBuffer( cq.getTotalBins(), 0 );
+// 	std::vector<float> phase_buffer( cq.getTotalBins(), 0 );
 // 	for( Frame frame = 0; frame < cqOut.size(); ++frame )
 // 		{
 // 		for( Bin bin = 0; bin < cqOut[frame].size(); ++bin )
@@ -216,39 +181,39 @@ Func1x1 Audio::convertToFunction( Second granularity ) const
 // 			const float magnitude = std::abs( cqOut[frame][flippedBin] );
 
 // 			// We can't use frequency estimation with too low of a temporal resolution
-// 			if( hopSize >= dftSize )
-// 				QVOC.getMF( 0, frame, bin ) = { magnitude, cq.binToFrequency( bin ) };
+// 			if( hopSize >= dft_size )
+// 				QVOC.get_MF( 0, frame, bin ) = { magnitude, cq.bin_to_frequency( bin ) };
 
 // 			const float phase = std::arg( cqOut[frame][flippedBin] );
-// 			const float phaseDiff = phase - phaseBuffer[bin]; // Actual change in radians for the current hop
-// 			phaseBuffer[bin] = phase; // Update phase buffer
-// 			const float expectedPhaseDiff = bin * pi2 * hopSize / dftSize; // Expected change in radians for the current hop.
+// 			const float phaseDiff = phase - phase_buffer[bin]; // Actual change in radians for the current hop
+// 			phase_buffer[bin] = phase; // Update phase buffer
+// 			const float expectedPhaseDiff = bin * pi2 * hopSize / dft_size; // Expected change in radians for the current hop.
 // 			const float deltaPhase = phaseDiff - expectedPhaseDiff; // The difference between the actual and the expected phase changes, aka how far off was our sinusoid from the expected.
 // 			const float wrappedDeltaPhase = deltaPhase - pi2 * std::round( deltaPhase / pi2 ); // Wrap delta phase into [-pi,pi]
-// 			const float binDeviation = wrappedDeltaPhase / pi2 * dftSize / hopSize;
-// 			const Frequency frequency = cq.binToFrequency( bin + binDeviation );
+// 			const float binDeviation = wrappedDeltaPhase / pi2 * dft_size / hopSize;
+// 			const Frequency frequency = cq.bin_to_frequency( bin + binDeviation );
 
-// 			QVOC.getMF( 0, frame, bin ) = { magnitude, frequency };
+// 			QVOC.get_MF( 0, frame, bin ) = { magnitude, frequency };
 // 			}
 // 		}
 
 // 	// Modify qvoc data
-// 	for( Frame frame = 0; frame < QVOC.getNumFrames(); ++frame )
+// 	for( Frame frame = 0; frame < QVOC.get_num_frames(); ++frame )
 // 		{
-// 		for( Bin bin = 0; bin < QVOC.getNumBins( frame ) - 1; ++bin )
+// 		for( Bin bin = 0; bin < QVOC.get_num_bins( frame ) - 1; ++bin )
 // 			{
-// 			// QVOC.getMF( 0, frame, bin ) = QVOC.getMF( 0, frame, bin + 1 );
-// 			// QVOC.getMF( 0, frame, bin ).f /= std::pow( 2.0f, 1.0f / 12 );
+// 			// QVOC.get_MF( 0, frame, bin ) = QVOC.get_MF( 0, frame, bin + 1 );
+// 			// QVOC.get_MF( 0, frame, bin ).f /= std::pow( 2.0f, 1.0f / 12 );
 // 			}
 // 		}
 
 // 	// Transform QVOCBuffer back to cq format
-// 	std::for_each( phaseBuffer.begin(), phaseBuffer.end(), []( float & x ){ x = 0; } );
+// 	std::for_each( phase_buffer.begin(), phase_buffer.end(), []( float & x ){ x = 0; } );
 
 // 	// We need to construct a vector of vectors with the correct sizes
-// 	std::vector<std::vector<std::complex<float>>> cqIn( QVOC.getNumFrames(), std::vector<std::complex<float>>{} );
+// 	std::vector<std::vector<std::complex<float>>> cqIn( QVOC.get_num_frames(), std::vector<std::complex<float>>{} );
 // 	for( Frame frame = 0; frame < cqIn.size(); ++frame )
-// 		cqIn[frame].resize( QVOC.getNumBins( frame ), 0 );
+// 		cqIn[frame].resize( QVOC.get_num_bins( frame ), 0 );
 
 // 	// Apply the MF->complex transform
 // 	for( Frame frame = 0; frame < cqIn.size(); ++frame )
@@ -258,11 +223,11 @@ Func1x1 Audio::convertToFunction( Second granularity ) const
 // 			const Bin flippedBin = cqOut[frame].size() - 1 - bin;
 // 			const float hopSize = cq.getColumnHop( bin );
 
-// 			const MF mf = QVOC.getMF( 0, frame, bin );
+// 			const MF mf = QVOC.get_MF( 0, frame, bin );
 
-// 			phaseBuffer[bin] += cq.frequencyToBin( mf.f ) * pi2 * hopSize / dftSize;
+// 			phase_buffer[bin] += cq.frequency_to_bin( mf.f ) * pi2 * hopSize / dft_size;
 			
-// 			cqIn[frame][flippedBin] = std::polar( mf.m, phaseBuffer[bin] );
+// 			cqIn[frame][flippedBin] = std::polar( mf.m, phase_buffer[bin] );
 // 			}
 // 		}
 
@@ -273,13 +238,13 @@ Func1x1 Audio::convertToFunction( Second granularity ) const
 // 	cqiOut.insert( cqiOut.end(), cqiOutR.begin(), cqiOutR.end() );
 
 // 	// Create output Audio
-// 	auto format = getFormat();
-// 	format.numFrames = cqiOut.size();
+// 	auto format = get_format();
+// 	format.num_frames = cqiOut.size();
 // 	Audio out( format );
 
 // 	// Copy to output
 // 	for( Frame frame = 0; frame < cqiOut.size(); ++frame )
-// 		out.getSample( 0, frame ) = cqiOut[frame];
+// 		out.get_sample( 0, frame ) = cqiOut[frame];
 
 // 	return out;
 // 	}

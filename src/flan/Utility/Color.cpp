@@ -4,7 +4,7 @@
 
 namespace flan {
 
-Color Color::fromHSV( int H, float S, float V ) 
+Color Color::from_hsv( int H, float S, float V ) 
 	{
 	float C = S * V;
 	float X = C * (1 - abs(fmod(H / 60.0, 2) - 1));

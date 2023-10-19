@@ -1,7 +1,6 @@
 #pragma once
 
 #include "defines.h"
-#include "flan/Utility/MF.h"
 
 namespace flan {
 
@@ -11,33 +10,33 @@ class STFTInterface
 public:
 	struct Format 
 		{ 
-		Channel numChannels = 0;
-		Frame numFrames = 0;
-		Bin numBins = 0;
-		SampleRate sampleRate = 48000; 
+		Channel num_channels = 0;
+		Frame num_frames = 0;
+		Bin num_bins = 0;
+		SampleRate sample_rate = 48000; 
 		Frame hopSize = 0;
-		Frame windowSize = 0;
+		Frame window_size = 0;
 		//window type?
 		};
 
-	virtual fFrame timeToFrame( Second ) const = 0;
-	virtual Second frameToTime( fFrame ) const = 0;
-	virtual fBin frequencyToBin( Frequency ) const = 0;
-	virtual Frequency binToFrequency( fBin ) const = 0;
+	virtual fFrame time_to_frame( Second ) const = 0;
+	virtual Second frame_to_time( fFrame ) const = 0;
+	virtual fBin frequency_to_bin( Frequency ) const = 0;
+	virtual Frequency bin_to_frequency( fBin ) const = 0;
 
-	virtual Channel getNumChannels() const = 0;
-	virtual Frame getNumFrames() const = 0;
-	virtual Bin	getNumBins( Frame f = -1 ) const = 0;
-	virtual SampleRate getSampleRate() const = 0;
+	virtual Channel get_num_channels() const = 0;
+	virtual Frame get_num_frames() const = 0;
+	virtual Bin	get_num_bins( Frame f = -1 ) const = 0;
+	virtual SampleRate get_sample_rate() const = 0;
 
-	Second getLength() const { return frameToTime( getNumFrames() ); }
-	Frequency getHeight() const { return binToFrequency( getNumBins() ); }
-	bool isNull() const 
+	Second get_length() const { return frame_to_time( get_num_frames() ); }
+	Frequency get_height() const { return bin_to_frequency( get_num_bins() ); }
+	bool is_null() const 
 		{ 
-		return getSampleRate() > 0
-			&& getNumChannels() > 0
-			&& getNumFrames() > 0
-			&& getNumBins() > 0;
+		return get_sample_rate() > 0
+			&& get_num_channels() > 0
+			&& get_num_frames() > 0
+			&& get_num_bins() > 0;
 		}
 };
 

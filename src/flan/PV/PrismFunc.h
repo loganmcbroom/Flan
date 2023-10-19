@@ -22,7 +22,7 @@ public:
 		{}
 
 	MF operator()( int n, Second t, int h, Frequency f, const std::vector<Magnitude> & hM ) const { return func(n, t, h, f, hM); }
-	ExecutionPolicy getExecutionPolicy() const { return policy; }
+	ExecutionPolicy get_execution_policy() const { return policy; }
 
 private:
 	FuncType func;

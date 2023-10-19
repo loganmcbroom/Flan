@@ -1,16 +1,15 @@
 #pragma once
 
-//x should sit between 0 and 1
+/* 
+Windows are functions with domain [0,1]. They can be used as analysis windows, or as envelopes, among other things.
+*/
 
 namespace flan{
 
-struct RealFunc;
-
 namespace Windows {
 
-float Hann( float x );
+float hann( float x );
 
-/** Origin centered Hann DFT * 2 */
-float HannDFT2( float K );
+}
 
-}}
+}

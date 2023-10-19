@@ -11,7 +11,7 @@
 //public:
 //	Spectrum( const Format f ) : SpectrumBuffer( f ) {}
 //
-//	Audio convertToAudio();
+//	Audio convert_to_audio();
 //
 //	//static Spectrum 
 //

@@ -20,21 +20,21 @@ public:
         m_bRunning = false;
         }
     
-    float elapsedMilliseconds()
+    float elapsed_ms()
         {
-        std::chrono::time_point<std::chrono::system_clock> endTime;
+        std::chrono::time_point<std::chrono::system_clock> end_time;
         
         if(m_bRunning)
-            endTime = std::chrono::system_clock::now();
+            end_time = std::chrono::system_clock::now();
         else
-            endTime = m_EndTime;
+            end_time = m_EndTime;
         
-        return std::chrono::duration_cast<std::chrono::milliseconds>( endTime - m_StartTime ).count();
+        return std::chrono::duration_cast<std::chrono::milliseconds>( end_time - m_StartTime ).count();
      }
     
     float elapsedSeconds()
     {
-        return elapsedMilliseconds() / 1000.0f;
+        return elapsed_ms() / 1000.0f;
     }
 
 private:

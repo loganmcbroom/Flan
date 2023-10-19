@@ -8,7 +8,7 @@ using namespace flan;
 SQPVBuffer::SQPVBuffer()
 	: format()
 	, pitch_bandwidth()
-	, numBins()
+	, num_bins()
 	, Q()
 	, bin_frequencies()
 	, buffer()
@@ -18,49 +18,49 @@ SQPVBuffer::SQPVBuffer( const Format & f )
 	: format( f )
 	, pitch_bandwidth( { frequencyToPitch( getFrequencyBandwidth().first  ).p, 
 						 frequencyToPitch( getFrequencyBandwidth().second ).p } )
-	, numBins( std::ceil( frequencyToBin( getFrequencyBandwidth().second ) ) )
-	, Q( 1.0f / ( std::pow( 2.0f, 1.0f / f.binsPerOctave ) - 1.0f ) )
+	, num_bins( std::ceil( frequency_to_bin( getFrequencyBandwidth().second ) ) )
+	, Q( 1.0f / ( std::pow( 2.0f, 1.0f / f.bins_per_octave ) - 1.0f ) )
 	, bin_frequencies( [&]()
 		{ 
-		std::vector<Frequency> out( getNumBins() );
+		std::vector<Frequency> out( get_num_bins() );
 		for( Bin bin = 0; bin < out.size(); ++bin )
-			out[bin] = binToFrequency( bin ); 
+			out[bin] = bin_to_frequency( bin ); 
 		return out;
 		}() )
-	, buffer( getNumChannels() * getNumFrames() * getNumBins() )
+	, buffer( get_num_channels() * get_num_frames() * get_num_bins() )
 	{}
 
 MP SQPVBuffer::getMP( Channel c, Frame f, Bin b ) const
 	{
-	return buffer[getBufferPos( c, f, b )];
+	return buffer[get_buffer_pos( c, f, b )];
 	}
 
 MP & SQPVBuffer::getMP( Channel c, Frame f, Bin b )
 	{
-	return buffer[getBufferPos( c, f, b )];
+	return buffer[get_buffer_pos( c, f, b )];
 	}
 
-const SQPVBuffer::Format & SQPVBuffer::getFormat() const
+const SQPVBuffer::Format & SQPVBuffer::get_format() const
 	{
 	return format;
 	}
 
-fFrame SQPVBuffer::timeToFrame( Second t ) const
+fFrame SQPVBuffer::time_to_frame( Second t ) const
 	{
-	return t * getSampleRate();
+	return t * get_sample_rate();
 	}
 
-Second SQPVBuffer::frameToTime( fFrame f ) const
+Second SQPVBuffer::frame_to_time( fFrame f ) const
 	{
-	return f / getSampleRate();
+	return f / get_sample_rate();
 	}
 
-fBin SQPVBuffer::frequencyToBin( Frequency f ) const
+fBin SQPVBuffer::frequency_to_bin( Frequency f ) const
 	{
 	return pitchToBin( frequencyToPitch( f ).p );
 	}
 
-Frequency SQPVBuffer::binToFrequency( fBin bin ) const
+Frequency SQPVBuffer::bin_to_frequency( fBin bin ) const
 	{
 	return pitchToFrequency( Pitch( binToPitch( bin ), true ) );
 	}
@@ -86,34 +86,34 @@ fBin SQPVBuffer::pitchToBin( UnsignedPitch p ) const
 	return ( p - getPitchBandwidth().first ) * getBinsPerOctave();
 	}
 
-size_t SQPVBuffer::getBufferPos( Channel c, Frame f , Bin b ) const
+size_t SQPVBuffer::get_buffer_pos( Channel c, Frame f , Bin b ) const
 	{
-	return ( c * getNumFrames() + f ) * getNumBins() + b;
+	return ( c * get_num_frames() + f ) * get_num_bins() + b;
 	}
 
-Channel SQPVBuffer::getNumChannels() const
+Channel SQPVBuffer::get_num_channels() const
 	{
-	return format.numChannels;
+	return format.num_channels;
 	}
 
-Frame SQPVBuffer::getNumFrames() const
+Frame SQPVBuffer::get_num_frames() const
 	{
-	return format.numFrames;
+	return format.num_frames;
 	}
 
-Bin	SQPVBuffer::getNumBins() const
+Bin	SQPVBuffer::get_num_bins() const
 	{
-	return numBins;
+	return num_bins;
 	}
 
-FrameRate SQPVBuffer::getSampleRate() const
+FrameRate SQPVBuffer::get_sample_rate() const
 	{
-	return format.sampleRate;
+	return format.sample_rate;
 	}
 
-FrameRate SQPVBuffer::getAnalysisRate() const
+FrameRate SQPVBuffer::get_analysis_rate() const
 	{
-	return format.sampleRate;
+	return format.sample_rate;
 	}
 
 std::pair<Frequency, Frequency> SQPVBuffer::getFrequencyBandwidth() const
@@ -128,7 +128,7 @@ std::pair<UnsignedPitch, UnsignedPitch> SQPVBuffer::getPitchBandwidth() const
 
 float SQPVBuffer::getBinsPerOctave() const
 	{
-	return format.binsPerOctave;
+	return format.bins_per_octave;
 	}
 
 Cycle SQPVBuffer::getQ() const
@@ -141,57 +141,57 @@ Frequency SQPVBuffer::getBinFrequency( Bin bin ) const
 	return bin_frequencies[bin];
 	}
 
-bool SQPVBuffer::isNull() const
+bool SQPVBuffer::is_null() const
 	{
-	return getSampleRate() <= 0
+	return get_sample_rate() <= 0
 		|| buffer.size() == 0
 		|| getFrequencyBandwidth().first >= getFrequencyBandwidth().second;
 	}
 
-void SQPVBuffer::clearBuffer()
+void SQPVBuffer::clear_buffer()
 	{
 	std::fill( std::execution::par_unseq, buffer.begin(), buffer.end(), MP{ 0, Pitch( 0, true ) } );
 	}
 
 SQPVBuffer SQPVBuffer::copy() const
 	{
-	SQPVBuffer out( getFormat() );
+	SQPVBuffer out( get_format() );
 	out.buffer = buffer; // Deep copy
 	return out;
 	}
 
-Magnitude SQPVBuffer::getMaxPartialMagnitude() const
+Magnitude SQPVBuffer::get_max_partial_magnitude() const
 	{
-	Magnitude maxMagnitude = 0;
+	Magnitude max_magnitude = 0;
 	for( const MP & mf : buffer )
 		{
 		const Magnitude trueMag = std::abs( mf.m );
-		if( trueMag > maxMagnitude )
-			maxMagnitude = trueMag;
+		if( trueMag > max_magnitude )
+			max_magnitude = trueMag;
 		}
-	return maxMagnitude;
+	return max_magnitude;
 	}
 
-Magnitude SQPVBuffer::getMaxPartialMagnitude( Frame startFrame, Frame endFrame, Bin startBin, Bin endBin ) const
+Magnitude SQPVBuffer::get_max_partial_magnitude( Frame start_frame, Frame end_frame, Bin start_bin, Bin end_bin ) const
 	{
-	if( endFrame == 0 ) endFrame = getNumFrames();
-	if( endBin == 0 ) endBin = getNumBins();
+	if( end_frame == 0 ) end_frame = get_num_frames();
+	if( end_bin == 0 ) end_bin = get_num_bins();
 
-	Magnitude maxMagnitude = 0;
+	Magnitude max_magnitude = 0;
 
-	for( Channel channel = 0; channel < getNumChannels(); ++channel )
-		for( Frame frame = startFrame; frame < endFrame; ++frame )
-			for( Bin bin = startBin; bin < endBin; ++bin )
+	for( Channel channel = 0; channel < get_num_channels(); ++channel )
+		for( Frame frame = start_frame; frame < end_frame; ++frame )
+			for( Bin bin = start_bin; bin < end_bin; ++bin )
 			    {
 				const Magnitude trueMag = std::abs( getMP( channel, frame, bin ).m );
-				if( trueMag > maxMagnitude )
-					maxMagnitude = trueMag;
+				if( trueMag > max_magnitude )
+					max_magnitude = trueMag;
 				}
 
-	return maxMagnitude;
+	return max_magnitude;
 	}
 
 Frame SQPVBuffer::getPeriod( Bin bin ) const
 	{
-	return std::ceil( getQ() * getSampleRate() / getBinFrequency( bin ) );
+	return std::ceil( getQ() * get_sample_rate() / getBinFrequency( bin ) );
 	}

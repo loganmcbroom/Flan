@@ -18,27 +18,27 @@ SPV::SPV( Format _format )
 	: SPVBuffer( _format )
 	{}
 
-SPV SPV::modifyFrequency( const Func2x1 & mod ) const
+SPV SPV::modify_frequency( const Function<TF, Second> & mod ) const
 	{
 	flan_PROCESS_START( SPV() );
 
 	SPV out = copy();
 
-	for( Channel channel = 0; channel < getNumChannels(); ++channel )
+	for( Channel channel = 0; channel < get_num_channels(); ++channel )
 		{
-		runtimeExecutionPolicyHandler( mod.getExecutionPolicy(), [&]( auto policy ){
-		std::for_each( policy, iota_iter( 0 ), iota_iter( getNumFrames() ), [&]( Frame frame )
+		runtime_execution_policy_handler( mod.get_execution_policy(), [&]( auto policy ){
+		std::for_each( policy, iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
 			{
-			const Second time = frameToTime( frame );
-			for( Bin bin = 0; bin < getNumBins(); ++bin )
-				out.getMF( channel, frame, bin ).f = mod( time, out.getMF( channel, frame, bin ).f );
+			const Second time = frame_to_time( frame );
+			for( Bin bin = 0; bin < get_num_bins(); ++bin )
+				out.get_MF( channel, frame, bin ).f = mod( TF{time, out.get_MF( channel, frame, bin ).f} );
 			} ); } );
 		}
 
 	return out;
 	}
 
-SPV SPV::repitch( const Func2x1 & mod ) const
+SPV SPV::repitch( const Function<TF, Frequency> & mod ) const
 	{
-	return modifyFrequency( [&]( vec2 tf ){ return tf.f() * mod( tf ); } );
+	return modify_frequency( [&]( TF tf ){ return tf.f * mod( tf ); } );
 	}

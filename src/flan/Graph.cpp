@@ -12,68 +12,68 @@ using namespace flan;
 const Graph::Plane Graph::Plane::All = Graph::Plane( -1 );
 
 Graph::Graph( Pixel _width, Pixel _height )
-	: bitmap_image( _width == -1? Graph::DefaultWidth : _width, _height == -1 ? Graph::DefaultHeight : _height )
+	: bitmap_image( _width == -1? Graph::default_width : _width, _height == -1 ? Graph::default_height : _height )
 	, views()
 	{
 	}
 
-void Graph::addView( View view, Plane plane )
+void Graph::add_view( View view, Plane plane )
 	{
 	views.emplace_back( plane, view );
 	}
 
-void Graph::setView( Rect rect )
+void Graph::set_view( Rect rect )
 	{
 	views.clear();
 	views.emplace_back( -1, View( rect, Rect( 0.0f, 0.0f, (float) width(), (float) height() ) ) );
 	}
 
-void Graph::addSplitViewY( View view, int numViews, Plane startPlane )
+void Graph::add_split_view_y( View view, int num_views, Plane start_plane )
 	{
 	float y_c = view.V.y1();
-	const float viewHeight = view.V.h() / float( numViews );
-	for( int v = 0; v < numViews; ++v )
+	const float viewHeight = view.V.h() / float( num_views );
+	for( int v = 0; v < num_views; ++v )
 		{
 		const View newView( view.U, { view.V.x1(), y_c, view.V.x2(), y_c + viewHeight } );
-		addView( newView, startPlane + v );
+		add_view( newView, start_plane + v );
 		y_c += viewHeight;
 		}
 	}
 
-void Graph::addFullSplitViewY( Rect rect, int numViews, Plane startPlane )
+void Graph::add_full_split_view_y( Rect rect, int num_views, Plane start_plane )
 	{
-	addSplitViewY( View( rect, Rect( 0, 0, width(), height() ) ), numViews, startPlane );
+	add_split_view_y( View( rect, Rect( 0, 0, width(), height() ) ), num_views, start_plane );
 	}
 
-bool Graph::doPlanesMatch( Plane p1, Plane p2 ) const
+bool Graph::do_planes_match( Plane p1, Plane p2 ) const
 	{
 	if( p1 == Plane::All || p2 == Plane::All ) return true;
 	else return p1 == p2;
 	}
 
-std::vector<std::pair<Graph::Plane,View>> Graph::getIntersectingViews( Rect U, Plane plane ) const
+std::vector<std::pair<Graph::Plane,View>> Graph::get_intersecting_views( Rect U, Plane plane ) const
 	{
-	std::vector<std::pair<Plane,View>> activeViews;
+	std::vector<std::pair<Plane,View>> active_views;
 	for( auto & v : views )
 		{
-		if( doPlanesMatch( v.first, plane ) && v.second.U.intersect( U ).valid() )
-			activeViews.emplace_back( v );
+		if( do_planes_match( v.first, plane ) && v.second.U.intersect( U ).valid() )
+			active_views.emplace_back( v );
 		}
-	return activeViews;
+	return active_views;
 	}
 
 //======================================================================================================================================================
 // Waveforms
 //======================================================================================================================================================
 
-void Graph::drawWaveform( const Func1x1 & data, Rect rect, Plane plane, Color c, WaveformMode mode )
+void Graph::draw_waveform( const Function<float, float> & data, Rect rect, Plane plane, Color c, WaveformMode mode )
 	{
 	flan_FUNCTION_LOG;
 
-	const auto activeViews = getIntersectingViews( rect, plane );
-	for( auto & planeView : activeViews )
+	const auto active_views = get_intersecting_views( rect, plane );
+	for( auto & plane_view : active_views )
 		{
-		const View & view = planeView.second;
+		const View & view = plane_view.second;
 		const Rect drawRect = rect.intersect( view.U );
 
 		const Pixel startPixel = std::ceil(  view.xUToV( drawRect.x1() ) );
@@ -82,7 +82,7 @@ void Graph::drawWaveform( const Func1x1 & data, Rect rect, Plane plane, Color c,
 
 		// Oversample data into buffer
 		//for( Pixel x = startPixel; x < endPixel; ++x )
-		runtimeExecutionPolicyHandler( data.getExecutionPolicy(), [&]( auto policy ){
+		runtime_execution_policy_handler( data.get_execution_policy(), [&]( auto policy ){
 		std::for_each( policy, iota_iter( startPixel ), iota_iter( endPixel ), [&]( Pixel x )
 			{
 			//Get average of subsamples
@@ -95,34 +95,34 @@ void Graph::drawWaveform( const Func1x1 & data, Rect rect, Plane plane, Color c,
 				}
 			sum /= oversample;
 
-			const Pixel yOffsetPixels = view.hUToV( std::clamp( sum, -1.0f, 1.0f ) * rect.h() / 2.0f );
+			const Pixel yOffset_pixels = view.hUToV( std::clamp( sum, -1.0f, 1.0f ) * rect.h() / 2.0f );
 
-			auto setPixelWithColor = [this, yMidPixel, &rect, &view, c]( Pixel x, Pixel y )
+			auto set_pixelWithColor = [this, yMidPixel, &rect, &view, c]( Pixel x, Pixel y )
 				{ 
 				if( y < view.V.y1() ||  view.V.y2() <= y ) return;
 				//const float r = std::abs( y - yMidPixel ) / view.hUToV( rect.h() / 2.0f );
-				setPixel( x, y, c );
+				set_pixel( x, y, c );
 				};
 
 			if( mode == WaveformMode::Direct )
 				{
-				if( yOffsetPixels < 0 )
-					for( Pixel y = yMidPixel; y >= yMidPixel + yOffsetPixels; --y ) 
-						setPixelWithColor( x, y );
+				if( yOffset_pixels < 0 )
+					for( Pixel y = yMidPixel; y >= yMidPixel + yOffset_pixels; --y ) 
+						set_pixelWithColor( x, y );
 				else
-					for( Pixel y = yMidPixel; y <= yMidPixel + yOffsetPixels; ++y ) 
-						setPixelWithColor( x, y );
+					for( Pixel y = yMidPixel; y <= yMidPixel + yOffset_pixels; ++y ) 
+						set_pixelWithColor( x, y );
 				}
 			else
-				for( Pixel y = yMidPixel - yOffsetPixels; y <= yMidPixel + yOffsetPixels; ++y ) 
-					setPixelWithColor( x, y );
+				for( Pixel y = yMidPixel - yOffset_pixels; y <= yMidPixel + yOffset_pixels; ++y ) 
+					set_pixelWithColor( x, y );
 			} ); } );
 		}
 	}
 
-void Graph::drawWaveform( const float * data, int n, Rect rect, Plane plane, Color c, WaveformMode mode )
+void Graph::draw_waveform( const float * data, int n, Rect rect, Plane plane, Color c, WaveformMode mode )
 	{
-	drawWaveform( [data, n, &rect]( float x )
+	draw_waveform( [data, n, &rect]( float x )
 		{ 
 		const int i = std::floor( ( x - rect.x1() ) / rect.w() * n );
 		//if( i < 0 || i >= n ) return 0.0f;
@@ -131,21 +131,21 @@ void Graph::drawWaveform( const float * data, int n, Rect rect, Plane plane, Col
 		rect, plane, c, mode );
 	}
 
-void Graph::drawWaveforms( const std::vector<Func1x1> & fs, Rect rect, Plane startPlane, WaveformMode mode )
+void Graph::draw_waveforms( const std::vector<Function<float, float>> & fs, Rect rect, Plane start_plane, WaveformMode mode )
 	{
 	for( int f = 0; f < fs.size(); ++f )
 		{
-		const Color c = Color::fromHSV( 360.0f * f / fs.size(), .8, .65 );
-		drawWaveform( fs[f], rect, startPlane + f, c, mode );
+		const Color c = Color::from_hsv( 360.0f * f / fs.size(), .8, .65 );
+		draw_waveform( fs[f], rect, start_plane + f, c, mode );
 		}
 	}
 
-void Graph::drawWaveforms( const std::vector<const float *> & fs, int n, Rect rect, Plane startPlane, WaveformMode mode )
+void Graph::draw_waveforms( const std::vector<const float *> & fs, int n, Rect rect, Plane start_plane, WaveformMode mode )
 	{
 	for( int f = 0; f < fs.size(); ++f )
 		{
-		const Color c = Color::fromHSV( 360.0f * f / fs.size(), .8, .65 );
-		drawWaveform( fs[f], n, rect, startPlane + f, c, mode );
+		const Color c = Color::from_hsv( 360.0f * f / fs.size(), .8, .65 );
+		draw_waveform( fs[f], n, rect, start_plane + f, c, mode );
 		}
 	}
 
@@ -154,16 +154,16 @@ void Graph::drawWaveforms( const std::vector<const float *> & fs, int n, Rect re
 // Spectrograms
 //======================================================================================================================================================
 
-void Graph::drawSpectrogram( const Func2x1 & data, Rect rect, Plane plane, float hue )
+void Graph::draw_spectrogram( const Function<vec2, float> & data, Rect rect, Plane plane, float hue )
 	{
 	flan_FUNCTION_LOG;
 
 	const int oversample_c = std::sqrt( oversample );
 
-	const auto activeViews = getIntersectingViews( rect, plane );
-	for( auto & planeView : activeViews )
+	const auto active_views = get_intersecting_views( rect, plane );
+	for( auto & plane_view : active_views )
 		{
-		const View & view = planeView.second;
+		const View & view = plane_view.second;
 		const Rect drawRect = rect.intersect( view.U );
 
 		const Pixel startXPixel = std::ceil(  view.xUToV( drawRect.x1() ) );
@@ -171,7 +171,7 @@ void Graph::drawSpectrogram( const Func2x1 & data, Rect rect, Plane plane, float
 		const Pixel startYPixel = std::ceil(  view.yUToV( drawRect.y1() ) );
 		const Pixel endYPixel	= std::floor( view.yUToV( drawRect.y2() ) );
 
-		runtimeExecutionPolicyHandler( data.getExecutionPolicy(), [&]( auto policy ){
+		runtime_execution_policy_handler( data.get_execution_policy(), [&]( auto policy ){
 		std::for_each( policy, iota_iter( startXPixel ), iota_iter( endXPixel ), [&]( Pixel x )
 			{
 			for( Pixel y = startYPixel; y < endYPixel; ++y )
@@ -187,16 +187,16 @@ void Graph::drawSpectrogram( const Func2x1 & data, Rect rect, Plane plane, float
 						}
 				mag /= ( oversample_c * oversample_c ); // Mag is in range [0, 1] after division
 
-				const Color color = Color::fromHSV( hue, 1.0f, std::clamp( mag, 0.0f, 1.0f ) );
-				setPixel( x, y, color );
+				const Color color = Color::from_hsv( hue, 1.0f, std::clamp( mag, 0.0f, 1.0f ) );
+				set_pixel( x, y, color );
 				}
 			} ); } );
 		}
 	}
 
-void Graph::drawSpectrogram( const float * data, int n, int m, Rect rect, Plane plane, float hue )
+void Graph::draw_spectrogram( const float * data, int n, int m, Rect rect, Plane plane, float hue )
 	{
-	drawSpectrogram( [&data, n, m, &rect]( float x, float y )
+	draw_spectrogram( [&data, n, m, &rect]( float x, float y )
 		{ 
 		const int i = std::floor( ( x - rect.x1() ) / rect.w() * n );
 		const int j = std::floor( ( y - rect.y1() ) / rect.h() * m );
@@ -206,21 +206,21 @@ void Graph::drawSpectrogram( const float * data, int n, int m, Rect rect, Plane 
 		rect, plane, hue );
 	}
 
-void Graph::drawSpectrograms( const std::vector<Func2x1> & fs, Rect rect, Plane startPlane )
+void Graph::draw_spectrograms( const std::vector<Function<vec2, float>> & fs, Rect rect, Plane start_plane )
 	{
 	for( int f = 0; f < fs.size(); ++f )
 		{
 		const float hue = 360.0f * f / fs.size();
-		drawSpectrogram( fs[f], rect, startPlane + f, hue );
+		draw_spectrogram( fs[f], rect, start_plane + f, hue );
 		}
 	}
 
-void Graph::drawSpectrograms( const std::vector<const float *> & fs, int n, int m, Rect rect, Plane startPlane )
+void Graph::draw_spectrograms( const std::vector<const float *> & fs, int n, int m, Rect rect, Plane start_plane )
 	{
 	for( int f = 0; f < fs.size(); ++f )
 		{
 		const float hue = 360.0f * f / fs.size();
-		drawSpectrogram( fs[f], n, m, rect, startPlane + f, hue );
+		draw_spectrogram( fs[f], n, m, rect, start_plane + f, hue );
 		}
 	}
 
@@ -229,7 +229,7 @@ void Graph::drawSpectrograms( const std::vector<const float *> & fs, int n, int 
 // Functions
 //======================================================================================================================================================
 
-void Graph::drawFunction( const Func1x1 & f, Interval domain, Plane plane, Color c )
+void Graph::draw_function( const Function<float, float> & f, Interval domain, Plane plane, Color c )
 	{
 	flan_FUNCTION_LOG;
 
@@ -237,10 +237,10 @@ void Graph::drawFunction( const Func1x1 & f, Interval domain, Plane plane, Color
 	image_drawer draw( *this );
 	draw.pen_color( c );
 
-	const auto activeViews = getIntersectingViews( domain * Interval::R, plane );
-	for( auto & planeView : activeViews )
+	const auto active_views = get_intersecting_views( domain * Interval::R, plane );
+	for( auto & plane_view : active_views )
 		{
-		const View & view = planeView.second;
+		const View & view = plane_view.second;
 		const Interval drawDomain = domain.intersect( view.U.d );
 
 		const float pixelAdvance = view.wVToU( 1 );
@@ -251,32 +251,32 @@ void Graph::drawFunction( const Func1x1 & f, Interval domain, Plane plane, Color
 			{
 			const float y2 = f( x2 );
 			if( view.U.contains( x1, y1 ) && view.U.contains( x2, y2 ) ) 
-				drawLineSegment( view, draw, x1, y1, x2, y2 );
+				draw_line_segment( view, draw, x1, y1, x2, y2 );
 			x1 = x2;
 			y1 = y2;
 			}
 		}
 	}
 
-void Graph::drawFunction( const std::vector<std::pair<float,float>> & data, Plane plane, Color c )
+void Graph::draw_function( const std::vector<std::pair<float,float>> & data, Plane plane, Color c )
 	{
-	auto f = interpolatePoints( data );
+	auto f = interpolate_points( data );
 
 	auto xComp = []( const std::pair<float,float> & p,  const std::pair<float,float> & s ){ return p.first < s.first; };
 	const float left	= std::min_element( data.begin(), data.end(), xComp )->first;
 	const float right	= std::max_element( data.begin(), data.end(), xComp )->first;
 	
-	drawFunction( f, Interval( left, right ), plane, c );
+	draw_function( f, Interval( left, right ), plane, c );
 	}
 
-void Graph::drawFunctions( const std::vector<Func1x1> & fs, const std::vector<Interval> & domains, Plane plane )
+void Graph::draw_functions( const std::vector<Function<float, float>> & fs, const std::vector<Interval> & domains, Plane plane )
 	{
 
 	// Draw waveforms
 	for( int f = 0; f < fs.size(); ++f )
 		{
 		const float hue = 360.0f * f / fs.size();
-		drawFunction( fs[f], f < domains.size() ? domains[f] : Interval::R, plane, Color::fromHSV( hue, 1, 1 ) );
+		draw_function( fs[f], f < domains.size() ? domains[f] : Interval::R, plane, Color::from_hsv( hue, 1, 1 ) );
 		}
 	}
 
@@ -285,32 +285,32 @@ void Graph::drawFunctions( const std::vector<Func1x1> & fs, const std::vector<In
 // Primitives
 //======================================================================================================================================================
 
-void Graph::setPixel( Pixel x, Pixel y, Color c )
+void Graph::set_pixel( Pixel x, Pixel y, Color c )
 	{
-	set_pixel( x, height() - 1 - y, c );
+	bitmap_image::set_pixel( x, height() - 1 - y, c );
 	}
 
-void Graph::setPoint( const View & v, float x, float y, Color c )
+void Graph::set_point( const View & v, float x, float y, Color c )
 	{
-	setPixel( v.xUToV( x ), v.yUToV( y ), c );
+	set_pixel( v.xUToV( x ), v.yUToV( y ), c );
 	}
 
-void Graph::drawHorizontalLine( const View & v, image_drawer & draw, float x1, float x2, float y )
+void Graph::draw_horizontal_line( const View & v, image_drawer & draw, float x1, float x2, float y )
 	{
 	draw.horiztonal_line_segment( v.xUToV( x1 ), v.xUToV( x2 ), height() - 1 - v.yUToV( y ) );
 	}
 
-void Graph::drawVerticalLine( const View & v, image_drawer & draw, float y1, float y2, float x )
+void Graph::draw_vertical_line( const View & v, image_drawer & draw, float y1, float y2, float x )
 	{
 	draw.vertical_line_segment( height() - 1 - v.yUToV( y2 ), height() - 1 - v.yUToV( y1 ), v.xUToV( x ) );
 	}
 
-void Graph::drawLineSegment( const View & v, image_drawer & draw, float x1, float y1, float x2, float y2 )	
+void Graph::draw_line_segment( const View & v, image_drawer & draw, float x1, float y1, float x2, float y2 )	
 	{
 	draw.line_segment( v.xUToV( x1 ), height() - 1 - v.yUToV( y1 ), v.xUToV( x2 ), height() - 1 - v.yUToV( y2 ) );
 	}
 
-void Graph::setRect( const View & v, Rect rect, Color c )
+void Graph::set_rect( const View & v, Rect rect, Color c )
 	{
 	const Rect drawRect = rect.intersect( v.U );
 	set_region( 
@@ -321,7 +321,7 @@ void Graph::setRect( const View & v, Rect rect, Color c )
 		c.red, c.green, c.blue );
 	}
 
-void Graph::fillImage( Color c )
+void Graph::fill_image( Color c )
 	{
 	set_region( 0, 0, width(), height(), c.red, c.green, c.blue );
 	}
@@ -331,131 +331,241 @@ void Graph::fillImage( Color c )
 // Additional Drawing Routines
 //======================================================================================================================================================
 
-void Graph::drawAxes( Plane plane, Color c )
+void Graph::draw_axes( Plane plane, Color c )
 	{
 	image_drawer draw( *this );
 	draw.pen_color( c );
 
-	const auto activeViews = getIntersectingViews( Rect::R2, plane );
-	for( auto & planeView : activeViews )
+	const auto active_views = get_intersecting_views( Rect::R2, plane );
+	for( auto & plane_view : active_views )
 		{
-		const View & view = planeView.second;
-		if( view.U.y1() <= 0 && view.U.y2() > 0 ) drawVerticalLine(   view, draw, view.U.y1(), view.U.y2(), 0 );
-		if( view.U.x1() <= 0 && view.U.x2() > 0 ) drawHorizontalLine( view, draw, view.U.x1(), view.U.x2(), 0 );
+		const View & view = plane_view.second;
+		if( view.U.x1() <= 0 && view.U.x2() > 0 ) 
+			draw_vertical_line( view, draw, view.U.y1(), view.U.y2(), 0 );
+		if( view.U.y1() <= 0 && view.U.y2() > 0 ) 
+			draw_horizontal_line( view, draw, view.U.x1(), view.U.x2(), 0 );
 		}
 	}
 
-void Graph::drawLinearGrid( float xJumpSize, float yJumpSize, Plane plane, Color c )
+void Graph::draw_linear_grid_x( 
+	float x_jump_size, 
+	Plane plane, 
+	Color c 
+	)
 	{
 	image_drawer draw( *this );
 	draw.pen_color( c );
 
-	const auto activeViews = getIntersectingViews( Rect::R2, plane );
-	for( auto & planeView : activeViews )
-		{
-		const View & view = planeView.second;
+	if( x_jump_size <= 0 ) return;
 
-		if( xJumpSize > 0 )
+	const auto active_views = get_intersecting_views( Rect::R2, plane );
+	for( auto & plane_view : active_views )
+		{
+		const View & view = plane_view.second;		
+		const float x_start = std::ceil(  view.U.x1() / x_jump_size ) * x_jump_size;
+		const float x_end   = std::floor( view.U.x2() / x_jump_size ) * x_jump_size;
+		for( float x = x_start; x <= x_end; x += x_jump_size ) 
+			draw_vertical_line( view, draw, view.U.y1(), view.U.y2(), x );
+		}
+	}
+
+void Graph::draw_linear_grid_y( 
+	float y_jump_size, 
+	Plane plane, 
+	Color c 
+	)
+	{
+	image_drawer draw( *this );
+	draw.pen_color( c );
+
+	if( y_jump_size <= 0 ) return;
+
+	const auto active_views = get_intersecting_views( Rect::R2, plane );
+	for( auto & plane_view : active_views )
+		{
+		const View & view = plane_view.second;		
+		const float y_start = std::ceil(  view.U.y1() / y_jump_size ) * y_jump_size;
+		const float y_end   = std::floor( view.U.y2() / y_jump_size ) * y_jump_size;
+		for( float y = y_start; y <= y_end; y += y_jump_size ) 
+			draw_horizontal_line( view, draw, view.U.x1(), view.U.x2(), y );
+		}
+	}
+
+void Graph::draw_linear_grid( float x_jump_size, float y_jump_size, Plane plane, Color c )
+	{
+	draw_linear_grid_x( x_jump_size, plane, c );
+	draw_linear_grid_y( y_jump_size, plane, c );
+	}
+
+void Graph::draw_log_grid_x( 
+	float x_jump_size, 
+	uint32_t lines_per_step,
+	Plane plane, 
+	Color c 
+	)
+	{
+	image_drawer draw( *this );
+	draw.pen_color( c );
+
+	if( x_jump_size <= 0 ) return;
+
+	const auto active_views = get_intersecting_views( Rect::R2, plane );
+	for( auto & plane_view : active_views )
+		{
+		const View & view = plane_view.second;		
+		const float x_start = std::floor( view.U.x1() / x_jump_size ) * x_jump_size;
+		const float x_end   = std::ceil( view.U.x2() / x_jump_size ) * x_jump_size;
+		for( float x_linear = x_start; x_linear <= x_end; x_linear += x_jump_size )
 			{
-			const float xStart = std::ceil(  view.U.x1() / xJumpSize ) * xJumpSize;
-			const float xEnd   = std::floor( view.U.x2() / xJumpSize ) * xJumpSize;
-			for( float x = xStart; x <= xEnd; x += xJumpSize ) 
-				drawVerticalLine( view, draw, view.U.y1(), view.U.y2(), x );
-			}
-		
-		if( xJumpSize > 0 )
-			{
-			const float yStart = std::ceil(  view.U.y1() / yJumpSize ) * yJumpSize;
-			const float yEnd   = std::floor( view.U.y2() / yJumpSize ) * yJumpSize;
-			for( float y = yStart; y <= yEnd; y += yJumpSize ) 
-				drawHorizontalLine( view, draw, view.U.x1(), view.U.x2(), y );
+			for( int step = 0; step < lines_per_step; ++step )
+				{
+				const float x = x_linear + std::log( 1.0f + step ) / std::log( lines_per_step );
+				if( view.U.x1() <= x && x < view.U.x2() )
+					draw_vertical_line( view, draw, view.U.y1(), view.U.y2(), x );
+				}
 			}
 		}
 	}
 
-void Graph::drawXTicks( float jump, float y, Pixel offsetDown, Pixel offsetUp, Plane plane, Color c, float numberScale )
+void Graph::draw_log_grid_y( 
+	float y_jump_size, 
+	uint32_t lines_per_step,
+	Plane plane, 
+	Color c 
+	)
+	{
+	image_drawer draw( *this );
+	draw.pen_color( c );
+
+	if( y_jump_size <= 0 ) return;
+
+	const auto active_views = get_intersecting_views( Rect::R2, plane );
+	for( auto & plane_view : active_views )
+		{
+		const View & view = plane_view.second;		
+		const float y_start = std::floor( view.U.y1() / y_jump_size ) * y_jump_size;
+		const float y_end   = std::ceil( view.U.y2() / y_jump_size ) * y_jump_size;
+		for( float y_linear = y_start; y_linear <= y_end; y_linear += y_jump_size )
+			{
+			for( int step = 0; step < lines_per_step; ++step )
+				{
+				const float y = y_linear + std::log( 1.0f + step ) / std::log( lines_per_step );
+				if( view.U.y1() <= y && y < view.U.y2() )
+					draw_horizontal_line( view, draw, view.U.x1(), view.U.x2(), y );
+				}
+			}
+		}
+	}
+
+void Graph::draw_x_ticks( 
+	float jump, 
+	float y, 
+	float scale_base,
+	Pixel offset_down, 
+	Pixel offset_up, 
+	Plane plane, 
+	Color c, 
+	float number_scale 
+	)
 	{
 	if( jump <= 0 ) return;
 
 	image_drawer draw( *this );
 	draw.pen_color( c );
 
-	const auto activeViews = getIntersectingViews( Rect::R2, plane );
-	for( auto & planeView : activeViews )
+	const auto active_views = get_intersecting_views( Rect::R2, plane );
+	for( auto & plane_view : active_views )
 		{
-		const View & view = planeView.second;
+		const View & view = plane_view.second;
 
-		const float yStart = std::clamp( y - view.hVToU( offsetDown ), view.U.y1(), view.U.y2() );
-		const float yEnd   = std::clamp( y + view.hVToU( offsetUp   ), view.U.y1(), view.U.y2() );
+		const float y_start = std::clamp( y - view.hVToU( offset_down ), view.U.y1(), view.U.y2() );
+		const float y_end   = std::clamp( y + view.hVToU( offset_up   ), view.U.y1(), view.U.y2() );
 
-		const float xStart = std::ceil(  view.U.x1() / jump ) * jump;
-		const float xEnd   = std::floor( view.U.x2() / jump ) * jump;
-		for( float x = xStart; x <= xEnd; x += jump ) 
+		const float x_start = std::ceil(  view.U.x1() / jump ) * jump;
+		const float x_end   = std::floor( view.U.x2() / jump ) * jump;
+		for( float x = x_start; x <= x_end; x += jump ) 
 			{
-			drawVerticalLine( view, draw, yStart, yEnd, x );
-			if( numberScale > 0 ) drawFloat( { x, yStart - view.hVToU( 12 ) }, numberScale * 4 / 5, numberScale, x, plane, c );
+			draw_vertical_line( view, draw, y_start, y_end, x );
+			if( number_scale > 0 ) 
+				{
+				const float number = std::pow( scale_base, x );
+				draw_float( { x, y_start - view.hVToU( 12 ) }, number_scale * 4 / 5, number_scale, number, plane, c );
+				}
 			}
 		}
 	}
 
-void Graph::drawYTicks( float jump, float x, Pixel offsetLeft, Pixel offsetRight, Plane plane, Color c, float numberScale )
+void Graph::draw_y_ticks( 
+	float jump, 
+	float x, 
+	float scale_base,
+	Pixel offset_left, 
+	Pixel offset_right, 
+	Plane plane, 
+	Color c, 
+	float number_scale 
+	)
 	{
 	if( jump <= 0 ) return;
 
 	image_drawer draw( *this );
 	draw.pen_color( c );
 
-	const auto activeViews = getIntersectingViews( Rect::R2, plane );
-	for( auto & planeView : activeViews )
+	const auto active_views = get_intersecting_views( Rect::R2, plane );
+	for( auto & plane_view : active_views )
 		{
-		const View & view = planeView.second;
+		const View & view = plane_view.second;
 
-		const float xStart = std::clamp( x - view.wVToU( offsetLeft  ), view.U.x1(), view.U.x2() );
-		const float xEnd   = std::clamp( x + view.wVToU( offsetRight ), view.U.x1(), view.U.x2() );
+		const float x_start = std::clamp( x - view.wVToU( offset_left  ), view.U.x1(), view.U.x2() );
+		const float x_end   = std::clamp( x + view.wVToU( offset_right ), view.U.x1(), view.U.x2() );
 
-		const float yStart = std::ceil(  view.U.y1() / jump ) * jump;
-		const float yEnd   = std::floor( view.U.y2() / jump ) * jump;
-		for( float y = yStart; y <= yEnd; y += jump ) 
+		const float y_start = std::ceil(  view.U.y1() / jump ) * jump;
+		const float y_end   = std::floor( view.U.y2() / jump ) * jump;
+		for( float y = y_start; y <= y_end; y += jump ) 
 			{
-			drawHorizontalLine( view, draw, xStart, xEnd, y );
-			if( numberScale > 0 ) drawFloat( { xEnd, y - .5f * view.hVToU( 10 ) }, numberScale * 4 / 5, numberScale, y, plane, c );
+			draw_horizontal_line( view, draw, x_start, x_end, y );
+			if( number_scale > 0 ) 
+				{
+				const float number = std::pow( scale_base, y );
+				draw_float( { x_end, y - .5f * view.hVToU( 10 ) }, number_scale * 4 / 5, number_scale, number, plane, c );
+				}
 			}
 		}
 	}
 
-void Graph::drawPoint( const vec2 & p, Pixel r, Plane plane, Color c )
+void Graph::draw_point( const vec2 & p, Pixel r, Plane plane, Color c )
 	{
 	image_drawer draw( *this );
 	draw.pen_color( c );
 
-	const auto activeViews = getIntersectingViews( Rect::R2, plane );
-	for( auto & planeView : activeViews )
+	const auto active_views = get_intersecting_views( Rect::R2, plane );
+	for( auto & plane_view : active_views )
 		{
-		const View & view = planeView.second;
+		const View & view = plane_view.second;
 
 		const Pixel xMid = view.xUToV( p.x() );
 		const Pixel yMid = view.yUToV( p.y() );
-		const Pixel xStart  = std::clamp( xMid - r, (int) view.V.x1(), int( view.V.x2() ) - 1 );
-		const Pixel xEnd	= std::clamp( xMid + r, (int) view.V.x1(), int( view.V.x2() ) - 1 );
+		const Pixel x_start  = std::clamp( xMid - r, (int) view.V.x1(), int( view.V.x2() ) - 1 );
+		const Pixel x_end	= std::clamp( xMid + r, (int) view.V.x1(), int( view.V.x2() ) - 1 );
 
-		for( Pixel x = xStart; x <= xEnd; ++x )
+		for( Pixel x = x_start; x <= x_end; ++x )
 			{
 			const Pixel dis = std::abs( x - xMid );
 			const Pixel offset = std::floor( std::sqrt( r * r - dis * dis ) );
-			const Pixel yStart = std::clamp( yMid - offset, (int) view.V.y1(), (int) view.V.y2() - 1 );
-			const Pixel yEnd   = std::clamp( yMid + offset, (int) view.V.y1(), (int) view.V.y2() - 1 );
-			draw.vertical_line_segment( height() - 1 - yEnd, height() - 1 - yStart, x );
+			const Pixel y_start = std::clamp( yMid - offset, (int) view.V.y1(), (int) view.V.y2() - 1 );
+			const Pixel y_end   = std::clamp( yMid + offset, (int) view.V.y1(), (int) view.V.y2() - 1 );
+			draw.vertical_line_segment( height() - 1 - y_end, height() - 1 - y_start, x );
 			}
 		}
 	}
 
-void Graph::drawPoints( const std::vector<vec2> & ps, Pixel r, Plane plane, Color c )
+void Graph::draw_points( const std::vector<vec2> & ps, Pixel r, Plane plane, Color c )
 	{
 	for( auto & p : ps )
-		drawPoint( p, r, plane, c );
+		draw_point( p, r, plane, c );
 	}
 
-static int getNumDigits( float x )  
+static int get_num_digits( float x )  
 	{  
     return 
 		(x < 1e1 ? 1 :   
@@ -478,11 +588,11 @@ static int getNumDigits( float x )
         18 )))))))))))))))));  
 	} 
 
-static std::vector<int8_t> getDigits( int n, int numDigits )
+static std::vector<int8_t> get_digits( int n, int num_digits )
 	{
-	std::vector<int8_t> digits( numDigits );
+	std::vector<int8_t> digits( num_digits );
 	size_t n_copy = n; //Need a copy to work with
-	for( size_t i = 0; i < numDigits; ++i )
+	for( size_t i = 0; i < num_digits; ++i )
 		{
 		digits[digits.size() - 1 - i] = n_copy % 10;
 		n_copy = std::floor( n_copy / 10 );
@@ -490,15 +600,15 @@ static std::vector<int8_t> getDigits( int n, int numDigits )
 	return digits;
 	}
 
-void Graph::drawFloat( vec2 pos, Pixel digitWidth, Pixel digitHeight, float number, Plane plane, Color c )
+void Graph::draw_float( vec2 pos, Pixel digit_width, Pixel digit_height, float number, Plane plane, Color c )
 	{
 	// Digit seperation
 	const bool negative = number < 0;
 	if( number < 0 ) number = -number;
 	const int q = std::floor( number );
 	const int r = std::round( ( number - q ) * 1000.0f );
-	std::vector<int8_t> wholeDigits = getDigits( q, getNumDigits( q ) );
-	std::vector<int8_t> remDigits = getDigits( r, 3 );
+	std::vector<int8_t> wholeDigits = get_digits( q, get_num_digits( q ) );
+	std::vector<int8_t> remDigits = get_digits( r, 3 );
 	std::vector<int8_t> digits;
 	if( negative ) digits.push_back( -1 );
 	digits.insert( digits.end(), wholeDigits.begin(), wholeDigits.end() );
@@ -510,18 +620,18 @@ void Graph::drawFloat( vec2 pos, Pixel digitWidth, Pixel digitHeight, float numb
 	draw.pen_width( 1 );
 	draw.pen_color( c );
 
-	const auto activeViews = getIntersectingViews( Rect::R2, plane );
-	for( auto & planeView : activeViews )
+	const auto active_views = get_intersecting_views( Rect::R2, plane );
+	for( auto & plane_view : active_views )
 		{
-		const View & view = planeView.second;
+		const View & view = plane_view.second;
 
-		const float w = view.wVToU( digitWidth );
-		const float y2 = pos.y() + view.hVToU( digitHeight );
+		const float w = view.wVToU( digit_width );
+		const float y2 = pos.y() + view.hVToU( digit_height );
 
-		auto drawPath = [this, &draw, &view]( const Rect & r, const std::vector<vec2> & ps )
+		auto draw_path = [this, &draw, &view]( const Rect & r, const std::vector<vec2> & ps )
 			{
 			for( int i = 1; i < ps.size(); ++i )
-				drawLineSegment( view, draw, 
+				draw_line_segment( view, draw, 
 					r.x1() + r.w() * ps[i-1].x(), 
 					r.y1() + r.h() * ps[i-1].y(), 
 					r.x1() + r.w() * ps[i].x(), 
@@ -539,43 +649,43 @@ void Graph::drawFloat( vec2 pos, Pixel digitWidth, Pixel digitHeight, float numb
 			switch( d )
 				{
 				case -1: // Used for minus
-					drawPath( digitRect, { {x1, .5}, {x2, .5} } );
+					draw_path( digitRect, { {x1, .5}, {x2, .5} } );
 					break;
 				case 0: 
-					drawPath( digitRect, { {x1, 0}, {x2, 0}, {x2, 1}, {x1, 1}, {x1, 0}, {x1, 1} } );
+					draw_path( digitRect, { {x1, 0}, {x2, 0}, {x2, 1}, {x1, 1}, {x1, 0}, {x1, 1} } );
 					break;
 				case 1: 
-					drawPath( digitRect, { {.5, 0}, {.5, 1} } );
+					draw_path( digitRect, { {.5, 0}, {.5, 1} } );
 					break;
 				case 2: 
-					drawPath( digitRect, { {x1, 1}, {x2, 1}, {x2, .5}, {x1, .5}, {x1, 0}, {x2, 0} } );
+					draw_path( digitRect, { {x1, 1}, {x2, 1}, {x2, .5}, {x1, .5}, {x1, 0}, {x2, 0} } );
 					break;
 				case 3: 
-					drawPath( digitRect, { {x1, 1}, {x2, 1}, {x2, .5}, {x1, .5}, {x2, .5}, {x2, 0}, {x1, 0} } );
+					draw_path( digitRect, { {x1, 1}, {x2, 1}, {x2, .5}, {x1, .5}, {x2, .5}, {x2, 0}, {x1, 0} } );
 					break;
 				case 4: 
-					drawPath( digitRect, { {x1, 1}, {x1, .5}, {x2, .5}, {x2, 1}, {x2, 0} } );
+					draw_path( digitRect, { {x1, 1}, {x1, .5}, {x2, .5}, {x2, 1}, {x2, 0} } );
 					break;
 				case 5: 
-					drawPath( digitRect, { {x2, 1}, {x1, 1}, {x1, .5}, {x2, .5}, {x2, 0}, {x1, 0} } );
+					draw_path( digitRect, { {x2, 1}, {x1, 1}, {x1, .5}, {x2, .5}, {x2, 0}, {x1, 0} } );
 					break;
 				case 6: 
-					drawPath( digitRect, { {x2, 1}, {x1, 1}, {x1, 0}, {x2, 0}, {x2, .5}, {x1, .5} } );
+					draw_path( digitRect, { {x2, 1}, {x1, 1}, {x1, 0}, {x2, 0}, {x2, .5}, {x1, .5} } );
 					break;
 				case 7: 
-					drawPath( digitRect, { {x1, 1}, {x2, 1}, {.5, 0} } );
+					draw_path( digitRect, { {x1, 1}, {x2, 1}, {.5, 0} } );
 					break;
 				case 8: 
-					drawPath( digitRect, { {x2, .5}, {x2, 1}, {x1, 1}, {x1, 0}, {x2, 0}, {x2, .5}, {x1, .5} } );
+					draw_path( digitRect, { {x2, .5}, {x2, 1}, {x1, 1}, {x1, 0}, {x2, 0}, {x2, .5}, {x1, .5} } );
 					break;
 				case 9: 
-					drawPath( digitRect, { {x2, .5}, {x1, .5}, {x1, 1}, {x2, 1}, {x2, 0} } );
+					draw_path( digitRect, { {x2, .5}, {x1, .5}, {x1, 1}, {x2, 1}, {x2, 0} } );
 					break;
 				case 10: // Dot
-					drawPath( digitRect, { {.4, 0}, {.6, 0}, {.6, .2}, {.4, .2}, {.4, 0} } );
+					draw_path( digitRect, { {.4, 0}, {.6, 0}, {.6, .2}, {.4, .2}, {.4, 0} } );
 					break;
 				default:
-					drawPath( digitRect, { {x1, 0}, {x2, 0}, {x1, 1}, {x2, 1}, {x1, 0} } );
+					draw_path( digitRect, { {x1, 0}, {x2, 0}, {x1, 1}, {x2, 1}, {x1, 0} } );
 					break;
 				}
 

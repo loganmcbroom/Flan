@@ -25,9 +25,16 @@ static bool notesClose( Frequency a, Frequency b )
 	}
 
 // Returns normalized pitch salience
-PV::Salience PV::getSalience( Channel channel, Frequency minFreq, Frequency maxFreq ) const
+PV::Salience PV::get_salience( Channel channel, Frequency min_frequency, Frequency max_frequency ) const
 	{
-	if( isNull() )
+	auto hann_dft2 = []( float f ) -> float
+		{
+		if( f == 0 ) return 1.0f;
+		if( std::abs( f ) == 1.0f ) return 0.5f;
+		return std::sin( pi * f ) / ( pi * f * ( 1.0f - f * f ) );
+		};
+
+	if( is_null() )
 		return Salience();
 
 	// Suggested optimal parameters from Salamon & Gomez
@@ -49,25 +56,25 @@ PV::Salience PV::getSalience( Channel channel, Frequency minFreq, Frequency maxF
 	std::transform( std::execution::par_unseq, iota_iter(0), iota_iter( binEffectDist+1 ), gOutputs.begin(), []( int i )
 		{ return .5f * ( 1.0f + std::cos( float( i ) / binEffectDist * pi / 2.0f ) ); } );
 
-	auto B = [log2MinFreq = std::log2( minFreq )]( Frequency f ) -> Bin
+	auto B = [log2MinFreq = std::log2( min_frequency )]( Frequency f ) -> Bin
 		{
 		return std::round( 10.0f * 12.0f * ( std::log2( f ) - log2MinFreq ) );
 		};
 
 	Salience salience;
-	salience.numBins = B( maxFreq );
-	salience.numFrames = getNumFrames();
-	salience.buffer.resize( salience.numBins * salience.numFrames, 0 );
+	salience.num_bins = B( max_frequency );
+	salience.num_frames = get_num_frames();
+	salience.buffer.resize( salience.num_bins * salience.num_frames, 0 );
 		
-	std::for_each( std::execution::par_unseq, iota_iter(0), iota_iter(salience.numFrames), [&]( Frame frame )
+	std::for_each( std::execution::par_unseq, iota_iter(0), iota_iter(salience.num_frames), [&]( Frame frame )
 		{
-		const Magnitude a_M = getMaxPartialMagnitude( frame, frame + 1 ); // Get mazimum magnitude for this frame
+		const Magnitude a_M = get_max_partial_magnitude( frame, frame + 1 ); // Get mazimum magnitude for this frame
 		const float aiLimit = a_M / eTestFactor; // Checking a_i > limit is equivalent to checking 10log_20(aM/ai) < gamma
 
 		// Get frame-wise peaks
-		const MF * framePtr = getMFPointer( channel, frame, 0 );
+		const MF * framePtr = get_MFPointer( channel, frame, 0 );
 		auto magPeakFunc = [framePtr]( int i ) -> float { return framePtr[i].m; };
-		const std::vector<vec2> peaks = findPeaks( magPeakFunc, getNumBins(), -1, false, false );
+		const std::vector<vec2> peaks = find_peaks( magPeakFunc, get_num_bins(), -1, false, false );
 
 		for( const vec2 & i : peaks )
 			{
@@ -76,8 +83,8 @@ PV::Salience PV::getSalience( Channel channel, Frequency minFreq, Frequency maxF
 			// Instantaneous amplitude correction
 			const Bin bin = i.x(); // PV bin
 			const float iF = framePtr[bin].f;
-			const float binOffset = frequencyToBin( iF ) - i.x();
-			const float kernelFactor = Windows::HannDFT2( binOffset * getWindowSize() / getDFTSize() );
+			const float binOffset = frequency_to_bin( iF ) - i.x();
+			const float kernelFactor = hann_dft2( binOffset * get_window_size() / get_dft_size() );
 			const float iM = kernelFactor >= 0.5f? i.y() / kernelFactor : 0;
 				
 			for( int h = 0; h < Nh; ++h ) // For each subharmonic the current peak could be a harmonic of:
@@ -88,7 +95,7 @@ PV::Salience PV::getSalience( Channel channel, Frequency minFreq, Frequency maxF
 				// Contribute to the salience of the subharmonic for all nearby bins
 				// Delta checking is handled in loop bounds
 				const Bin loopStart = std::max( 0, B_c - binEffectDist );
-				const Bin loopEnd = std::min( salience.numBins - 1, B_c + binEffectDist );
+				const Bin loopEnd = std::min( salience.num_bins - 1, B_c + binEffectDist );
 				for( Bin b = loopStart; b <= loopEnd; ++b )
 					salience.get( frame, b ) += gOutputs[std::abs(B_c - b)] * alphaPowers[h] * iM;
 				}
@@ -102,31 +109,31 @@ PV::Salience PV::getSalience( Channel channel, Frequency minFreq, Frequency maxF
 	return salience;
 	}
 	
-std::vector<PV::Contour> PV::getContours( Channel channel, Frequency minFreq, Frequency maxFreq, 
-	Frame filterShort, float filterQuiet, flan_CANCEL_ARG_CPP ) const
+std::vector<PV::Contour> PV::get_contours( Channel channel, Frequency min_frequency, Frequency max_frequency, 
+	Frame filter_short, float filter_quiet, flan_CANCEL_ARG_CPP ) const
 	{
 	const float TPlus = 0.9f;
 	const float TSigma = 0.9f;
 	const float pitchBinInCents = 10;
 	const float maxdeltaPitch = 80; // cents
-	const Frame maxGapLength = timeToFrame( .1f );
+	const Frame maxGapLength = time_to_frame( .1f );
 
-	const Salience salience = getSalience( channel, minFreq, maxFreq );
+	const Salience salience = get_salience( channel, min_frequency, max_frequency );
 	if( salience.buffer.empty() ) return std::vector<PV::Contour>();
 
 	// Get S+ and S-. SPlus is first used to store all peaks, then peaks are moved to S- as needed.
 	// Each vec2 contains float representations of pitch bin and amplitude. Intepolation during peak finding means these can take non-integer values.
-	std::vector<std::vector<vec2>> SPlus( getNumFrames() );
-	std::vector<std::vector<vec2>> SMinus( getNumFrames() );
+	std::vector<std::vector<vec2>> SPlus( get_num_frames() );
+	std::vector<std::vector<vec2>> SMinus( get_num_frames() );
 	
 	// Frame-wise peak finding and thresholding
-	for( Frame frame = 0; frame < salience.numFrames; ++frame )
+	for( Frame frame = 0; frame < salience.num_frames; ++frame )
 		{
 		flan_CANCEL_POINT( std::vector<PV::Contour>() );
 
-		const auto salienceBegin = salience.buffer.begin() + frame * salience.numBins;
-		SPlus[frame] = findPeaks( [salienceBegin]( int i ){ return salienceBegin[i]; }, salience.numBins, -1, true, true );
-		const float threshold = TPlus * *std::max_element( salienceBegin, salienceBegin + salience.numBins );
+		const auto salienceBegin = salience.buffer.begin() + frame * salience.num_bins;
+		SPlus[frame] = find_peaks( [salienceBegin]( int i ){ return salienceBegin[i]; }, salience.num_bins, -1, true, true );
+		const float threshold = TPlus * *std::max_element( salienceBegin, salienceBegin + salience.num_bins );
 
 		// Filter peaks below threshhold into S-
 		while( ! SPlus[frame].empty() && SPlus[frame].back().y() < threshold )
@@ -150,7 +157,7 @@ std::vector<PV::Contour> PV::getContours( Channel channel, Frequency minFreq, Fr
 
 	// Filter peaks into S- that are too far below global mean
 	const float globalThreshold = mean - TSigma * sigma;
-	for( int f = 0; f < getNumFrames(); ++f ) 
+	for( int f = 0; f < get_num_frames(); ++f ) 
 		{
 		for( int p = SPlus[f].size() - 1; p >= 0 && SPlus[f][p].y() < globalThreshold; --p )
 			{
@@ -220,7 +227,7 @@ std::vector<PV::Contour> PV::getContours( Channel channel, Frequency minFreq, Fr
 		continuityExtender( maxSPlusFrame - 1, -1 );
 
 		// Set contour start bin
-		contour.startFrame = maxSPlusFrame + 1 - contour.bins.size();
+		contour.start_frame = maxSPlusFrame + 1 - contour.bins.size();
 
 		// Things are loaded backwards into contour, flip.
 		std::reverse( contour.bins.begin(), contour.bins.end() );
@@ -229,52 +236,52 @@ std::vector<PV::Contour> PV::getContours( Channel channel, Frequency minFreq, Fr
 		continuityExtender( maxSPlusFrame + 1, SPlus.size() );
 
 		// Filter by length
-		if( contours.back().bins.size() < filterShort )
+		if( contours.back().bins.size() < filter_short )
 			contours.pop_back();
 
 		// Contour info generation
 		auto gainAccess = [&contour]( int i ){ return contour.bins[i].y(); };
-		const vec2 gainMSD = meanAndStandardDeviation( gainAccess, contour.bins.size() );
-		contour.salienceMean = gainMSD.x();
-		contour.salienceSD = gainMSD.y();
+		const vec2 gainMSD = mean_and_sd( gainAccess, contour.bins.size() );
+		contour.salience_mean = gainMSD.x();
+		contour.salience_std_dev = gainMSD.y();
 
 		auto pitchAccess = [&contour]( int i ){ return contour.bins[i].x(); };
-		const vec2 pitchMSD = meanAndStandardDeviation( pitchAccess, contour.bins.size() );
-		contour.pitchMean = pitchMSD.x();
-		contour.pitchSD = pitchMSD.y();
+		const vec2 pitchMSD = mean_and_sd( pitchAccess, contour.bins.size() );
+		contour.pitch_mean = pitchMSD.x();
+		contour.pitch_std_dev = pitchMSD.y();
 		};
 
 	// Filter by salience
 	std::vector<Contour> contoursFiltered;
 	const float maxMeanSalience = std::max_element( contours.begin(), contours.end(), []( const Contour & a, const Contour & b )
-		{ return a.salienceMean < b.salienceMean; } )->salienceMean;
-	const float minSalience = maxMeanSalience / filterQuiet;
+		{ return a.salience_mean < b.salience_mean; } )->salience_mean;
+	const float minSalience = maxMeanSalience / filter_quiet;
 	for( auto & c : contours )
-		if( c.salienceMean >= minSalience )
+		if( c.salience_mean >= minSalience )
 			contoursFiltered.emplace_back( std::move( c ) );
 	
 	return contoursFiltered;
 	}
 
-PV PV::prism( const PrismFunc & prismFunc, bool perNote, flan_CANCEL_ARG_CPP ) const
+PV PV::prism( const PrismFunc & prismFunc, bool use_local_contour_time, flan_CANCEL_ARG_CPP ) const
 	{
 	flan_PROCESS_START( PV() );
 
-	const Frequency minFreq = 55.0;
-	const Frequency maxFreq = 1760.0;
+	const Frequency min_frequency = 55.0;
+	const Frequency max_frequency = 1760.0;
 
 	PV out = copy();
 
-	auto pitchBinToFreq = [minFreq]( float bin ){ return minFreq * std::pow( 2.0f, bin / 120.0f ); };
+	auto pitchBinToFreq = [min_frequency]( float bin ){ return min_frequency * std::pow( 2.0f, bin / 120.0f ); };
 
 	// The pitch bins from the contour aren't exact enough, so we need to more accurately estimate the base frequency with a weighted mean of nearby bins
 	auto getAccurateFreq = [this]( Channel channel, Frame frame, Frequency approxFreq )
 		{
 		float totalWeightedFreq = 0;
 		float totalMag = 0;
-		for( Bin bin = 0; bin < getNumBins(); ++bin )
+		for( Bin bin = 0; bin < get_num_bins(); ++bin )
 			{
-			const MF & sourceMF = getMF( channel, frame, bin );
+			const MF & sourceMF = get_MF( channel, frame, bin );
 			if( sourceMF.f <= 0 ) continue;
 			if( notesClose( sourceMF.f, approxFreq ) ) // Assert the bin has a frequency within a half a note of the target harmonic
 				{
@@ -287,26 +294,26 @@ PV PV::prism( const PrismFunc & prismFunc, bool perNote, flan_CANCEL_ARG_CPP ) c
 		return totalWeightedFreq / totalMag;
 		};
 
-	for( Channel channel = 0; channel < getNumChannels(); ++channel )
+	for( Channel channel = 0; channel < get_num_channels(); ++channel )
 		{
-		std::vector<Contour> contours = getContours( channel, minFreq, maxFreq, 60, 20, canceller );
+		std::vector<Contour> contours = get_contours( channel, min_frequency, max_frequency, 60, 20, canceller );
 		if( contours.empty() ) return PV();
-		std::sort( std::execution::par_unseq, contours.begin(), contours.end(), []( const Contour & a, const Contour & b ){ return a.startFrame < b.startFrame; } );
+		std::sort( std::execution::par_unseq, contours.begin(), contours.end(), []( const Contour & a, const Contour & b ){ return a.start_frame < b.start_frame; } );
 		for( int contourIndex = 0; contourIndex < contours.size(); ++contourIndex )
 			{
 			const Contour & contour = contours[contourIndex];
 
-			runtimeExecutionPolicyHandler( prismFunc.getExecutionPolicy(), [&]( auto policy ) { 
+			runtime_execution_policy_handler( prismFunc.get_execution_policy(), [&]( auto policy ) { 
 			std::for_each( policy, iota_iter(0), iota_iter( contour.bins.size() ), [&]( Frame contourFrame ) {
-				const Frame frame = contourFrame + contour.startFrame;
-				const MF * const sourceFramePtr = getMFPointer( channel, frame, 0 );
+				const Frame frame = contourFrame + contour.start_frame;
+				const MF * const sourceFramePtr = get_MFPointer( channel, frame, 0 );
 
 				// The pitch bin from the contour isn't exact enough, so we need to more accurately estimate the base frequency with a weighted mean of nearby bins
 				const Frequency approxBaseFreq = pitchBinToFreq( contour.bins[contourFrame].x() );
 				const Frequency baseFreq = getAccurateFreq( channel, frame, approxBaseFreq );
 				if( baseFreq < 1.0f )
 					return;
-				const size_t maxNumHarmonics = std::floor( getHeight() / baseFreq );
+				const size_t maxNumHarmonics = std::floor( get_height() / baseFreq );
 
 				// First we will locate everything that needs to be changed and clear it from out
 				// We need to find all bins before changing them because we don't want to overwrite bins that need to be changed
@@ -320,10 +327,10 @@ PV PV::prism( const PrismFunc & prismFunc, bool perNote, flan_CANCEL_ARG_CPP ) c
 
 					// For bins near the harmonic, we find all bins with a freq close to the harmonic
 					std::vector<Bin> & binsToChange = binsToChangeVec[harmonic];
-					const Bin startBin = boundBin( frequencyToBin( freq ) - 10 );
-					const Bin endBin   = boundBin( frequencyToBin( freq ) + 10 );
-					const MF * sourcePtr = getMFPointer( channel, frame, startBin );
-					for( Bin bin = startBin; bin <= endBin; ++bin, ++sourcePtr )
+					const Bin start_bin = bound_bin( frequency_to_bin( freq ) - 10 );
+					const Bin end_bin   = bound_bin( frequency_to_bin( freq ) + 10 );
+					const MF * sourcePtr = get_MFPointer( channel, frame, start_bin );
+					for( Bin bin = start_bin; bin <= end_bin; ++bin, ++sourcePtr )
 						{
 						const MF & sourceMF = *sourcePtr;
 						if( sourceMF.f <= 0 ) continue;
@@ -333,7 +340,7 @@ PV PV::prism( const PrismFunc & prismFunc, bool perNote, flan_CANCEL_ARG_CPP ) c
 						}
 
 					// Clear source bins from out
-					MF * const clearFramePtr = out.getMFPointer( channel, frame, 0 );
+					MF * const clearFramePtr = out.get_MFPointer( channel, frame, 0 );
 					for( auto bin : binsToChange )
 						( clearFramePtr + bin )->m = 0;
 					}
@@ -360,7 +367,7 @@ PV PV::prism( const PrismFunc & prismFunc, bool perNote, flan_CANCEL_ARG_CPP ) c
 					{
 					Frequency freq = baseFreq * ( harmonic + 1 );                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 
-					const MF modifiedHarmonic = prismFunc( contourIndex, frameToTime( perNote ? contourFrame : frame ), harmonic, baseFreq, harmonicMaxMags );
+					const MF modifiedHarmonic = prismFunc( contourIndex, frame_to_time( use_local_contour_time ? contourFrame : frame ), harmonic, baseFreq, harmonicMaxMags );
 					if( modifiedHarmonic.f < 0 ) 
 						continue;
 					
@@ -375,13 +382,13 @@ PV PV::prism( const PrismFunc & prismFunc, bool perNote, flan_CANCEL_ARG_CPP ) c
 						for( auto bin : binsToChange )
 							{
 							const Bin newBin = bin + binShift;
-							if( newBin < 0 || newBin >= getNumBins() )	
+							if( newBin < 0 || newBin >= get_num_bins() )	
 								continue;
 
 							// Set new bin to updated value
 							//std::lock_guard<std::mutex> lock( mutexBuffer[frame] );
 							const MF & sourceMF = *( sourceFramePtr + bin );
-							MF & destMF = out.getMF( channel, frame, newBin );
+							MF & destMF = out.get_MF( channel, frame, newBin );
 							if( destMF.m < sourceMF.m * mScale )
 								destMF = { sourceMF.m * mScale, sourceMF.f * fScale };
 							}
@@ -389,7 +396,7 @@ PV PV::prism( const PrismFunc & prismFunc, bool perNote, flan_CANCEL_ARG_CPP ) c
 					else // There is no harmonic to scale, so create one
 						{
 						//std::lock_guard<std::mutex> lock( mutexBuffer[frame] );
-						MF & destMF = out.getMF( channel, frame, frequencyToBin( modifiedHarmonic.f ) );
+						MF & destMF = out.get_MF( channel, frame, frequency_to_bin( modifiedHarmonic.f ) );
 						destMF = modifiedHarmonic;
 						}
 					}

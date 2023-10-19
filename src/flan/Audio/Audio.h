@@ -1,8 +1,5 @@
 #pragma once
 
-#include <functional>
-#include <complex>
-
 #include "flan/Audio/AudioBuffer.h"
 #include "flan/Audio/AudioMod.h"
 #include "flan/Utility/Interpolator.h"
@@ -22,45 +19,83 @@ class FIRFilter;
 /** This is a wrapper of flan::AudioBuffer which contains all relevant algorithms and utilities available
  *	in flan for manipulating Audio buffers.
  *
- *	All Audio methods are const and have no side effects.
+ *	Nearly all Audio methods are const and have no side effects. Impure functions have an "_in_place" suffix.
  */
 class Audio : public AudioBuffer
 {
 public:
 
-	Audio copy() const;
+	/** SFINAE type for variadic templates, see https://www.fluentcpp.com/2019/01/25/variadic-number-function-parameters-type/
+	 */
+	template<typename... Ts>
+	using AllAudios = typename std::enable_if_t<std::conjunction_v< std::is_convertible<Ts, const Audio &>... >>;
+
+	template<typename T>
+	std::vector<T> sample_function_over_domain( const Function<Second, T> & f ) const	
+		{
+		std::vector<T> out( get_num_frames() );
+		runtime_execution_policy_handler( f.get_execution_policy(), [&]( auto policy )
+			{
+			std::for_each( policy, iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
+				{
+				out[frame] = f( frame_to_time( frame ) );
+				} );
+			} );
+		return out;
+		}
+
+	//============================================================================================================================================================
+	// Constructors
+	//============================================================================================================================================================
+
+	Audio copy(
+		) const;
 	
 	/** Constructs 0 size Audio with default AudioBuffer::Format. 
 	 */
-	Audio();
+	Audio(
+		);
 
 	/** Constructs an audio from a temporary buffer.
 	 */
-	Audio( std::vector<float> && buffer, Channel numChannels, FrameRate sampleRate );
+	Audio( 
+		std::vector<float> && buffer, 
+		Channel num_channels, 
+		FrameRate sample_rate 
+		);
 
 	/** Constructs an Audio with the Format other but with an initialized buffer.
 	 *	\param other Format for the constructed PV
 	 */
-	Audio( const AudioBuffer::Format & other );
+	Audio( 
+		const AudioBuffer::Format & other 
+		);
 
 	/** Constructs an Audio from the file at filename.
 	 *	Supports any file extensions supported by libsndfile. Wave is suggested, and mp3 is unsupported.
 	 *	\param filename Filename to load
 	 */
-	Audio( const std::string & filename );
+	Audio( 
+		const std::string & filename 
+		);
 
 	/** Audio is a stateless wrapper, so it can be constructed from a buffer
 	 */
-	Audio( AudioBuffer && );
+	Audio( 
+		AudioBuffer && 
+		);
 
-	/** Access the Audio buffer as a continuous function by interpolating between sample values.
-	 *	 Note, this interpolation is not "smooth" in the way a resampler interpolates, it is a basic
-	 *	 interpolation considering only two points at a time.
-	 *	\param channel The channel to access.
-	 *	\param time The time to access.
-	 *	\param interp How the interpolation should be computed.
-	 */
-	Sample getSampleInterpolated( uint32_t channel, float frame, Interpolator interp = Interpolators::linear ) const;
+	static Audio create_empty_with_length( 
+		Second length, 
+		Channel num_channels = 1, 
+		FrameRate sample_rate = 48000.0f 
+		);
+
+	static Audio create_empty_with_frames( 
+		Frame num_frames, 
+		Channel num_channels = 1, 
+		FrameRate sample_rate = 48000.0f 
+		);
 
 
 
@@ -68,16 +103,23 @@ public:
 	// Conversions
 	//============================================================================================================================================================
 
-
-	Audio resample( FrameRate newSampleRate ) const;
+	Audio resample( 
+		FrameRate new_sample_rate 
+		) const; 
 
 	/** Converts the Audio to a waveform bmp.
 	 *  \param I The time interval to graph. Passing the defalt of (0,-1) will graph the entire Audio.
 	 *  \param width The bmp width.
 	 *  \param height The bmp height.
-	 *	\param timelineScale Size of tick marks. Zero for none.
+	 *	\param timeline_scale Size of tick marks. Zero for none.
 	 */
-	Graph convertToGraph( Interval I = Interval( 0, -1 ), Pixel width = -1, Pixel height = -1, float timelineScale = 0 ) const;
+	Graph convert_to_graph( 
+		Interval I = Interval( 0, -1 ), 
+		Pixel width = -1, 
+		Pixel height = -1, 
+		Graph::WaveformMode mode = Graph::WaveformMode::Direct,
+		float timeline_scale = 0 
+		) const;
 
 	/** Converts the Audio to a waveform bmp and saves it at filename.
 	 *	\param filename A filename at which to save the generated bmp.
@@ -85,73 +127,153 @@ public:
 	 *  \param width The bmp width.
 	 *  \param height The bmp height.
 	 */
-	void saveToBMP( const std::string & filename, Interval I = Interval( 0, -1 ), Pixel width = -1, Pixel height = -1 ) const;
+	void save_to_bmp( 
+		const std::string & filename, 
+		Interval I = Interval( 0, -1 ), 
+		Pixel width = -1, 
+		Pixel height = -1 
+		) const;
+
+	Graph convert_to_spectrum_graph(
+		Pixel width = -1, 
+		Pixel height = -1,
+		Frame smoothing_frames = 128
+		) const; 
 
 	/** Apply a short-time Forier transform to the Audio, and phase vocode the output. See phase_vocoder for details on phase vocoding.
 	 *
-	 *	\param windowSize This is the number of Frames copied into each fft input. 
+	 *	\param window_size This is the number of Frames copied into each fft input. 
 	 *		Defined behaviour is only guaranteed for power-of-two inputs, but it may work for other input sizes.
 	 *		The number of bins in the output PV is given by frameSize / 2 + 1.
 	 *	\param hop The number of Audio frames per PV frame.
-	 *  \param dftSize The dft size. Unlike with the other time-frequency types that Audio can be converted to, this transform can use 
+	 *  \param dft_size The dft size. Unlike with the other time-frequency types that Audio can be converted to, this transform can use 
 	 *		a dft size larger than the window.
 	 */
-	PV convertToPV( Frame windowSize = 2048, Frame hop = 128, Frame dftSize = 4096, flan_CANCEL_ARG ) const;
+	PV convert_to_PV( 
+		Frame window_size = 2048, 
+		Frame hop = 128, 
+		Frame dft_size = 4096, 
+		flan_CANCEL_ARG 
+		) const;
 
-	/** For stereo inputs this is identical to Audio::convertToPV, but converts the audio to mid-side first. 
-	 *	This is often better sounding than convertToPV because it removes the channel incoherece and phasing issues 
+	/** For stereo inputs this is identical to Audio::convert_to_PV, but converts the audio to mid-side first. 
+	 *	This is often better sounding than convert_to_PV because it removes the channel incoherece and phasing issues 
 	 *	that multichannel PV processing often creates.
 	 *	Non-stereo inputs will produce a null output.
-	 *	See PV::convertToLeftRightAudio for the inverse transform.
+	 *	See PV::convert_to_lr_audio for the inverse transform.
 	 */
-	PV convertToMidSidePV( Frame windowSize = 2048, Frame hop = 128, Frame dftSize = 4096, flan_CANCEL_ARG ) const;
+	PV convert_to_ms_PV( 
+		Frame window_size = 2048, 
+		Frame hop = 128, 
+		Frame dft_size = 4096, 
+		flan_CANCEL_ARG 
+		) const;
 
 	/** Apply a sliding DFT to the Audio, and phase vocode the output. See phase_vocoder for details on phase vocoding. Be aware that this process
 	 *	can return a very large output.
 	 *
-	 *  \param dftSize The dft size. This determines the number of frequency bins in the output.
+	 *  \param dft_size The dft size. This determines the number of frequency bins in the output.
 	 */
-	SPV convertToSPV( Frame dftSize = 1024 ) const;
-	SPV convertToMidSideSPV( Frame dftSize = 1024 ) const;
+	SPV convert_to_SPV( 
+		Frame dft_size = 1024 
+		) const;
+
+	SPV convert_to_ms_SPV( 
+		Frame dft_size = 1024 
+		) const;
 
 	/** Apply a sliding constant-q transform to the Audio, and phase vocode the output. See phase_vocoder for details on phase vocoding. Be aware 
 	 *	that this process can return a very large output.
      *
 	 *  \param bandwidth The frequency range covered by the transform.
-	 *	\param binsPerOctave The number of frequency bins per octave of bandwidth.
+	 *	\param bins_per_octave The number of frequency bins per octave of bandwidth.
 	 */
-	SQPV convertToSQPV( std::pair<Frequency, Frequency> bandwidth = std::make_pair( 16, 24000 ), Bin binsPerOctave = 24 ) const;
-	SQPV convertToMidSideSQPV( std::pair<Frequency, Frequency> bandwidth = std::make_pair( 16, 24000 ), Bin binsPerOctave = 24 ) const;
+	SQPV convert_to_SQPV( 
+		std::pair<Frequency, Frequency> bandwidth = std::make_pair( 16, 24000 ), 
+		Bin bins_per_octave = 24 
+		) const;
 
-	/** This extracts a function approximating volume over time. The extracted function 
-	 *	is generated by linear approximations. Only the first channel is processed.
-	 *
-	 *  \param granularity This parameter decides how often (in time) the current average gain is sampled. 
-	 *		A granularity of 1 will return a function exactly equal to the input Audio.
-	 *		Smaller granularities will generate more costly functions.
-	 */
-	Func1x1 convertToFunction( Second granularity = .001f ) const;
+	SQPV convert_to_ms_SQPV( 
+		std::pair<Frequency, Frequency> bandwidth = std::make_pair( 16, 24000 ), 
+		Bin bins_per_octave = 24 
+		) const;
 
 	/** AudioBuffer normally stores "Left" and "Right" data in channel 0 and 1 respectively.
 	 *	The result of this transform stores "Mid" and "Side" data in those channels instead.
 	 *	This allows some simple effects such as widening, but also allows mid and side information
 	 *	to be processed independantly.
 	 */
-	Audio convertToMidSide() const;
+	Audio convert_to_mid_side(
+		) const;
 
-	/** This converts back to Left/Right from Mid/Side. See Audio::convertToMidSide. 
+	/** This converts back to Left/Right from Mid/Side. See Audio::convert_to_mid_side. 
 	 */
-	Audio convertToLeftRight() const;
+	Audio convert_to_left_right(
+		) const;
 
 	/** This converts the input to a two channel Audio. The conversion is channel-count dependant.
 	 *	The currently accepted channel counts are: 1 and 2.
 	 */
-	Audio convertToStereo() const;
+	Audio convert_to_stereo(
+		) const;
 
 	/** This converts an Audio with any number of channels to a single channel Audio.
 	 *	Each output sample is the sum of the channels at that time over the square root of the number of channels.
 	 */
-	Audio convertToMono() const;
+	Audio convert_to_mono(
+		) const;
+
+	Function<Second, Amplitude> convert_to_function(
+		) const;
+
+
+
+	//============================================================================================================================================================
+	// Channels
+	//============================================================================================================================================================
+
+	std::vector<Audio> split_channels(
+		) const;
+
+	static Audio combine_channels( 
+		const std::vector<Audio> & channels 
+		);
+
+	/** Creates a new Audio with all the channels of the inputs. This does not check for matching sample rates.
+	 */
+	template<typename ... Ts, typename = AllAudios<Ts...> >
+	static Audio combine_channels( 
+		const Ts & ... ins 
+		)
+		{
+		std::vector<const Audio *> p_ins;
+		( p_ins.push_back( &ins ), ... ); // Fold expression
+
+		if( p_ins.empty() ) return Audio();
+
+		// Use the total number of input channels, and the maximum number of input frames
+		Audio::Format format;
+		format.sample_rate = p_ins[0]->get_sample_rate();
+		format.num_channels = std::accumulate( p_ins.begin(), p_ins.end(), 0, []( int c, const Audio * p ){ return c + p->get_num_channels(); } );
+		format.num_frames = (*std::max_element( p_ins.begin(), p_ins.end(), []( const Audio * a, const Audio * b )
+			{ return a->get_num_frames() < b->get_num_frames(); } )
+			)->get_num_frames();
+		Audio out( format ); 
+		out.clear_buffer();
+
+		Channel current_channel = 0;
+		for( auto a : p_ins )
+			{
+			for( Channel channel = 0; channel < a->get_num_channels(); ++channel )
+				{
+				for( Frame frame = 0; frame < a->get_num_frames(); ++frame )
+					out.set_sample( current_channel, frame, a->get_sample( channel, frame ) );
+				++current_channel;
+				}
+			}
+
+		return out;
+		}
 
 
 
@@ -161,144 +283,155 @@ public:
 
 	/** Find the total energy in each channel of the input. Energy is the sum of the square of each sample. 
 	 */
-	std::vector<float> getTotalEnergy() const;
+	std::vector<float> get_total_energy(
+		) const;
 
 	/** Find the difference in energy between two Audios. This is useful for unit testing algorithms.
 	 */
-	std::vector<float> getEnergyDifference( const Audio & other ) const;
+	std::vector<float> get_energy_difference( 
+		const Audio & other 
+		) const;
 
 	/** Try to find the wavelength of the input over time. Selects to minimize differences per repitition.
 	 *	\param channel The channel to process.
 	 *	\param start Frame to analyze.
-	 *	\param absoluteCutoff Minimum the local wave difference minimum must achieve to be considered a potential wavelength.
-	 *	\param windowSize Input window size.
-	 *	\param fft External fft handler. IMPORTANT: if using this, the fft size needs to be found with autocorrelationFFTSize( windowSize ) in DSPUtility.
+	 *	\param absolute_cutoff Minimum the local wave difference minimum must achieve to be considered a potential wavelength.
+	 *	\param window_size Input window size.
 	 */
-	float getLocalWavelength( Channel channel, Frame start, Frame windowSize = 2048 ) const;
+	float get_local_wavelength( 
+		Channel channel,
+		Frame start, 
+		Frame window_size = 2048 
+		) const;
 
 	/** Try to find the wavelength of the input over time. This is estimated using parabolic interpolation, so it may not be an integer.
 	 *	\param channel The channel to process.
 	 *	\param start Start frame.
 	 *	\param end End frame.
-	 *	\param absoluteCutoff Minimum the local wave difference minimum must achieve to be considered a potential wavelength.
-	 *	\param windowSize The amount of input data used in each analysis.
+	 *	\param absolute_cutoff Minimum the local wave difference minimum must achieve to be considered a potential wavelength.
+	 *	\param window_size The amount of input data used in each analysis.
 	 *	\param hop The hop size in frames per anlysis.
 	 */
-	std::vector<float> getLocalWavelengths( Channel channel, Frame start = 0, Frame end = -1, Frame windowSize = 2048, 
-		Frame hop = 128, flan_CANCEL_ARG ) const;
+	std::vector<float> get_local_wavelengths( 
+		Channel channel, 
+		Frame start = 0, 
+		Frame end = -1, 
+		Frame window_size = 2048, 
+		Frame hop = 128, 
+		flan_CANCEL_ARG 
+		) const;
 
 	/** Find the average of local wavelengths over time.
-	 *	\param localWavelengths Wavelengths to average. A -1 wavelength indicates no detectable wavelength. 
-	 *	\param minActiveRatio This proportion of the inputs must have a detectable wavelength to continue computation. Otherwise, -1 is returned.
-	 *	\param maxLengthSigma If the standard deviation of the wavelengths is above this threshold, -1 is returned. Inputting -1 will disable sigma thresholding.
+	 *	\param local_wavelengths Wavelengths to average. A -1 wavelength indicates no detectable wavelength. 
+	 *	\param min_active_ratio This proportion of the inputs must have a detectable wavelength to continue computation. Otherwise, -1 is returned.
+	 *	\param max_length_sigma If the standard deviation of the wavelengths is above this threshold, -1 is returned. Inputting -1 will disable sigma thresholding.
 	 */
-	float getAverageWavelength( const std::vector<float> & localWavelengths, float minActiveRatio = 0, float maxLengthSigma = -1 ) const; // Same as getAverageWavelengths
+	float get_average_wavelength( 
+		const std::vector<float> & local_wavelengths, 
+		float min_active_ratio = 0, 
+		float max_length_sigma = -1 
+		) const; // Same as get_average_wavelengths
 
-	/** Find the average of local wavelengths over time. This is a utility for calling getLocalWavelength and passing it to the other getAverageWavelength.
+	/** Find the average of local wavelengths over time. This is a utility for calling get_local_wavelength and passing it to the other get_average_wavelength.
 	 *	\param channel The channel to process.
-	 *	\param minActiveRatio This proportion of the inputs must have a detectable wavelength to continue computation. Otherwise, -1 is returned.
-	 *	\param maxLengthSigma If the standard deviation of the wavelengths is above this threshold, -1 is returned. Inputting -1 will disable sigma thresholding.
+	 *	\param min_active_ratio This proportion of the inputs must have a detectable wavelength to continue computation. Otherwise, -1 is returned.
+	 *	\param max_length_sigma If the standard deviation of the wavelengths is above this threshold, -1 is returned. Inputting -1 will disable sigma thresholding.
 	 *	\param start Start frame.
 	 *	\param end End frame.
-	 *	\param windowSize The amount of input data used in each analysis.
+	 *	\param window_size The amount of input data used in each analysis.
 	 *	\param hop The hop size in frames per anlysis.
 	 */
-	float getAverageWavelength( Channel, float minActiveRatio = 0, float maxLengthSigma = -1, Frame start = 0, Frame end = -1, 
-		Frame windowSize = 2048, Frame hop = 128, flan_CANCEL_ARG ) const; // Averages getLocalWavelengths
+	float get_average_wavelength( 
+		Channel, 
+		float min_active_ratio = 0, 
+		float max_length_sigma = -1, 
+		Frame start = 0, 
+		Frame end = -1, 
+		Frame window_size = 2048, 
+		Frame hop = 128, 
+		flan_CANCEL_ARG 
+		) const; // Averages get_local_wavelengths
 	
-
 	/** Try to find the wavelength of the input over time. Selects highest to minimize octave error.
 	 *	\param channel The channel to process.
 	 *	\param start Frame to analyze.
-	 *	\param windowSize Input window size.
-	 *	\param fft External fft handler. IMPORTANT: if using this, the fft size needs to be found with autocorrelationFFTSize( windowSize ) in DSPUtility.
+	 *	\param window_size Input window size.
 	 */
-	Frequency getLocalFrequency( Channel channel, Frame start = 0, Frame windowSize = 2048, flan_CANCEL_ARG ) const;
+	Frequency get_local_frequency( 
+		Channel channel, 
+		Frame start = 0, 
+		Frame window_size = 2048, 
+		flan_CANCEL_ARG 
+		) const;
 
-	/** Utility for calling getLocalFrequency at a set frame hop interval from start to end.
+	/** Utility for calling get_local_frequency at a set frame hop interval from start to end.
 	 */
-	std::vector<Frequency> getLocalFrequencies( Channel channel, Frame start = 0, Frame end = -1, Frame windowSize = 2048, 
-		Frame hop = 128, flan_CANCEL_ARG ) const;
+	std::vector<Frequency> get_local_frequencies( 
+		Channel channel, 
+		Frame start = 0, 
+		Frame end = -1, 
+		Frame window_size = 2048, 
+		Frame hop = 128, 
+		flan_CANCEL_ARG 
+		) const;
+
+	Function<Second, Amplitude> get_amplitude_envelope(
+		Second window_width = 0.1f
+		) const;
+
+	Function<Second, Amplitude> get_frequency_envelope( 
+		) const;
+
+
 
 	//============================================================================================================================================================
-	// Processing
+	// Temporal
 	//============================================================================================================================================================
 
-	/** This phase inverts the input. Every output sample is assigned the negative of the input sample at that time.
-	 */
-	Audio invertPhase() const;
+	Audio modify_boundaries( 
+		Second start, 
+		Second end 
+		) const;
 
-	//std::vector<Audio> splitChannels() const;
+	Audio remove_edge_silence( 
+		Amplitude non_silent_level 
+		) const;
 
-	/** Creates a new Audio with all the channels of the inputs. This does not check for matching sample rates.
-	 */
-	Audio combineChannels( const Audio & other ) const;
-
-	/** Volume scaling, Output( t ) = input( t ) * volumeLevel( t ).
-	 *	\param gain Describes how volume should be scaled as a function of time.
-	 */
-	Audio modifyVolume( const Func1x1 & gain ) const;
-	void modifyVolumeInPlace( const Func1x1 & gain );
-
-	/** Volume setting. This normalizes (divides every sample by the largest sample value), and then scales by level.
-	 *	\param level Describes how volume should be scaled as a function of time.
-	 */
-	Audio setVolume( const Func1x1 & level ) const;
-
-	/** Second shifting.
-	 *	\param shift How much to shift the input.
-	 */
-	Audio shift( Second shift ) const;
-
-	/** This applies the shaper as a function to each sample in the input.
-	 *	\param shaper Each sample in the input is passed through this. 
-	 *		Samples will be values on [-1,1] under normal circumstances.
-	 *		For example, the function y = x would have no effect as a shaper.
-	 */
-	Audio waveshape( const Func1x1 & shaper ) const;
-
-	/// This can't be implemented until I have a setup with more than two speakers to test it on
-	// /** This spatially repositions the input. This is a general purpose panning algorithm for handling any number of speakers. 
-	//  *	The speakers are assumed to be in a plane. Units are given in meters for haas effect purposes.
-	//  *	\param panPosition The plane position of the input over time. 
-	//  *  \param listenerPosition The plane position of the listener over time.
-	//  *	\param speakerPositions The plane positions of each speaker.
-	//  *  \param hassEffect Decides if the haas effect should be applied. 
-	//  */
-	// Audio pan( Function<Second,vec2> panPosition, Function<Second, vec2> listenerPosition, std::vector<vec2> speakerPositions, bool haasEffect = false ) const;
-
-	/** This spatially repositions the input for mono and stereo inputs. Stereo speakers are assumed form an equilateral trangle with side
-	 *	length 1 meter with the listener. The input position is assumed to sit halfway between the speakers.
-	 *  If the number of channels is neither 1 nor 2 a null Audio is returned.
-	 *	\param panPosition The input spatial position from -1 (left) to 1 (right) over time.
-	 */
-	Audio pan( const Func1x1 & panPosition ) const;
-	void panInPlace( const Func1x1 & panPosition );
-
-	/** This redistributes energy between the mid and side signals
-	 *	\param widenAmount This should return a value on [-1,1], representing movement from mid to side.
-	 */
-	Audio widen( const Func1x1 & widenAmount ) const;
+	Audio remove_silence(
+		Amplitude non_silent_level,
+		Second minimum_gap
+		) const;
 
 	/** This reverses the Audio.
 	 */
-	Audio reverse() const;
+	Audio reverse(
+		) const;
 
-	/** This returns a peice of the original Audio that lied between startTime and endTime.
+	/** This returns a peice of the original Audio that lied between start_time and end_time.
 	 *	\param start Start time for cut.
 	 *	\param end End time for cut.
-	 *	\param startFade The cut audio start is faded for this amount of time.
-	 *	\param endFade The cut audio end is faded for this amount of time.
+	 *	\param start_fade The cut audio start is faded for this amount of time.
+	 *	\param end_fade The cut audio end is faded for this amount of time.
 	 */
-	Audio cut( Second start, Second end, Second startFade = 0, Second endFade = 0 ) const;
+	Audio cut( 
+		Second start, 
+		Second end, 
+		Second start_fade = 0, 
+		Second end_fade = 0 
+		) const;
 
 	/** This returns a peice of the original Audio that lied between start and end.
 	 *	\param start Start frame for cut.
 	 *	\param end End frame for cut.
-	 *	\param startFade The cut audio start is faded for this amount of framea.
-	 *	\param endFade The cut audio end is faded for this amount of frames.
+	 *	\param start_fade The cut audio start is faded for this amount of framea.
+	 *	\param end_fade The cut audio end is faded for this amount of frames.
 	 */
-	Audio cutFrames( Frame start, Frame end, Frame startFade = 0, Frame endFade = 0 ) const;
+	Audio cut_frames( 
+		Frame start, 
+		Frame end, 
+		Frame start_fade = 0, 
+		Frame end_fade = 0 
+		) const;
 
 	enum class WDLResampleType
 		{
@@ -310,50 +443,24 @@ public:
 	 *	\param factor The output of this represents a scaling factor of pitch as a function of time.
 	 *	\param granularity This represents the frequency at which factor is sampled.
 			Rapidly changing factors should use a small granularity.
-	 *	\param qual This can take the value 0 for a default quality sinc resampling, 1 for quick and dirty (lerp and simple filter), 
-	 *		or 2 for bad quality.
+	 *	\param qual
 	 */
-	Audio repitch( const Func1x1 & factor, Second granularity = .001f, WDLResampleType qual = WDLResampleType::Sinc ) const;
-
-	/** If each Func1x1 in ir is constant this is equivalent to normal convolution between the input Audio and ir.
-	 *	\param ir An impulse response, this is treated like an Audio whos samples can change over time. 
-	 */
-	Audio convolve( const Function<Second, std::vector<float>> & ir ) const;
-
-	/** This is normal convolution between Audio. If the number of channels are mismatched, the ir channels will be used cyclically.
-	 *	\param ir An impulse response.
-	 */
-	Audio convolve( const Audio & ir ) const;
-
-	/** This adds a fade to the ends of the input Audio.
-	 *	\param start Length of the start fade.
-	 *	\param end Length of the end fade.
-	 *	\param interp The fading curve. Square root should be used for constant-power crossfading.
-	 */
-	Audio fade( Second start = 16.0f/48000.0f, Second end = 16.0f/48000.0f, Interpolator interp = Interpolators::sqrt ) const;
-	void fadeInPlace( Second start = 16.0f/48000.0f, Second end = 16.0f/48000.0f, Interpolator interp = Interpolators::sqrt );
-
-	/** This adds a fade to the ends of the input Audio.
-	 *	\param start Length of the start fade.
-	 *	\param end Length of the end fade.
-	 *	\param interp The fading curve. Square root should be used for constant-power crossfading.
-	 */
-	Audio fadeFrames( Frame start = 16, Frame end = 16, Interpolator interp = Interpolators::sqrt ) const;
-	void fadeFramesInPlace( Frame start = 16, Frame end = 16, Interpolator interp = Interpolators::sqrt );
-
-	// /** A simple low pass filter. This method will likely be overhauled with the planned filter methods.
-	//  *	\param cutoff The frequency at which attenuation should begin as a function of time.
-	//  *	\param taps This in a sense describes the "accuracy" of the filter. 
-	//  *		Increasing it will produce a sharper cutoff and increase processing time.
-	//  */
-	// Audio lowPass( const Func1x1 & cutoff, uint32_t taps = 64, flan_CANCEL_ARG ) const;
+	Audio repitch( 
+		const Function<Second, float> & factor, 
+		Second granularity = .001f, 
+		WDLResampleType quality = WDLResampleType::Sinc 
+		) const;
 
 	/** This repeats the input n times.
-	 *	\param n The number of desired iterations
+	 *	\param num_iterations The number of desired iterations
 	 *	\param mod This allows user-defined processing of each iteration.
 	 *	\param feedback When enabled, the previous iteration is sent to mod, rather than the original Audio.
 	 */
-	Audio iterate( uint32_t n, const AudioMod & mod = AudioMod(), bool feedback = false ) const;
+	Audio iterate( 
+		uint32_t num_iterations, 
+		const AudioMod & mod = AudioMod(), 
+		bool feedback = false 
+		) const;
 
 	/** Generates a volume-decaying iteration of the input. If a mod is supplied, it will 
 	 *	be fed the previous iteration's ouput, rather than the original Audio.
@@ -362,65 +469,124 @@ public:
 	 *	\param decay Each delay event will have its gain scaled by the decay at the event time.
 	 *	\param mod This allows user-defined processing of each delay.
 	 */
-	Audio delay( Second length, const Func1x1 & delayTime, const Func1x1 & decay = .5, const AudioMod & mod = AudioMod() ) const;
+	Audio delay( 
+		Second length, 
+		const Function<Second, Second> & delay_time, 
+		const Function<Second, float> & decay = .5, 
+		const AudioMod & mod = AudioMod() 
+		) const;
 
-	/** Texture is the main Audio timing function. Events are generated following the
-	 *	provided eventsPerSecond and scatter. Each event places a copy of the input Audio
-	 *	at the event time. If a mod is provided, the Audio is first passed through the 
-	 *	mod before placement.
-	 *  \param length Events will generate until this time.
-	 *  \param eventsPerSecond The mean number of events per second.
-	 *  \param scatter The standard deviation in events. Due to being in events, a higher 
-	 *		eventsPerSecond will cause scatter to have less of an effect.
-	 *  \param mod Each event is fed into this along with the event time.
-	 *  \param feedback This decides if mod will process the original Audio, or the previous mod output.
-	 */
-	Audio texture( Second length, const Func1x1 & eventsPerSecond, const Func1x1 & scatter = 0, const AudioMod & mod = AudioMod(), bool feedback = false ) const;
-
-	/** This is a utility for calling Audio::texture with the most common mod functions. 
-	 *  \param length Events will generate until this time.
-	 *  \param eventsPerSecond The mean number of events per second.
-	 *  \param scatter The standard deviation in events. Due to being in events, a higher 
-	 *		eventsPerSecond will cause scatter to have less of an effect.
-	 *  \param repitch Pitch scaling.
-	 *  \param gain Volume scaling.
-	 *	\param eventLength Event length.
-	 *	\param pan Pan amount. Zero gives no panning.
-	 */
-	Audio textureSimple( Second length, const Func1x1 & eventsPerSecond, const Func1x1 & scatter, 
-		const Func1x1 & repitch, const Func1x1 & gain, const Func1x1 & eventLength, const Func1x1 & pan = 0 ) const;
-
-	/** This is a traditional granular synthesis tool.
-	 *  \param length Grains will generate until this time.
-	 *  \param grainsPerSecond The mean number of grains per second.
-	 *  \param scatter The standard deviation in grains. Due to being in grains, a higher 
-	 *		grainsPerSecond will cause scatter to have less of an effect.
-	 *  \param selection The input time from which grains will be read.
-	 *  \param grainLength The length of grains.
-	 *  \param fade The start and end fade time for each grain. Fades use a sqrt curve.
-	 *  \param mod Each grain is fed into this along with the event time.
-	 */
-	Audio grainSelect( Second length, const Func1x1 & grainsPerSecond, const Func1x1 & scatter, const Func1x1 & selection, 
-		const Func1x1 & grainLength = 0.1, const Func1x1 & fade = 0.05, const AudioMod & mod = AudioMod() ) const;
+	// Audio stereo_delay(
+	// 	Second length,
+	// 	const Function<Second, Second> & l_time,
+	// 	const Function<Second, Second> & r_time,
+	// 	const Function<Second, Amplitude> & decay
+	// 	) const;
 
 
-	/** This slices the input into a vector of chunks, each sliceLength seconds long.
-	 *	The final chunk will be zero padded to meet the sliceLength.
-	 *  \param sliceLength The length of each output.
+	/** This slices the input into a vector of chunks, each slice_length seconds long.
+	 *	The final chunk will be zero padded to meet the slice_length.
+	 *  \param slice_length The length of each output.
 	 *  \param fade The start and end fade time of each slice.
 	 */
-	std::vector<Audio> chop( Second slice_length, Second fade = 0.05 ) const;
+	std::vector<Audio> chop( 
+		Second slice_length, 
+		Second fade = 0.05 
+		) const;
 
 	/** This performs chop, randomizes the order of the chopped pieces, and joins, crossfading.
-	 *  \param sliceLength The length of each output.
+	 *  \param slice_length The length of each output.
 	 *  \param fade The start and end fade time of each slice.
 	 */
-	Audio rearrange( Second sliceLength, Second fade = 0.05 ) const;
+	Audio rearrange( 
+		Second slice_length, 
+		Second fade = 0.05 
+		) const;
 
-	// Audio dynamics(
-	// 	std::function< Decibel ( Time, Decibel ) > gain_computer,
-	// 	const FIR & filter
-	// 	) const;
+
+
+	//============================================================================================================================================================
+	// Volume
+	//============================================================================================================================================================
+
+	/** Volume scaling, output( t ) = input( t ) * gain( t ).
+	 *	\param gain Describes how volume should be scaled as a function of time.
+	 */
+	Audio modify_volume( 
+		const Function<Second, float> & gain 
+		) const;
+
+	Audio& modify_volume_in_place( 
+		const Function<Second, float> & gain
+		);		
+
+	/** Volume setting. This normalizes (divides every sample by the largest sample value), and then scales by level.
+	 *	\param level Describes how volume should be scaled as a function of time.
+	 */
+	Audio set_volume( 
+		const Function<Second, Amplitude> & level 
+		) const;
+
+	/** This adds a fade to the ends of the input Audio.
+	 *	\param start Length of the start fade.
+	 *	\param end Length of the end fade.
+	 *	\param interp The fading curve. Square root should be used for constant-power crossfading.
+	 */
+	Audio fade( 
+		Second start = 16.0f/48000.0f, 
+		Second end = 16.0f/48000.0f, 
+		Interpolator interp = Interpolators::sqrt 
+		) const;
+
+	Audio& fade_in_place(
+	 	Second start = 16.0f/48000.0f, 
+		Second end = 16.0f/48000.0f, 
+		Interpolator interp = Interpolators::sqrt 
+		);
+
+	/** This adds a fade to the ends of the input Audio.
+	 *	\param start Length of the start fade.
+	 *	\param end Length of the end fade.
+	 *	\param interp The fading curve. Square root should be used for constant-power crossfading.
+	 */
+	Audio fade_frames( 
+		Frame start = 16, 
+		Frame end = 16, 
+		Interpolator interp = Interpolators::sqrt 
+		) const;
+
+	Audio& fade_frames_in_place( 
+		Frame start = 16, 
+		Frame end = 16, 
+		Interpolator interp = Interpolators::sqrt 
+		);
+
+	/** This phase inverts the input. Every output sample is assigned the negative of the input sample at that time.
+	 */
+	Audio invert_phase(
+		) const;
+
+	/** This applies the shaper as a function to each sample in the input.
+	 *	\param shaper Each sample in the input is passed through this. 
+	 *		Samples will be values on [-1,1] under normal circumstances.
+	 *		For example, the function y = x would have no effect as a shaper.
+	 */
+	Audio waveshape( 
+		const Function< std::pair<Second, Sample>, Sample > & shaper,
+		uint16_t oversample_factor = 4
+		) const;
+
+	/** This is meant to be a black box process for adding a moisture effect to bass signals.
+	 *  \param amount How much of the effect to add.
+	 *  \param frequency Base effect frequency when skew is 1.
+	 *  \param skew Magic ingredient.
+	 */
+	Audio add_moisture(
+		const Function<Second, Amplitude> & amount = .5f,
+		const Function<Second, Frequency> & frequency = 96,
+		const Function<Second, float> & skew = 4,
+		const Function<Second, Amplitude> & waveform = waveforms::sine
+		) const;
 
 	/** This is a dynamic range compressor.
 	 */
@@ -430,13 +596,52 @@ public:
 		Function<Second, Second> attack = 5.0f / 1000.0f, 
 		Function<Second, Second> release = 100.0f / 1000.0f, 
 		Function<Second, Decibel> knee_width = Decibel( 0 ), 
-		const Audio * sidechain_source = nullptr ) const;
+		const Audio * sidechain_source = nullptr 
+		) const;
 
-	// Audio limit(
-	// 	Function<Second, Decibel> threshold,
-	// 	Function<Second, Second> attack = 5.0f / 1000.0f, 
-	// 	Function<Second, Second> release = 100.0f / 1000.0f, 
-	// 	Function<Second, Decibel> knee_width = 0 ) const;
+
+
+	//============================================================================================================================================================
+	// Spatial
+	//============================================================================================================================================================
+
+	/// This can't be implemented until I have a setup with more than two speakers to test it on
+	// /** This spatially repositions the input. This is a general purpose panning algorithm for handling any number of speakers. 
+	//  *	The speakers are assumed to be in a plane. Units are given in meters for haas effect purposes.
+	//  *	\param pan_position The plane position of the input over time. 
+	//  *  \param listenerPosition The plane position of the listener over time.
+	//  *	\param speakerPositions The plane positions of each speaker.
+	//  *  \param hassEffect Decides if the haas effect should be applied. 
+	//  */
+	// Audio pan( Function<Second,vec2> pan_position, Function<Second, vec2> listenerPosition, std::vector<vec2> speakerPositions, bool haasEffect = false ) const;
+
+	Audio stereo_spatialize( 
+		const Function<Second, vec2> & position 
+		) const;
+
+	Audio stereo_spatialize( 
+		vec2 position 
+		) const; 
+
+	/** This spatially repositions the input for mono and stereo inputs. Stereo speakers are assumed form an equilateral trangle with side
+	 *	length 1 meter with the listener. The input position is assumed to sit halfway between the speakers.
+	 *  If the number of channels is neither 1 nor 2 a null Audio is returned.
+	 *	\param pan_position The input spatial position from -1 (left) to 1 (right) over time.
+	 */
+	Audio pan( 
+		const Function<Second, float> & pan_position 
+		) const;
+
+	Audio& pan_in_place( 
+		const Function<Second, float> & pan_position 
+		);
+
+	/** This redistributes energy between the mid and side signals
+	 *	\param widen_amount This should return a value on [-1,1], representing movement from mid to side.
+	 */
+	Audio widen( 
+		const Function<Second, float> & widen_amount 
+		) const;
 
 
 
@@ -446,7 +651,7 @@ public:
 
 	/*
 	There are an essentially unlimited number of filter types and use cases, so I have made no attempt to cover all of them.
-	If you are reading this and your experience with filters is purely musical, you will find svf filters to be
+	If you are reading this and your experience with filters is purely musical, you will find 2-pole filters to be
 	the familiar resonant filter type found in most DAW programs. The "bell" shaped filter found in most EQs is here called
 	a "band shelving filter".
 
@@ -456,108 +661,185 @@ public:
 	be answered by searching it.
 	*/
 
-	std::vector<Audio> filter_1pole_multimode( 
+	/* 1 Pole ============================ */
+
+	Audio filter_1pole_lowpass(
 		const Function<Second, Frequency> & cutoff,
-		bool return_low = true,
-		bool return_high = true
+		uint16_t order = 1
 		) const;
 
-	Audio filter_1pole_lowpass( 
-		const Function<Second, Frequency> & cutoff
-		) const;
-
-	Audio filter_1pole_highpass( 
-		const Function<Second, Frequency> & cutoff
-		) const;
-
-	Audio filter_1pole_lowshelf( 
+	Audio filter_1pole_highpass(
 		const Function<Second, Frequency> & cutoff,
-		const Function<Second, Decibel> & gain
+		uint16_t order = 1
 		) const;
 
-	Audio filter_1pole_highshelf( 
+	std::vector<Audio> filter_1pole_split(
 		const Function<Second, Frequency> & cutoff,
-		const Function<Second, Decibel> & gain
+		uint16_t order = 1
 		) const;
 
-	// mention this returns normalized bandpass
-	std::vector<Audio> filter_svf_multimode(
+	Audio filter_1pole_lowshelf(
+		const Function<Second, Frequency> & cutoff,
+		const Function<Second, Decibel> & gain,
+		uint16_t order = 1
+		) const;
+
+	Audio filter_1pole_highshelf(
+		const Function<Second, Frequency> & cutoff,
+		const Function<Second, Decibel> & gain,
+		uint16_t order = 1
+		) const;
+
+	/** This applies the same 1-pole low pass filter to the input n times. 
+		It is mainly a tool used for modeling atmospheric scattering in spacialization methods.
+	*/
+	Audio filter_1pole_repeat(
+		const Function<Second, Frequency> & cutoff,
+		const uint16_t repeats
+		) const;
+
+	/* 2 Pole ============================ */
+
+	Audio filter_2pole_lowpass(
 		const Function<Second, Frequency> & cutoff,
 		const Function<Second, float> & damping,
-		bool return_low = true,
-		bool return_band = true,
-		bool return_high = true
-		) const; 
+		uint16_t order = 1
+		) const;
 
-	Audio filter_svf_lowpass(
+	Audio filter_2pole_bandpass(
 		const Function<Second, Frequency> & cutoff,
-		const Function<Second, float> & damping
+		const Function<Second, float> & damping,
+		uint16_t order = 1
 		) const;
 
-	Audio filter_svf_bandpass(
+	Audio filter_2pole_highpass(
 		const Function<Second, Frequency> & cutoff,
-		const Function<Second, float> & damping
+		const Function<Second, float> & damping,
+		uint16_t order = 1
 		) const;
 
-	Audio filter_svf_highpass(
+	Audio filter_2pole_notch(
 		const Function<Second, Frequency> & cutoff,
-		const Function<Second, float> & damping
+		const Function<Second, float> & damping,
+		uint16_t order = 1
 		) const;
 
-	Audio filter_butterworth_lowpass(
-		uint16_t order,
-		const Function<Second, Frequency> & cutoff
-		) const;
-
-	Audio filter_butterworth_highpass(
-		uint16_t order,
-		const Function<Second, Frequency> & cutoff
-		) const;
-
-	Audio filter_butterworth_lowshelf(
-		uint16_t order,
+	Audio filter_2pole_lowshelf(
 		const Function<Second, Frequency> & cutoff,
-		const Function<Second, Decibel> & gain
+		const Function<Second, float> & damping,
+		const Function<Second, Decibel> & gain,
+		uint16_t order = 1
 		) const;
+
+	Audio filter_2pole_bandshelf(
+		const Function<Second, Frequency> & cutoff,
+		const Function<Second, float> & damping,
+		const Function<Second, Decibel> & gain,
+		uint16_t order = 1
+		) const;
+
+	Audio filter_2pole_highshelf(
+		const Function<Second, Frequency> & cutoff,
+		const Function<Second, float> & damping,
+		const Function<Second, Decibel> & gain,
+		uint16_t order = 1
+		) const;
+
+	/* Other filters ==================== */
+
+	Audio filter_1pole_multinotch(
+		const Function<Second, Frequency> & cutoff,
+		const Function<Second, float> wet_dry = .5,
+		uint16_t order = 1,
+		bool invert = false
+		) const;
+
+	Audio filter_2pole_multinotch(
+		const Function<Second, Frequency> & cutoff,
+		const Function<Second, float> & damping,
+		const Function<Second, float> & wet_dry = .5,
+		uint16_t order = 1,
+		bool invert = false
+		) const;
+
+	Audio filter_comb(
+		const Function<Second, Frequency> & cutoff,
+		const Function<Second, float> & wet_dry = .5,
+		const Function<Second, float> & feedback = 1,
+		bool invert = false
+		) const;
+
+
 
 	//========================================================
-	// Static Procs
+	// Combination
 	//========================================================
-
-	/** SFINAE type for variadic templates, see https://www.fluentcpp.com/2019/01/25/variadic-number-function-parameters-type/
-	 */
-	template<typename... Ts>
-	using AllAudios = typename std::enable_if_t<std::conjunction_v< std::is_convertible<Ts, const Audio &>... >>;
 
 	/** The main Audio mixing method. The ouput format will be that of the first input.
 	 *	\param ins The Audio to mix.
-	 *	\param startTimes This gives the start time for each input Audio. The default will start all inputs at time 0.
+	 *	\param start_times This gives the start time for each input Audio. The default will start all inputs at time 0.
 	 *	\param balances The volume scaling to apply to each input Audio. The default will apply no scaling.
 	 *		These are relative to global time 0 rather than the start time of each input.
 	 */
-	static Audio mix( std::vector<const Audio *> ins, 
-					  std::vector<Second> startTimes = {}, 
-					  const std::vector<const Function<Second, Amplitude> *> & gains = {} );
-	static Audio mix( const std::vector<Audio> & ins, 
-					  const std::vector<Second> & startTimes = {}, 
-					  const std::vector<Function<Second, Amplitude>> & gains = {} );
+	static Audio mix( 
+		std::vector<const Audio *> ins, 
+		std::vector<Second> start_times = {}, 
+		std::vector<Amplitude> gains = {} 
+		);
+
+	static Audio mix( 
+		const std::vector<Audio> & ins, 
+		std::vector<Second> start_times = {}, 
+		std::vector<Amplitude> gains = {} 
+		);
+
 	template<typename ... Ts, typename = AllAudios<Ts...> >
-	static Audio mix( const Ts & ... ins )
+	static Audio mix( 
+		const Ts & ... ins 
+		)
 		{
 		std::vector<const Audio *> p_ins;
 		( p_ins.push_back( &ins ), ... ); // Fold expression
 		return mix( p_ins );
 		}
 
+	static Audio mix_variable_gain( 
+		std::vector<const Audio *> ins, 
+		std::vector<Second> start_times, 
+		const std::vector<const Function<Second, Amplitude> *> & gains 
+		);
+
+	static Audio mix_variable_gain( 
+		const std::vector<Audio> & ins, 
+		const std::vector<Second> & start_times, 
+		const std::vector<Function<Second, Amplitude>> & gains 
+		);
+
+	Audio& mix_in_place( 
+		const Audio & other, 
+		Second other_start_time = 0, 
+		const Function<Second, Amplitude> & other_amplitude = 1.0f 
+		);
+
 	/** This joins all input Audio tip to tail in the order they were passed.
 	 *	\param ins The Audio to join.
 	 *	\param offset The amount of time away from the natural join position each input should be. For example, using a negative offset
 	 *		along with fading the inputs can be used to crossfade.
 	 */
-	static Audio join( const std::vector<const Audio *> & ins, Second offset = 0 );
-	static Audio join( const std::vector<Audio> & ins, Second offset = 0 );
+	static Audio join( 
+		const std::vector<const Audio *> & ins, 
+		Second offset = 0 
+		);
+
+	static Audio join( 
+		const std::vector<Audio> & ins, 
+		Second offset = 0 
+		);
+
 	template<typename ... Ts, typename = AllAudios<Ts...> >
-	static Audio join( const Ts & ... ins )
+	static Audio join( 
+		const Ts & ... ins 
+		)
 		{
 		std::vector<const Audio *> p_ins;
 		( p_ins.push_back( &ins ), ... ); // Fold expression
@@ -568,27 +850,154 @@ public:
 	 *	Non-integer selections will mix appropriately scaled copies of the surrounding integer inputs.
 	 *	\param ins The Audio to mix.
 	 *	\param selection Which audio to play.
-	 *	\param startTimes Second offsets for each input.
+	 *	\param start_times Second offsets for each input.
 	 */
-	static Audio select( const std::vector<const Audio *> & ins, const Func1x1 & selection, const std::vector<Second> & startTimes = {} );
-	static Audio select( const std::vector<Audio> & ins, const Func1x1 & selection, std::vector<Second> startTimes = {} );
+	static Audio select( 
+		const std::vector<const Audio *> & ins, 
+		const Function<Second, float> & selection, 
+		const std::vector<Second> & start_times = {} 
+		);
+
+	static Audio select( 
+		const std::vector<Audio> & ins, 
+		const Function<Second, float> & selection, 
+		std::vector<Second> start_times = {} 
+		);
+
 	template<typename ... Ts, typename = AllAudios<Ts...> >
-	static Audio select( const Func1x1 & selection, const Ts & ... ins )
+	static Audio select( 
+		const Function<Second, float> & selection, 
+		const Ts & ... ins 
+		)
 		{
 		std::vector<const Audio *> p_ins;
 		( p_ins.push_back( &ins ), ... ); // Fold expression
 		return select( p_ins, selection );
 		}
 
-	/** Generate an Audio from a Func1x1. This can be accomplished in a more general setting using the function ctor of flan::Wavetable.
-	*  \param wave This is evaluated from 0 to 1. This portion is repeated to create the Audio.
+	/** This is normal convolution between Audio. If the number of channels are mismatched, the ir channels will be used cyclically.
+	 *	\param ir An impulse response.
+	 */
+	Audio convolve( 
+		const Audio & ir 
+		) const;
+
+
+
+	//========================================================
+	// Synthesis
+	//========================================================
+
+	/** Generate an Audio from a waveform function. This can be accomplished in a more general setting using the function ctor of flan::Wavetable.
+	*  \param waveform This is evaluated from 0 to 1. This portion is repeated to create the Audio.
 	*  \param length The length of the output.
 	*  \param freq The frequency of the output.
-	*  \param sampleRate The sample rate of the output.
+	*  \param sample_rate The sample rate of the output.
 	*  \param oversample Synthesized audio must be generated at a sample rate higher than the desired sample rate to avoid aliasing.
 	*      This describes how many samples should be used in the synthesis per sample in the output.
 	*/
-	static Audio synthesize( const Func1x1 & wave, Second length, const Func1x1 & freq, size_t samplerate = 48000, size_t oversample = 16 );
+	static Audio synthesize_waveform(  
+		const Function<Second, Amplitude> & waveform, 
+		Second length, 
+		const Function<Second, Frequency> & freq, 
+		size_t samplerate = 48000, 
+		size_t oversample = 16 
+		);
+
+	static Audio synthesize_impulse(
+		Frequency base_freq,
+		Harmonic num_harmonics = std::numeric_limits<Harmonic>::max(),
+		float chroma = 1.0f,
+		FrameRate sample_rate = 48000.0f
+		);
+
+	// Grain Controllers ===================================================================================================================
+
+	static Audio synthesize_grains( 
+		Second length,
+		const Function<Second, float> & grains_per_second,
+		const Function<Second, float> & time_scatter,
+		const Function<Second, Audio> & grain_source,
+		FrameRate sample_rate = 48000
+		);
+
+	Audio synthesize_grains_repeat(
+		Second length,
+		const Function<Second, float> & grains_per_second,
+		const Function<Second, float> & time_scatter,
+		const Function<Second, Amplitude> & gain,
+		FrameRate sample_rate
+		) const;
+
+	Audio synthesize_grains_with_feedback_mod( 
+		Second length, 
+		const Function<Second, float> & grains_per_second, 
+		const Function<Second, float> & time_scatter, 
+		const AudioMod & mod,
+		bool mod_feedback, 
+		FrameRate sample_rate
+		) const;
+
+	// Grain Compositions ===================================================================================================================
+
+	/* Trainlet synthesis as seen in the book "Microsound".
+	 * 	\param grains_per_second See Audio::synthesize_grains.
+	 * 	\param time_scatter See Audio::synthesize_grains.
+	 * 	\param position Spatial plane position to spacialize trainlet at.
+	 * 	\param trainlet_gain_envelope The amplitude over time of individual trainlets 
+	 * 	\param impulse_freq The rate at which impulses occur within an individual trainlet. 
+	 * 	\param trainlet_length 
+	 * 	\param num_harmonics How many harmonics should be used to synthesize an impulse.
+	 * 	\param chroma A geometric scaling factor on the harmonics within an impulse.
+	 * 	\param impulse_harmonic_frequency The frequency of the harmonics used in impulse generation.
+	 * 	\param sample_rate
+	 */
+	static Audio synthesize_trainlets( 
+		Second length,
+		const Function<Second, float> & grains_per_second,
+		const Function<Second, float> & time_scatter,
+		const Function<Second, vec2> & position,
+		const Function<Second, Amplitude> & trainlet_gain_envelope,
+		const Function<Second, Frequency> & impulse_freq,
+		const Function<Second, Second> & trainlet_length,
+		const Function<Second, Harmonic> & num_harmonics = std::numeric_limits<Harmonic>::max(),
+		const Function<Second, float> & chroma = 1,
+		const Function<Second, Frequency> & impulse_harmonic_frequency = 32,
+		FrameRate sample_rate = 48000
+		);
+
+	/** 
+	 *  \param length Grains will generate until this time.
+	 *  \param grains_per_second The mean number of grains per second.
+	 *  \param scatter The standard deviation in grains. Due to being in grains, a higher 
+	 *		grains_per_second will cause scatter to have less of an effect.
+	 *  \param selection The input time from which grains will be read.
+	 *  \param grain_length The length of grains.
+	 *  \param fade The start and end fade time for each grain. Fades use a sqrt curve.
+	 *  \param mod Each grain is fed into this along with the event time.
+	 */
+	Audio synthesize_granulation( 
+		Second length, 
+		const Function<Second, float> & grains_per_second, 
+		const Function<Second, float> & time_scatter, 
+		const Function<Second, Second> & time_selection, 
+		const Function<Second, Second> & grain_length,
+		const AudioMod & mod = AudioMod()
+		) const;
+
+	Audio synthesize_psola(
+		Second length, 
+		const Function<Second, Second> & time_selection,
+		const AudioMod & mod = AudioMod()
+		) const;
+
+	// static Audio synthesize_pulsars(
+	// 	Second length,
+	// 	const Function<Second, Frequency> & pulse_frequency, 
+	// 	const Function<Second, Amplitude> & waveform, 
+	// 	const Function<Second, Frequency> & waveform_frequency,
+	// 	const Function<float, Amplitude> & pulsaret_envelope,
+	// 	);
 
 	};
 

@@ -2,30 +2,38 @@
 
 namespace flan {
 
-bool isLinear( ExecutionPolicy a )
+bool is_linear( ExecutionPolicy a )
 	{
 	return a == ExecutionPolicy::Linear_Sequenced || a == ExecutionPolicy::Linear_Unsequenced;
 	}
 
-bool isParallel( ExecutionPolicy a )
+bool is_parallel( ExecutionPolicy a )
 	{
-	return ! isLinear( a );
+	return ! is_linear( a );
 	}
 
-bool isSequenced( ExecutionPolicy a )
+bool is_sequenced( ExecutionPolicy a )
 	{
 	return a == ExecutionPolicy::Linear_Sequenced || a == ExecutionPolicy::Parallel_Sequenced;
 	}
 
-bool isUnsequenced( ExecutionPolicy a )
+bool is_unsequenced( ExecutionPolicy a )
 	{
-	return ! isSequenced( a ); 
+	return ! is_sequenced( a ); 
 	}
 
-ExecutionPolicy lowestExecution( ExecutionPolicy a, ExecutionPolicy b )
+ExecutionPolicy lowest_execution( const std::vector<ExecutionPolicy> & ps )
 	{
-	const bool linear = isLinear( a ) || isLinear( b );
-	const bool sequenced = isSequenced( a ) || isSequenced( b );
+	bool linear = false;
+	for( auto p : ps )
+		if( is_linear( p ) )
+			linear = true;
+
+	bool sequenced = false;
+	for( auto p : ps )
+		if( is_sequenced( p ) )
+			linear = true;
+
 	if( linear )
 		{
 		if( sequenced ) return ExecutionPolicy::Linear_Sequenced;

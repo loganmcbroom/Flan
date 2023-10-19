@@ -193,10 +193,10 @@ public:
 	}
 
 	/**
-	 * @return The next "Hann" window function coefficient.
+	 * @return The next "hann" window function coefficient.
 	 */
 
-	double calcWindowHann()
+	double calcWindowhann()
 	{
 		return( 0.5 + 0.5 * w1.generate() );
 	}

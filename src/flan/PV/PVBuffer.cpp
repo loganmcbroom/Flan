@@ -18,7 +18,7 @@ PVBuffer::PVBuffer()
 
 PVBuffer::PVBuffer( const Format & other )
 	: format( other )
-	, buffer( getNumChannels() * getNumFrames() * getNumBins() )
+	, buffer( get_num_channels() * get_num_frames() * get_num_bins() )
 	{}
 
 PVBuffer::PVBuffer( const std::string & filename )
@@ -36,9 +36,9 @@ PVBuffer PVBuffer::copy() const
 	return out;
 	}
 
-bool PVBuffer::isNull() const
+bool PVBuffer::is_null() const
 	{
-	return buffer.empty() || getSampleRate() == 0;
+	return buffer.empty() || get_sample_rate() == 0;
 	}
 
 // PV-EX structure
@@ -49,8 +49,8 @@ bool PVBuffer::isNull() const
 //		struct WAVEFORMATEX						// 18 bytes, info for renderer as well as for flan
 //			{ 
 //			uint16_t formatTag = 0xFFFE;			// WAVE_FORMAT_EXTENSIBLE macro
-//			uint16_t numChannels;					// Number of channels
-//			uint32_t sampleRate;					// Sample rate
+//			uint16_t num_channels;					// Number of channels
+//			uint32_t sample_rate;					// Sample rate
 //			uint32_t byteRate;						// Bytes per second
 //			uint16_t blockAlign;					// Block align
 //			uint16_t bitsPerSample;					// Bits per sample
@@ -83,7 +83,7 @@ bool PVBuffer::isNull() const
 //		uint32_t windowlen;						// analysis window length, samples, NB may be <> FFT size 
 //		uint32_t analStep;						// audio frames per flan frame
 //		uint32_t frameAlign;					// usually nAnalysisBins * 2 * sizeof(float) 
-//		float analysisRate;						// Sample rate / overlaps
+//		float analysis_rate;						// Sample rate / overlaps
 //		float windowParam;						// default 0.0f unless needed 
 //		} flanData;
 //	};
@@ -92,19 +92,19 @@ bool PVBuffer::save( const std::string & filename ) const
 	{
 	const int byteDepth = 3;
 	const double limit = std::pow( 2, 8 * byteDepth - 1 );
-	const float windowSize_f = getDFTSize();
-	const float maxFreq_f = getSampleRate();
+	const float window_size_f = get_dft_size();
+	const float max_frequency_f = get_sample_rate();
 
 	//Convert buffer to 24bit signed int representation
 	std::vector<uint8_t> bytes( buffer.size() * 2 * byteDepth );
-	for( uint32_t channel = 0; channel < getNumChannels(); ++channel )
-		for( uint32_t frame = 0; frame < getNumFrames(); ++frame )
-			for( uint32_t bin = 0; bin < getNumBins(); ++bin )
+	for( uint32_t channel = 0; channel < get_num_channels(); ++channel )
+		for( uint32_t frame = 0; frame < get_num_frames(); ++frame )
+			for( uint32_t bin = 0; bin < get_num_bins(); ++bin )
 				{
-				int32_t m_32 = double( std::clamp( getMF( channel, frame, bin ).m / windowSize_f, -1.0f, 1.0f ) ) * limit;
-				int32_t f_32 = double( std::clamp( getMF( channel, frame, bin ).f / maxFreq_f,	  -1.0f, 1.0f ) ) * limit;
+				int32_t m_32 = double( std::clamp( get_MF( channel, frame, bin ).m / window_size_f, -1.0f, 1.0f ) ) * limit;
+				int32_t f_32 = double( std::clamp( get_MF( channel, frame, bin ).f / max_frequency_f,	  -1.0f, 1.0f ) ) * limit;
 
-				uint32_t pos = getBufferPos( channel, frame, bin ) * 2 * byteDepth;
+				uint32_t pos = get_buffer_pos( channel, frame, bin ) * 2 * byteDepth;
 
 				bytes[ pos + 0 ] = (uint8_t) ( m_32 >> 0  ) & 0xFF;
 				bytes[ pos + 1 ] = (uint8_t) ( m_32 >> 8  ) & 0xFF;
@@ -119,12 +119,12 @@ bool PVBuffer::save( const std::string & filename ) const
 	writeRIFF( filename, "PV", bytes.data(), bytes.size(), 
 		{
 		(uint16_t) 1,					// Formatting
-		(uint16_t) getNumChannels(),	// Channel Count
-		(uint32_t) getNumFrames(),		// Number of frames
-		(uint32_t) getNumBins(),		// Number of bins per frame
-		(uint32_t) getSampleRate(),		// Sample Rate, note this is the sample rate of the audio
-		(uint32_t) getHopSize(),		// Number of Audio frames jumped per dft
-		(uint32_t) getWindowSize(),		// The number of audio frames used per fft. Used when audio data is zero padded.
+		(uint16_t) get_num_channels(),	// Channel Count
+		(uint32_t) get_num_frames(),		// Number of frames
+		(uint32_t) get_num_bins(),		// Number of bins per frame
+		(uint32_t) get_sample_rate(),		// Sample Rate, note this is the sample rate of the audio
+		(uint32_t) get_hop_size(),		// Number of Audio frames jumped per dft
+		(uint32_t) get_window_size(),		// The number of audio frames used per fft. Used when audio data is zero padded.
 		(uint32_t) 24,					// Bit depth, note that each bin contains two of this
 		(uint16_t) 1					// Window type indicator. 1 = hann.
 		});
@@ -136,10 +136,10 @@ bool PVBuffer::save( const std::string & filename ) const
 	//WAVEFORMATPVEX flanFormat;
 
 	////Fill format structure	
-	//flanFormat.waveExt.waveEx.numChannels		= getNumChannels(); 
-	//flanFormat.waveExt.waveEx.stimampleRate		= getSampleRate(); // Frames/Sec
-	//flanFormat.waveExt.waveEx.byteRate			= getNumChannels() * bytesPerSample * timeToFrame(); 
-	//flanFormat.waveExt.waveEx.blockAlign		= getNumChannels() * bytesPerSample;
+	//flanFormat.waveExt.waveEx.num_channels		= get_num_channels(); 
+	//flanFormat.waveExt.waveEx.stimampleRate		= get_sample_rate(); // Frames/Sec
+	//flanFormat.waveExt.waveEx.byteRate			= get_num_channels() * bytesPerSample * time_to_frame(); 
+	//flanFormat.waveExt.waveEx.blockAlign		= get_num_channels() * bytesPerSample;
 	//flanFormat.waveExt.waveEx.bitsPerSample		= 8 * ifbytesPerSample; 
 	//flanFormat.waveExt.waveEx.cbSize			= 62;
 	//flanFormat.waveExt.samples.bitsPerSample	= 8 * bytesPerSample;
@@ -147,12 +147,12 @@ bool PVBuffer::save( const std::string & filename ) const
 	//flanFormat.flanData.dataType				= 0; // Float			
 	//flanFormat.flanData.analFormat				= 0; // Amp/Freq			
 	//flanFormat.flanData.sourceFormat			= 3; // WAVE_FORMAT_IEEE_FLOAT
-	//flanFormat.flanData.windowType				= 2; // Hanning window			
-	//flanFormat.flanData.analysisBins			= getNumBins();				
-	//flanFormat.flanData.windowlen				= getWindowSize();				
-	//flanFormat.flanData.analStep				= getWindowSize() / getOverlaps();				
-	//flanFormat.flanData.frameAlign				= getNumBins() * 2 * bytesPerSample;				
-	//flanFormat.flanData.analysisRate			= float( getSampleRate() ) / float( getWindowSize() / getOverlaps() );
+	//flanFormat.flanData.windowType				= 2; // hanning window			
+	//flanFormat.flanData.analysisBins			= get_num_bins();				
+	//flanFormat.flanData.windowlen				= get_window_size();				
+	//flanFormat.flanData.analStep				= get_window_size() / getOverlaps();				
+	//flanFormat.flanData.frameAlign				= get_num_bins() * 2 * bytesPerSample;				
+	//flanFormat.flanData.analysis_rate			= float( get_sample_rate() ) / float( get_window_size() / getOverlaps() );
 	//flanFormat.flanData.windowParam				= 0; //Other values can be used for other windows		
 	
 	//Handle window chunk?
@@ -230,14 +230,14 @@ bool PVBuffer::load( const std::string & filename )
 	file.read( strBuffer, 4 ); if( std::strncmp( strBuffer, "fmt ", 4 ) != 0 ) return bail( filename + " isn't formatted correctly (\"fmt \" wasn't at the start of the format chunk).\n" );
 	file.read( (char * ) &int32Buffer, 4 ); //Chunk size
 	file.read( (char * ) &int16Buffer, 2 ); if( int16Buffer != 1 ) return bail( "Formatting must be 1 (signed int)." );
-	file.read( (char * ) &int16Buffer, 2 ); format.numChannels = int16Buffer;
-	file.read( (char * ) &int32Buffer, 4 ); format.numFrames = int32Buffer;
-	file.read( (char * ) &int32Buffer, 4 ); format.numBins = int32Buffer;
-	file.read( (char * ) &int32Buffer, 4 ); format.sampleRate = int32Buffer;
-	file.read( (char * ) &int32Buffer, 4 ); format.analysisRate = int32Buffer;
-	file.read( (char * ) &int32Buffer, 4 ); format.windowSize = int32Buffer;
+	file.read( (char * ) &int16Buffer, 2 ); format.num_channels = int16Buffer;
+	file.read( (char * ) &int32Buffer, 4 ); format.num_frames = int32Buffer;
+	file.read( (char * ) &int32Buffer, 4 ); format.num_bins = int32Buffer;
+	file.read( (char * ) &int32Buffer, 4 ); format.sample_rate = int32Buffer;
+	file.read( (char * ) &int32Buffer, 4 ); format.analysis_rate = int32Buffer;
+	file.read( (char * ) &int32Buffer, 4 ); format.window_size = int32Buffer;
 	file.read( (char * ) &int32Buffer, 4 ); if( int32Buffer != 24 ) return bail( "Bit depth must be 24." );
-	file.read( (char * ) &int16Buffer, 2 ); if( int16Buffer != 1 ) return bail( "PV window must be 1 (Hann)." );
+	file.read( (char * ) &int16Buffer, 2 ); if( int16Buffer != 1 ) return bail( "PV window must be 1 (hann)." );
 	*this = PVBuffer( format );
 
 	//Read data subchunk
@@ -246,8 +246,8 @@ bool PVBuffer::load( const std::string & filename )
 
 	//Read buffer
 	const double limit = std::pow( 2, 23 );
-	const float windowSize_f = getDFTSize();
-	const float maxFreq_f = getSampleRate();
+	const float window_size_f = get_dft_size();
+	const float max_frequency_f = get_sample_rate();
 
 	auto getFloat = [limit, &file]( float div )
 		{
@@ -257,10 +257,10 @@ bool PVBuffer::load( const std::string & filename )
 		return float( double( i ) / limit ) * div;
 		};
 
-	for( uint32_t channel = 0; channel < getNumChannels(); ++channel )
-		for( uint32_t frame = 0; frame < getNumFrames(); ++frame )
-			for( uint32_t bin = 0; bin < getNumBins(); ++bin )
-				setMF( channel, frame, bin, { getFloat( windowSize_f ), getFloat( maxFreq_f ) } );
+	for( uint32_t channel = 0; channel < get_num_channels(); ++channel )
+		for( uint32_t frame = 0; frame < get_num_frames(); ++frame )
+			for( uint32_t bin = 0; bin < get_num_bins(); ++bin )
+				set_MF( channel, frame, bin, { getFloat( window_size_f ), getFloat( max_frequency_f ) } );
 
 	return true;		
 
@@ -283,8 +283,8 @@ bool PVBuffer::load( const std::string & filename )
 	//// Check format chunk and create PVBuffer::Format
 	//PVBuffer::Format flanFormat;
 	//if( fileFormat.waveExt.waveEx.formatTag != 0xFFFE ) return bail( "WAVE-EX tag wasn't 0xFFFE" );
-	//flanFormat.numChannels = fileFormat.waveExt.waveEx.numChannels;
-	//flanFormat.sampleRate = fileFormat.waveExt.waveEx.sampleRate;
+	//flanFormat.num_channels = fileFormat.waveExt.waveEx.num_channels;
+	//flanFormat.sample_rate = fileFormat.waveExt.waveEx.sample_rate;
 	//if( fileFormat.waveExt.waveEx.bitsPerSample != 32 ) return bail( "flan only supports 32-bit floats (bit rate wasn't 32)." );
 	//if( fileFormat.waveExt.waveEx.cbSize != 62 ) return bail( "WAVE-EX cbSize wasn't 62." );
 	//if( fileFormat.waveExt.waveEx.cbSize != 62 ) std::cout << "Discarding channel mask when loading PV data (unsupported)." << std::endl;
@@ -297,26 +297,26 @@ bool PVBuffer::load( const std::string & filename )
 	//if( fileFormat.flanData.dataType != 0 ) return bail( "PV data type must be float." );
 	//if( fileFormat.flanData.analFormat != 0 ) return bail( "PV analysis format must be Amp/Freq." );
 	//if( fileFormat.flanData.sourceFormat != 3 ) return bail( "PV source format must be float." );
-	//if( fileFormat.flanData.windowType != 2 ) return bail( "Only Hann window is currently supported." );
-	//flanFormat.numBins = fileFormat.flanData.analysisBins;
-	//flanFormat.overlaps = ( float( flanFormat.numBins ) - 1.0f ) * 2.0f / float( fileFormat.flanData.analStep );		
+	//if( fileFormat.flanData.windowType != 2 ) return bail( "Only hann window is currently supported." );
+	//flanFormat.num_bins = fileFormat.flanData.analysisBins;
+	//flanFormat.overlaps = ( float( flanFormat.num_bins ) - 1.0f ) * 2.0f / float( fileFormat.flanData.analStep );		
 	////float windowParam; //Unneeded until other windows are implemented
 
 
-	////flanFormat.numFrames = ;
+	////flanFormat.num_frames = ;
 	//
 	////Read buffer
-	//for( uint32_t channel = 0; channel < getNumChannels(); ++channel )
-	//	for( uint32_t frame = 0; frame < getNumFrames(); ++frame )
-	//		for( uint32_t bin = 0; bin < getNumBins(); ++bin )
+	//for( uint32_t channel = 0; channel < get_num_channels(); ++channel )
+	//	for( uint32_t frame = 0; frame < get_num_frames(); ++frame )
+	//		for( uint32_t bin = 0; bin < get_num_bins(); ++bin )
 	//			{
-	//			//setMF( channel, frame, bin, { getFloat( windowSize_f ), getFloat( maxFreq_f ) } );
+	//			//set_MF( channel, frame, bin, { getFloat( window_size_f ), getFloat( max_frequency_f ) } );
 	//			}
 
 	//return true;		
 	}
 
-void PVBuffer::printSummary() const
+void PVBuffer::print_summary() const
 	{
 	std::cout << *this;
 	}
@@ -325,199 +325,199 @@ void PVBuffer::printSummary() const
 //	Getters
 //======================================================
 
-MF PVBuffer::getMF( Channel channel, Frame frame, Bin bin ) const
+MF PVBuffer::get_MF( Channel channel, Frame frame, Bin bin ) const
 	{
-	return buffer[getBufferPos( channel, frame, bin )];
+	return buffer[get_buffer_pos( channel, frame, bin )];
 	}
 
-auto PVBuffer::getNumChannels() const -> Channel
+auto PVBuffer::get_num_channels() const -> Channel
 	{
-	return format.numChannels;
+	return format.num_channels;
 	}
 
-auto PVBuffer::getNumFrames() const -> Frame 
+auto PVBuffer::get_num_frames() const -> Frame 
 	{
-	return format.numFrames;
+	return format.num_frames;
 	}
 
-auto PVBuffer::getNumBins() const -> Bin
+auto PVBuffer::get_num_bins() const -> Bin
 	{
-	return format.numBins;
+	return format.num_bins;
 	}
 
-Frame PVBuffer::getDFTSize() const
+Frame PVBuffer::get_dft_size() const
 	{
-	return ( getNumBins() - 1 ) * 2;
+	return ( get_num_bins() - 1 ) * 2;
 	}
 
-Frame PVBuffer::getWindowSize() const
+Frame PVBuffer::get_window_size() const
 	{
-	return format.windowSize;
+	return format.window_size;
 	}
 
-PVBuffer::Format PVBuffer::getFormat() const
+PVBuffer::Format PVBuffer::get_format() const
 	{
 	return format;
 	}
 
-FrameRate PVBuffer::getSampleRate() const
+FrameRate PVBuffer::get_sample_rate() const
 	{
-	return format.sampleRate;
+	return format.sample_rate;
 	}
 
-FrameRate PVBuffer::getAnalysisRate() const
+FrameRate PVBuffer::get_analysis_rate() const
 	{
-	return format.analysisRate;
+	return format.analysis_rate;
 	}
 
-Frame PVBuffer::getHopSize() const
+Frame PVBuffer::get_hop_size() const
 	{
-	return getSampleRate() / getAnalysisRate();
+	return get_sample_rate() / get_analysis_rate();
 	}
 
-Second PVBuffer::getLength() const
+Second PVBuffer::get_length() const
 	{
-	return frameToTime( getNumFrames() );
+	return frame_to_time( get_num_frames() );
 	}
 
-Frequency PVBuffer::getHeight() const
+Frequency PVBuffer::get_height() const
 	{
-	return binToFrequency( getNumBins() );
+	return bin_to_frequency( get_num_bins() );
 	}
 
-Magnitude PVBuffer::getMaxPartialMagnitude() const
+Magnitude PVBuffer::get_max_partial_magnitude() const
 	{
-	float maxMagnitude = 0;
+	float max_magnitude = 0;
 	for( const MF & mf : buffer )
 		{
 		const float trueMag = std::abs( mf.m );
-		if( trueMag > maxMagnitude )
-			maxMagnitude = trueMag;
+		if( trueMag > max_magnitude )
+			max_magnitude = trueMag;
 		}
-	return maxMagnitude;
+	return max_magnitude;
 	}
 
-Magnitude PVBuffer::getMaxPartialMagnitude( uint32_t startFrame, uint32_t endFrame, uint32_t startBin, uint32_t endBin ) const
+Magnitude PVBuffer::get_max_partial_magnitude( uint32_t start_frame, uint32_t end_frame, uint32_t start_bin, uint32_t end_bin ) const
 	{
-	if( endFrame == 0 ) endFrame = getNumFrames();
-	if( endBin == 0 ) endBin = getNumBins();
+	if( end_frame == 0 ) end_frame = get_num_frames();
+	if( end_bin == 0 ) end_bin = get_num_bins();
 
-	float maxMagnitude = 0;
+	float max_magnitude = 0;
 
-	for( uint32_t channel = 0; channel < getNumChannels(); ++channel )
-		for( uint32_t frame = startFrame; frame < endFrame; ++frame )
-			for( uint32_t bin = startBin; bin < endBin; ++bin )
+	for( uint32_t channel = 0; channel < get_num_channels(); ++channel )
+		for( uint32_t frame = start_frame; frame < end_frame; ++frame )
+			for( uint32_t bin = start_bin; bin < end_bin; ++bin )
 			    {
-				const float trueMag = std::abs( getMF( channel, frame, bin ).m );
-				if( trueMag > maxMagnitude )
-					maxMagnitude = trueMag;
+				const float trueMag = std::abs( get_MF( channel, frame, bin ).m );
+				if( trueMag > max_magnitude )
+					max_magnitude = trueMag;
 
 				}
 
-	return maxMagnitude;
+	return max_magnitude;
 	}
 
-fFrame PVBuffer::timeToFrame( Second t ) const
+fFrame PVBuffer::time_to_frame( Second t ) const
 	{
-	return t * float( getSampleRate() ) / float( getHopSize() );
+	return t * float( get_sample_rate() ) / float( get_hop_size() );
 	}
 
-float PVBuffer::frameToTime( fFrame f ) const
+float PVBuffer::frame_to_time( fFrame f ) const
 	{
-	return f / ( float( getSampleRate() ) / float( getHopSize() ) );
+	return f / ( float( get_sample_rate() ) / float( get_hop_size() ) );
 	}
 
-fBin PVBuffer::frequencyToBin( Frequency f ) const
+fBin PVBuffer::frequency_to_bin( Frequency f ) const
 	{
-	return f / ( float( getSampleRate() ) / float( getDFTSize() ) );
+	return f / ( float( get_sample_rate() ) / float( get_dft_size() ) );
 	}
 
-Frequency PVBuffer::binToFrequency( fBin b ) const
+Frequency PVBuffer::bin_to_frequency( fBin b ) const
 	{
-	return b * float( getSampleRate() ) / float( getDFTSize() );
+	return b * float( get_sample_rate() ) / float( get_dft_size() );
 	}
 
-float PVBuffer::getFrequencyOffset( Channel c, Frame f, Bin b ) const
+float PVBuffer::get_frequency_offset( Channel c, Frame f, Bin b ) const
 	{
-	return getMF( c, f, b ).f - binToFrequency( b );
+	return get_MF( c, f, b ).f - bin_to_frequency( b );
 	}
 
-Channel PVBuffer::boundChannel( Channel c ) const
+Channel PVBuffer::bound_channel( Channel c ) const
 	{
-	return std::clamp( c, 0, getNumChannels() - 1 );
+	return std::clamp( c, 0, get_num_channels() - 1 );
 	}
 
-Frame PVBuffer::boundFrame( Frame f ) const
+Frame PVBuffer::bound_frame( Frame f ) const
 	{
-	return std::clamp( f, 0, getNumFrames() - 1 );
+	return std::clamp( f, 0, get_num_frames() - 1 );
 	}
 
-Bin PVBuffer::boundBin( Bin b ) const
+Bin PVBuffer::bound_bin( Bin b ) const
 	{
-	return std::clamp( b, 0, getNumBins() - 1 );
+	return std::clamp( b, 0, get_num_bins() - 1 );
 	}
 
 //======================================================
 //	Setters
 //======================================================
 
-void PVBuffer::setMF( Channel channel, Frame frame, Bin bin, MF value )
+void PVBuffer::set_MF( Channel channel, Frame frame, Bin bin, MF value )
 	{
-	buffer[getBufferPos( channel, frame, bin )] = value;
+	buffer[get_buffer_pos( channel, frame, bin )] = value;
 	}
-MF & PVBuffer::getMF( Channel channel, Frame frame, Bin bin )
+MF & PVBuffer::get_MF( Channel channel, Frame frame, Bin bin )
 	{
-	return buffer[getBufferPos( channel, frame, bin )];
+	return buffer[get_buffer_pos( channel, frame, bin )];
 	}
 
-void PVBuffer::clearBuffer()
+void PVBuffer::clear_buffer()
 	{
 	std::fill( buffer.begin(), buffer.end(), MF{ 0,0 } );
 	}
 
-MF * PVBuffer::getMFPointer( Channel channel, Frame frame, Bin bin )
+MF * PVBuffer::get_MFPointer( Channel channel, Frame frame, Bin bin )
 	{
-	return buffer.data() + getBufferPos( channel, frame, bin );
+	return buffer.data() + get_buffer_pos( channel, frame, bin );
 	}
 
-const MF * PVBuffer::getMFPointer( Channel channel, Frame frame, Bin bin  ) const
+const MF * PVBuffer::get_MFPointer( Channel channel, Frame frame, Bin bin  ) const
 	{
-	return buffer.data() + getBufferPos( channel, frame, bin );
+	return buffer.data() + get_buffer_pos( channel, frame, bin );
 	}
 
-std::vector<MF> & PVBuffer::getBuffer()
+std::vector<MF> & PVBuffer::get_buffer()
 	{
 	return buffer;
 	}
 
-const std::vector<MF> & PVBuffer::getBuffer() const
+const std::vector<MF> & PVBuffer::get_buffer() const
 	{
 	return buffer;
 	}
 
-std::vector<MF>::iterator PVBuffer::channelBegin( Channel channel )
+std::vector<MF>::iterator PVBuffer::channel_begin( Channel channel )
 	{
-	return buffer.begin() + channel * getNumFrames() * getNumBins();
+	return buffer.begin() + channel * get_num_frames() * get_num_bins();
 	}
 
-std::vector<MF>::iterator PVBuffer::channelEnd( Channel channel )
+std::vector<MF>::iterator PVBuffer::channel_end( Channel channel )
 	{
-	return buffer.begin() + ( channel + 1 ) * getNumFrames() * getNumBins();
+	return buffer.begin() + ( channel + 1 ) * get_num_frames() * get_num_bins();
 	}
 
-std::vector<MF>::const_iterator PVBuffer::channelBegin( Channel channel ) const
+std::vector<MF>::const_iterator PVBuffer::channel_begin( Channel channel ) const
 	{
-	return buffer.begin() + channel * getNumFrames() * getNumBins();
+	return buffer.begin() + channel * get_num_frames() * get_num_bins();
 	}
 
-std::vector<MF>::const_iterator PVBuffer::channelEnd( Channel channel ) const
+std::vector<MF>::const_iterator PVBuffer::channel_end( Channel channel ) const
 	{
-	return buffer.begin() + ( channel + 1 ) * getNumFrames() * getNumBins();
+	return buffer.begin() + ( channel + 1 ) * get_num_frames() * get_num_bins();
 	}
 
-size_t PVBuffer::getBufferPos( Channel c, Frame f, Bin b ) const
+size_t PVBuffer::get_buffer_pos( Channel c, Frame f, Bin b ) const
 	{
-	return c * getNumFrames() * getNumBins() + f * getNumBins() + b;
+	return c * get_num_frames() * get_num_bins() + f * get_num_bins() + b;
 	}
 
 //======================================================
@@ -527,13 +527,13 @@ size_t PVBuffer::getBufferPos( Channel c, Frame f, Bin b ) const
 std::ostream & operator<<( std::ostream & os, const PVBuffer & flan )
 	{
 	os << "\n=========================== PVBuffer Info ==========================="
-	   << "\nChannels:\t"				<< flan.getNumChannels() 
-	   << "\nSamples:\t"				<< flan.getNumFrames() 
-	   << "\nBins:\t"					<< flan.getNumBins() 
-	   << "\nFrames/second:\t"			<< flan.timeToFrame( 1 ) 
-	   << "\nBins/Frequency:\t"			<< flan.frequencyToBin( 1 ) 
-	   << "\nHop size:\t"				<< flan.getHopSize() 
-	   << "\nDFT size:\t"				<< flan.getDFTSize() 
+	   << "\nChannels:\t"				<< flan.get_num_channels() 
+	   << "\nSamples:\t"				<< flan.get_num_frames() 
+	   << "\nBins:\t"					<< flan.get_num_bins() 
+	   << "\nFrames/second:\t"			<< flan.time_to_frame( 1 ) 
+	   << "\nBins/Frequency:\t"			<< flan.frequency_to_bin( 1 ) 
+	   << "\nHop size:\t"				<< flan.get_hop_size() 
+	   << "\nDFT size:\t"				<< flan.get_dft_size() 
 	   << "\n=======================================================================" 
 	   << "\n\n";
 	return os;

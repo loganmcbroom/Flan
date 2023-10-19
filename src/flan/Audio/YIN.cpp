@@ -24,44 +24,44 @@
 
 namespace flan {
 
-//Audio::FreqProbs Audio::PYIN( Channel channel, Frame start, Frame windowSize, std::shared_ptr<FFTHelper> fft ) const
+//Audio::FreqProbs Audio::PYIN( Channel channel, Frame start, Frame window_size, std::shared_ptr<FFTHelper> fft ) const
 //	{
 //    flan_PROCESS_START( Audio::FreqProbs() );
 //
-//    if( !fft ) fft = std::make_shared<FFTHelper>( autocorrelationFFTSize( windowSize / 2 ), true, true, false );
+//    if( !fft ) fft = std::make_shared<FFTHelper>( autocorrelation_fft_size( window_size / 2 ), true, true, false );
 //
 //	// Get d'
-//	const std::vector<float> dPrime = compute_dPrime( getSamplePointer( channel, start ), windowSize, fft );
-//    const std::vector<std::pair<int,float>> probs = PYIN_Probability( dPrime );
+//	const std::vector<float> d_prime = compute_d_prime( get_sample_pointer( channel, start ), window_size, fft );
+//    const std::vector<std::pair<int,float>> probs = PYIN_Probability( d_prime );
 //
 //    FreqProbs yin;
 //
 //    for( auto tauProb : probs )
 //		{
-//        const Frequency currentF0 = float( getSampleRate() ) / parabolicInterpolation( dPrime, tauProb.first );
+//        const Frequency currentF0 = float( get_sample_rate() ) / parabolic_interpolation( d_prime, tauProb.first );
 //        yin.push_back( { currentF0, tauProb.second } );
 //		}
 //    
 //    return yin;
 //    }
 
-//std::vector<Audio::FreqProbs> Audio::PYINs( Channel channel, Frame start, Frame end, Frame windowSize, Frame jump ) const
+//std::vector<Audio::FreqProbs> Audio::PYINs( Channel channel, Frame start, Frame end, Frame window_size, Frame jump ) const
 //    {
 //    flan_PROCESS_START( std::vector<Audio::FreqProbs>() );
 //
-//    if( end == -1 ) end = getNumFrames();
+//    if( end == -1 ) end = get_num_frames();
 //
-//    auto fft = std::make_shared<FFTHelper>( autocorrelationFFTSize( windowSize / 2 ), true, true, false );
+//    auto fft = std::make_shared<FFTHelper>( autocorrelation_fft_size( window_size / 2 ), true, true, false );
 //
 //    std::vector<FreqProbs> fps;
 //
-//    for( Frame frame = start; frame + windowSize < end; frame += jump )
-//        fps.push_back( PYIN( channel, frame, windowSize, fft ) );
+//    for( Frame frame = start; frame + window_size < end; frame += jump )
+//        fps.push_back( PYIN( channel, frame, window_size, fft ) );
 //        
 //    return fps;
 //    }
 
-//static std::vector<std::pair<int,float>> PYIN_Probability( const std::vector<float> & dPrime ) 
+//static std::vector<std::pair<int,float>> PYIN_Probability( const std::vector<float> & d_prime ) 
 //	{
 //    static float betaCDF[100] = {
 //        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1e-06
@@ -81,13 +81,13 @@ namespace flan {
 //    std::vector<std::pair<int,float>> peakProb;
 //    float sumProb = 0;
 //    float maxProb = 0;
-//    for( int tau = 2; tau + 1 < dPrime.size(); ++tau )
+//    for( int tau = 2; tau + 1 < d_prime.size(); ++tau )
 //        {
 //        // If we are at a min
-//        if( dPrime[tau+1] > dPrime[tau] && dPrime[tau-1] > dPrime[tau] ) 
+//        if( d_prime[tau+1] > d_prime[tau] && d_prime[tau-1] > d_prime[tau] ) 
 //            {
 //            // Get betaPDF from precomputed 100 entry table
-//            const int betaIndex = 99 - std::floor( dPrime[tau] * 100 );
+//            const int betaIndex = 99 - std::floor( d_prime[tau] * 100 );
 //            if( betaIndex < 16 ) continue; // Everything less has betaCDF too close to 0
 //            peakProb.push_back( { tau, betaCDF[ betaIndex ] } );
 //            sumProb += betaCDF[ betaIndex ];
