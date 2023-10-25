@@ -9,7 +9,7 @@ Audio Audio::modify_boundaries(
 	Second end 
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	const Frame num_out_frames = time_to_frame( -start ) + get_num_frames() + time_to_frame( end );
 	if( num_out_frames <= 0 ) return Audio();
@@ -124,7 +124,7 @@ Audio Audio::remove_silence(
 Audio Audio::reverse(
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	Audio out( get_format() );
 
@@ -144,7 +144,7 @@ Audio Audio::cut(
 	Second end_fade 
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	return cut_frames( 
 		time_to_frame( start_time	), 
@@ -161,7 +161,7 @@ Audio Audio::cut_frames(
 	Frame end_fade 
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	// Input validation
 	if( end <= start ) return Audio();
@@ -185,7 +185,7 @@ Audio Audio::cut_frames(
 
 Audio Audio::repitch( const Function<Second, float> & factor, Second granularity_in_seconds, WDLResampleType quality ) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	// Input validation
 	Frame granularity_in_frames = time_to_frame( granularity_in_seconds );
@@ -254,7 +254,7 @@ Audio Audio::iterate(
 	bool feedback 
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	// Half a length is removed to avoid length rounding changing the number of events generated
 	return synthesize_grains_with_feedback_mod( get_length() * ( float( n ) - 0.5f ), 1.0f / get_length(), 0, mod, feedback, get_sample_rate() );
 	//return synthesize_grains_from_entire_audio( get_length() * ( float( n ) - 0.5f ), 1.0f / get_length(), 0, mod, feedback );
@@ -267,7 +267,7 @@ Audio Audio::delay(
 	const AudioMod & mod 
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	if( length <= 0 ) return Audio();
 
@@ -347,7 +347,7 @@ std::vector<Audio> Audio::chop(
 	Second fade 
 	) const
 	{
-	flan_PROCESS_START( std::vector<Audio>() );
+	if( is_null() ) return std::vector<Audio>();
 
 	// Input validation
 	if( slice_length <= 0 ) return std::vector<Audio>();
@@ -369,7 +369,7 @@ Audio Audio::rearrange(
 	Second fade 
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	// + fade here accounts for + fade / 2 at both ends
 	std::vector<Audio> chops = chop( slice_length + fade, fade );

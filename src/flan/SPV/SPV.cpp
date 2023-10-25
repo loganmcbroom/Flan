@@ -20,7 +20,7 @@ SPV::SPV( Format _format )
 
 SPV SPV::modify_frequency( const Function<TF, Second> & mod ) const
 	{
-	flan_PROCESS_START( SPV() );
+	if( is_null() ) return SPV();
 
 	SPV out = copy();
 

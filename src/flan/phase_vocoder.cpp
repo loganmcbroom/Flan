@@ -56,7 +56,7 @@ std::complex<float> inverse_phase_vocoder( double & phase_buffer, MF mf, FrameRa
 	{
 	const Radian phase_diff = mf.f / analysis_rate * pi2;
 	phase_buffer += phase_diff;
-	if( phase_buffer > pi2 ) phase_buffer -= pi2;
+	if( phase_buffer > pi2 ) phase_buffer = std::fmod( phase_buffer, pi2 );
 	return std::polar( mf.m, float( phase_buffer ) );
 	}
 	

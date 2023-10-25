@@ -15,7 +15,7 @@ namespace flan {
 
 PV PV::get_frame( Second time ) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 
 	const float selectedFrame = std::clamp( time_to_frame( time ), 0.0f, float( get_num_frames() - 1 ) );
 
@@ -88,7 +88,7 @@ PV PV::select(
 	Interpolator interp 
 	) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 
 	// Input validation
 	if( length <= 0.0f ) return PV();
@@ -146,46 +146,58 @@ PV PV::select(
 	return out;
 	}
 
-PV PV::freeze( const std::vector<std::array<Second,2>> & timing ) const
+PV PV::freeze( 		
+	const std::vector<Second> & pause_times,
+	const std::vector<Second> & pause_lengths ) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 
-	using TimingPair = std::array<Frame,2>;
+	if( pause_lengths.size() != pause_times.size() ) 
+		{
+		std::cerr << "Error in flan::PV::freeze: pause_times and pause_lengths were not the same size.";
+		return PV();
+		}
 
-	//Convert times into frames
-	std::vector<TimingPair> timingFrames( timing.size() );
-	std::ranges::transform( timing, timingFrames.begin(), [this]( const std::array<Second,2> & ts )
+	// Combine timing info into single vector for easy sorting later
+	std::vector<std::array<Second, 2>> timing( pause_times.size() );
+	std::transform( pause_times.begin(), pause_times.end(), pause_lengths.begin(), timing.begin(), []( Second a, Second b ){ return std::array<Second, 2>{ a, b }; } );
+
+	using FramePair = std::array<Frame,2>;
+
+	// Convert times into frames
+	std::vector<FramePair> timing_frames( timing.size() );
+	std::ranges::transform( timing, timing_frames.begin(), [this]( const std::array<Second,2> & ts )
 		{ 
-		return TimingPair{ 
+		return FramePair{ 
 			std::clamp( Frame( time_to_frame( ts[0] ) ), 0, Frame( get_num_frames() - 1 ) ), 
 			std::max  ( Frame( time_to_frame( ts[1] ) ), 0 ) };
 		});
 
-	//Sort by occurance frame
-	std::sort( std::execution::par_unseq, timingFrames.begin(), timingFrames.end(), []( TimingPair & a, TimingPair & b ){ return a[0] < b[0]; } );
+	// Sort by occurance frame
+	std::sort( std::execution::par_unseq, timing_frames.begin(), timing_frames.end(), []( FramePair & a, FramePair & b ){ return a[0] < b[0]; } );
 
 	// Remove simultaneous events
-	auto timingEnd = std::unique( timingFrames.begin(), timingFrames.end(), []( const TimingPair & a, const TimingPair & b ) {
+	auto timingEnd = std::unique( timing_frames.begin(), timing_frames.end(), []( const FramePair & a, const FramePair & b ) {
 		return a[0] == b[0];
 		} );
-	timingFrames.erase( timingEnd, timingFrames.end() ); 
+	timing_frames.erase( timingEnd, timing_frames.end() ); 
 
-	float totalFreezeFrames = 0;
-	for( auto & i : timingFrames ) totalFreezeFrames += i[1];
+	float total_freeze_frames = 0;
+	for( auto & i : timing_frames ) total_freeze_frames += i[1];
 
 	auto format = get_format();
-	format.num_frames += totalFreezeFrames;
+	format.num_frames += total_freeze_frames;
 	PV out( format );
 
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
 		{
-		uint32_t timingIndex = 0;
+		uint32_t timing_index = 0;
 		for( Frame in_frame = 0, out_frame = 0; in_frame < get_num_frames(); ++in_frame )
 			{
 			// If it's time to freeze, freeze
-			if( in_frame == timingFrames[timingIndex][0] )
+			if( in_frame == timing_frames[timing_index][0] )
 				{
-				for( Frame freezeFrame = 0; freezeFrame < timingFrames[timingIndex][1]; ++freezeFrame )
+				for( Frame freeze_frame = 0; freeze_frame < timing_frames[timing_index][1]; ++freeze_frame )
 					{
 					for( Bin bin = 0; bin < get_num_bins(); ++bin )
 						out.set_MF( channel, out_frame, bin, get_MF( channel, in_frame, bin ) );
@@ -211,7 +223,7 @@ PV PV::freeze( const std::vector<std::array<Second,2>> & timing ) const
 
 PV PV::replace_amplitudes( const PV & amp_source, const Function<TF, float> & amount ) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 
 	// Input validation
 	if( amp_source.is_null() ) return PV();
@@ -244,7 +256,7 @@ PV PV::replace_amplitudes( const PV & amp_source, const Function<TF, float> & am
 
 PV PV::subtract_amplitudes( const PV & amp_source, const Function<TF, float> & amount ) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 
 	// Input validation
 	if( amp_source.is_null() ) return PV();
@@ -415,19 +427,19 @@ static PV harmonic_scaler(
 
 PV PV::add_octaves( const Function<std::pair<Second, Harmonic>, float> & series ) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 	return harmonic_scaler( *this, series, []( Frequency f, Harmonic h ){ return f * std::pow( 2, h ); }, std::ceil( std::log2( get_height() ) ) );
 	}
 
 PV PV::add_harmonics( const Function<std::pair<Second, Harmonic>, float> & series ) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 	return harmonic_scaler( *this, series, []( Frequency f, Harmonic h ){ return f * ( h + 1 ); }, get_num_bins() );
 	}
 
 PV PV::shape( const Function<MF,MF> & shaper, bool use_shift_alignment ) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 
 	PV out( get_format() );
 	out.clear_buffer();
@@ -464,101 +476,100 @@ PV PV::shape( const Function<MF,MF> & shaper, bool use_shift_alignment ) const
 	return out;
 	}
 
-PV PV::perturb( 
-	const Function<TF, Magnitude> & magnitude_std_dev, 
-	const Function<TF, Frequency> & frequency_std_dev, 
-	float damping 
-	) const
-	{
-	/*
-	Velocity base with no const axis is most promising so far.
-	Currently being computed with a summation over both x and y of the random sampling for smoothing.
-	Other smoothing should give other interesting results.
-	Magnitude is currently unimplimented, test other overall process options like simplex and then add mag handling.
-	*/
+// PV PV::perturb( 
+// 	const Function<TF, MF> & mf_std_dev,
+// 	float damping 
+// 	) const
+// 	{
+// 	/*
+// 	Velocity base with no const axis is most promising so far.
+// 	Currently being computed with a summation over both x and y of the random sampling for smoothing.
+// 	Other smoothing should give other interesting results.
+// 	Magnitude is currently unimplimented, test other overall process options like simplex and then add mag handling.
+// 	*/
 
-	flan_PROCESS_START( PV() );
+// 	if( is_null() ) return PV();
 
-	const float epsilon = 0.00001;
+// 	const float epsilon = 0.00001;
 
-	// Input validation
-	auto magnitude_std_dev_sampled = sample_function_over_domain( magnitude_std_dev );
-	std::ranges::for_each( magnitude_std_dev_sampled, []( float & x ){ x = std::max( x, 0.0f ); } );
-	auto frequency_std_dev_sampled = sample_function_over_domain( frequency_std_dev );
-	std::ranges::for_each( frequency_std_dev_sampled, []( float & x ){ x = std::max( x, 0.0f ); } );
+// 	// Input validation
+// 	auto mf_std_dev_sampled = sample_function_over_domain( mf_std_dev );
+// 	std::ranges::for_each( mf_std_dev_sampled, []( MF & mf )
+// 		{ 
+// 		mf.m = std::max( mf.m, 0.0f ); 
+// 		mf.f = std::max( mf.f, 0.0f ); 
+// 		} );
 
-	// Initialize random engine
-	std::default_random_engine rng( std::time( nullptr ) );
+// 	// Initialize random engine
+// 	std::default_random_engine rng( std::time( nullptr ) );
 
-	// Sample distributions using random engine. This is done outside the processing loop because random engines aren't thread safe.
-	std::vector<float> frqAccels( get_num_bins() * get_num_frames() );
-	for( Bin i : iota_view( 0u, frqAccels.size() ) )
-		{
-		const float frequency_std_dev_c = frequency_std_dev_sampled[i];
-		frqAccels[i] = frequency_std_dev_c < epsilon ? 0 : std::normal_distribution<float>( 0, frequency_std_dev_c / 20 )( rng );
-		}
+// 	// Sample distributions using random engine. This is done outside the processing loop because random engines aren't thread safe.
+// 	std::vector<float> frqAccels( get_num_bins() * get_num_frames() );
+// 	for( Bin i : iota_view( 0u, frqAccels.size() ) )
+// 		{
+// 		const float frequency_std_dev_c = frequency_std_dev_sampled[i];
+// 		frqAccels[i] = frequency_std_dev_c < epsilon ? 0 : std::normal_distribution<float>( 0, frequency_std_dev_c / 20 )( rng );
+// 		}
 
-	std::vector<float> frqVelocs( frqAccels.size() );
-	for( Bin bin = 0; bin < get_num_bins(); ++bin )
-		{
-		int prevPos = buffer_access( bin, 0, get_num_bins() );
-		frqVelocs[prevPos] = frqAccels[prevPos];
+// 	std::vector<float> frqVelocs( frqAccels.size() );
+// 	for( Bin bin = 0; bin < get_num_bins(); ++bin )
+// 		{
+// 		int prevPos = buffer_access( bin, 0, get_num_bins() );
+// 		frqVelocs[prevPos] = frqAccels[prevPos];
 
-		for( Frame frame = 0; frame < get_num_frames(); ++frame )
-			{
-			const int buffer_pos = buffer_access( bin, frame, get_num_bins() );
-			frqVelocs[buffer_pos] = ( frqAccels[buffer_pos] + frqVelocs[prevPos] ) * damping;
-			prevPos = buffer_pos;
-			}
-		}
+// 		for( Frame frame = 0; frame < get_num_frames(); ++frame )
+// 			{
+// 			const int buffer_pos = buffer_access( bin, frame, get_num_bins() );
+// 			frqVelocs[buffer_pos] = ( frqAccels[buffer_pos] + frqVelocs[prevPos] ) * damping;
+// 			prevPos = buffer_pos;
+// 			}
+// 		}
 
-	std::vector<float> frqOffsets( frqAccels.size() );
-	for( Frame frame = 0; frame < get_num_frames(); ++frame )
-		{
-		int prevPos = buffer_access( 0, frame, get_num_bins() );
-		frqOffsets[prevPos] = frqVelocs[prevPos];
+// 	std::vector<float> frqOffsets( frqAccels.size() );
+// 	for( Frame frame = 0; frame < get_num_frames(); ++frame )
+// 		{
+// 		int prevPos = buffer_access( 0, frame, get_num_bins() );
+// 		frqOffsets[prevPos] = frqVelocs[prevPos];
 
-		for( Bin bin = 0; bin < get_num_bins(); ++bin )
-			{
-			const int buffer_pos = buffer_access( bin, frame, get_num_bins() );
-			frqOffsets[buffer_pos] = ( frqVelocs[buffer_pos] + frqOffsets[prevPos] ) * damping;
-			prevPos = buffer_pos;
-			}
-		}
+// 		for( Bin bin = 0; bin < get_num_bins(); ++bin )
+// 			{
+// 			const int buffer_pos = buffer_access( bin, frame, get_num_bins() );
+// 			frqOffsets[buffer_pos] = ( frqVelocs[buffer_pos] + frqOffsets[prevPos] ) * damping;
+// 			prevPos = buffer_pos;
+// 			}
+// 		}
 
-	PV out( get_format() );
+// 	PV out( get_format() );
 
-	for( Channel channel : iota_view( 0, get_num_channels() ) ) {
-		float magOffset  = 0;
-		float freqOffset = 0;
-		for( Frame frame : iota_view( 0, get_num_frames() ) )	{
-			const auto buffer_pos = buffer_access( 0, frame, get_num_bins() ); 
+// 	for( Channel channel : iota_view( 0, get_num_channels() ) ) {
+// 		float magOffset  = 0;
+// 		float freqOffset = 0;
+// 		for( Frame frame : iota_view( 0, get_num_frames() ) )	{
+// 			const auto buffer_pos = buffer_access( 0, frame, get_num_bins() ); 
 
-			const float magnitude_std_dev_c = magnitude_std_dev_sampled[buffer_pos];
-			const float frequency_std_dev_c = frequency_std_dev_sampled[buffer_pos];
+// 			const float magnitude_std_dev_c = magnitude_std_dev_sampled[buffer_pos];
+// 			const float frequency_std_dev_c = frequency_std_dev_sampled[buffer_pos];
 
-			magOffset += magnitude_std_dev_c < epsilon ? 0 : std::normal_distribution<float>( 0, magnitude_std_dev_c / 20 )( rng );
-			//frqOffset += frequency_std_dev_c < epsilon ? 0 : std::normal_distribution<float>( 0, frequency_std_dev_c / 20 )( rng );
+// 			magOffset += magnitude_std_dev_c < epsilon ? 0 : std::normal_distribution<float>( 0, magnitude_std_dev_c / 20 )( rng );
+// 			//frqOffset += frequency_std_dev_c < epsilon ? 0 : std::normal_distribution<float>( 0, frequency_std_dev_c / 20 )( rng );
 
-			for( Bin bin = 0; bin < get_num_bins(); ++bin ) {
-				const MF & currentBin = get_MF( channel, frame, bin );
+// 			for( Bin bin = 0; bin < get_num_bins(); ++bin ) {
+// 				const MF & currentBin = get_MF( channel, frame, bin );
 				
 				
-				const Magnitude mag = currentBin.m + magOffset;
-				const Frequency freq = currentBin.f + frqOffsets[bin] * 200;
-				//const Frequency freq = currentBin.f * exp2( frqOffsets[frame] );
-				out.get_MF( channel, frame, bin ) = { mag, freq };
-				}
-			}
-		}
+// 				const Magnitude mag = currentBin.m + magOffset;
+// 				const Frequency freq = currentBin.f + frqOffsets[bin] * 200;
+// 				//const Frequency freq = currentBin.f * exp2( frqOffsets[frame] );
+// 				out.get_MF( channel, frame, bin ) = { mag, freq };
+// 				}
+// 			}
+// 		}
 
-	return out;
-	}
+// 	return out;
+// 	}
 
 PV predicateNLoudestPartials( const PV & me, const Function<Second, Bin> & num_bins, std::function< bool (Bin, Bin) > predicate )
 	{
-	flan_FUNCTION_LOG;
-
 	// Input validation
 	auto num_binsSamples = num_bins.sample( 0, me.get_num_frames(), me.frame_to_time( 1 ) );
 	std::ranges::for_each( num_binsSamples, [&]( Bin & b ){ b = std::clamp( b, 0, me.get_num_frames() ); } );
@@ -597,19 +608,19 @@ PV predicateNLoudestPartials( const PV & me, const Function<Second, Bin> & num_b
 
 PV PV::retain_n_loudest_partials( const Function<Second, Bin> & num_bins ) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 	return predicateNLoudestPartials( *this, num_bins, []( Bin a, Bin b ){ return a < b; } );
 	}
 
 PV PV::remove_n_loudest_partials( const Function<Second, Bin> & num_bins ) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 	return predicateNLoudestPartials( *this, num_bins, []( Bin a, Bin b ){ return a >= b; } );
 	}
 
 PV PV::resonate( Second length, const Function<TF, float> & decay ) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 
 	// Input validation
 	if( length < 0 ) 

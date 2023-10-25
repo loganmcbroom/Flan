@@ -34,14 +34,28 @@ int main()
 	auto synth = Audio::synthesize_waveform( waveforms::saw, 3, []( Second t ){ return 40; } ).set_volume( 1 );
 	auto bah = Audio( "Bah.wav" ).set_volume( .9 );
 
+	auto sound = Audio::synthesize_waveform( 
+		waveforms::sine,
+		1,
+		[]( Second t ){ return 220.0 + 220.0 * t; }
+	);
+
+	graph( sound.iterate( 3 )
+
+		.convert_to_PV()
+		.modify_time( []( vec2 v ){ return v.x(); } )
+		.convert_to_audio()
+
+		.convert_to_graph() );
+
 	//play( bah.stereo_delay( 5, .5, 1, 0.5 ).set_volume( .5 ) );
 
-	play( Audio::join(
-		//synth,
-		synth.add_moisture( 1, []( Second t ){ return 20; }, []( Second t ){ return 2; }, []( Second t ){ return std::sin(pi2*t*t); } )
-		).set_volume( .7 )
+	// play( Audio::join(
+	// 	//synth,
+	// 	synth.add_moisture( 1, []( Second t ){ return 20; }, []( Second t ){ return 2; }, []( Second t ){ return std::sin(pi2*t*t); } )
+	// 	).set_volume( .7 )
 
-		);
+	// 	);
 
 	//const Second length = 35;
 	// play( PV::synthesize( length, 

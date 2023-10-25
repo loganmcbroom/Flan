@@ -12,7 +12,7 @@ using namespace flan;
 
 Audio Audio::resample( FrameRate new_sample_rate ) const
 	{
-	flan_PROCESS_START( Audio() ); 
+	if( is_null() ) return Audio(); 
 
 	if( new_sample_rate == get_sample_rate() ) 
 		return copy();
@@ -30,7 +30,7 @@ Audio Audio::resample( FrameRate new_sample_rate ) const
 
 Audio Audio::convert_to_mid_side() const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	if( get_num_channels() != 2 )
 		{
@@ -48,13 +48,12 @@ Audio Audio::convert_to_mid_side() const
 
 Audio Audio::convert_to_left_right() const
 	{
-	flan_FUNCTION_LOG;
-	return convert_to_mid_side();
+		return convert_to_mid_side();
 	}
 
 Audio Audio::convert_to_stereo() const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	auto format = get_format();
 	format.num_channels = 2;
@@ -83,7 +82,7 @@ Audio Audio::convert_to_stereo() const
 
 Audio Audio::convert_to_mono() const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	auto format = get_format();
 	format.num_channels = 1;
@@ -103,7 +102,7 @@ Audio Audio::convert_to_mono() const
 Function<Second, Amplitude> Audio::convert_to_function(
 	) const
 	{
-	flan_PROCESS_START( 0 );
+	if( is_null() ) return 0;
 
 	Audio out = convert_to_mono();
 

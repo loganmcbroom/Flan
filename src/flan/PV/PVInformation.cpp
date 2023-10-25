@@ -265,7 +265,7 @@ std::vector<PV::Contour> PV::get_contours( Channel channel, Frequency min_freque
 
 PV PV::prism( const PrismFunc & prismFunc, bool use_local_contour_time, flan_CANCEL_ARG_CPP ) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 
 	const Frequency min_frequency = 55.0;
 	const Frequency max_frequency = 1760.0;

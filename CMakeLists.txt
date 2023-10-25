@@ -92,7 +92,7 @@ add_library( Flan STATIC
 	)  
 add_library( Flan::Flan ALIAS Flan )
 
-target_compile_features( Flan PUBLIC cxx_std_20 )
+target_compile_features( Flan PUBLIC cxx_std_23 )
 set_target_properties( Flan PROPERTIES 
 	CXX_EXTENSIONS OFF 
 	DEBUG_POSTFIX d

@@ -15,6 +15,7 @@ Ideas:
 		test just using nearest neighbor MF instead of max-mag
 	SPV and SQPV graphing, PV too actually, needs to handle that bins don't hold the frequency at that bin all the time
 	find a better way to handle function sampling, then remove buffer_access
+	fix perturb
 
 Process ideas:
 	Audio to function of frequency
@@ -30,6 +31,6 @@ Process ideas:
 		look-ahead option in compressor would take care of this
 
 Task:
-	Falter:
-		only allow premade interpolators, lua ones aren't thread safe
-			Consider not ever taking interpolators
+	Audio::split_at_frequencies
+
+	disable AudioMod copyable

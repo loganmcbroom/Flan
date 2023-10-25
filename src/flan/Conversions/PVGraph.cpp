@@ -5,7 +5,7 @@ using namespace flan;
 
 Graph PV::convert_to_graph( Rect D, Pixel width, Pixel height, float timeline_scale ) const
 	{
-	flan_PROCESS_START( Graph( width, height ) );
+	if( is_null() ) return Graph( width, height );( Graph( width, height ) );
 
 	if( D.x2() == -1 ) D.d.x2 = get_length();
 	if( D.y2() == -1 ) D.r.x2 = get_height();
@@ -45,7 +45,6 @@ Graph PV::convert_to_graph( Rect D, Pixel width, Pixel height, float timeline_sc
 
 const PV & PV::save_to_bmp( const std::string & fileName, Rect D, Pixel width, Pixel height ) const
 	{
-	flan_FUNCTION_LOG;
-	convert_to_graph( D, width, height ).save_image( fileName );
+		convert_to_graph( D, width, height ).save_image( fileName );
 	return *this;
 	}

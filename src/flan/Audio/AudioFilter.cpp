@@ -279,7 +279,7 @@ Audio Audio::filter_1pole_repeat(
 	const uint16_t repeats
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	
 	Audio out( get_format() );
 
@@ -350,7 +350,7 @@ Audio Audio::filter_1pole_lowpass(
 	uint16_t order
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	return base_filter_1pole_butterworth_selector( *this, order, cutoff, true );
 	}
 
@@ -359,7 +359,7 @@ Audio Audio::filter_1pole_highpass(
 	uint16_t order
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	return base_filter_1pole_butterworth_selector( *this, order, cutoff, false );
 	}
 
@@ -454,7 +454,7 @@ Audio Audio::filter_1pole_lowshelf(
 	uint16_t order
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	Audio tilt = base_filter_1pole_butterworth_tilt( *this, order, cutoff, gain );
 	tilt.modify_volume_in_place( [&]( Second t ){ return decibel_to_amplitude( gain( t ) / 2 ); } );
 	return tilt;
@@ -466,7 +466,7 @@ Audio Audio::filter_1pole_highshelf(
 	uint16_t order
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	Audio tilt = base_filter_1pole_butterworth_tilt( *this, order, cutoff, [&]( Second t ){ return -gain( t ); } );
 	tilt.modify_volume_in_place( [&]( Second t ){ return decibel_to_amplitude( gain( t ) / 2 ); } );
 	return tilt;
@@ -547,7 +547,7 @@ Audio Audio::filter_2pole_lowpass(
 	uint16_t N
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	return base_filter_2pole_butterworth_selector( *this, N, w, R, 0 );
 	}
 
@@ -557,7 +557,7 @@ Audio Audio::filter_2pole_bandpass(
 	uint16_t N
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	return base_filter_2pole_butterworth_selector( *this, N, w, R, 1 );
 	}
 
@@ -567,7 +567,7 @@ Audio Audio::filter_2pole_highpass(
 	uint16_t N
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	return base_filter_2pole_butterworth_selector( *this, N, w, R, 2 );
 	}
 
@@ -577,7 +577,7 @@ Audio Audio::filter_2pole_notch(
 	uint16_t N
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	Audio bp = filter_2pole_bandpass( w, R, N );
 	bp.modify_volume_in_place( -1 );
 	return Audio::mix( bp, *this );
@@ -674,7 +674,7 @@ Audio Audio::filter_2pole_lowshelf(
 	uint16_t order
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	Audio tilt = base_filter_2pole_butterworth_tilt( *this, order, 
 		[&]( Second t, float M ){ return cutoff( t ) * M; }, 
 		[&]( Second t, float ){ return damping( t ); }, 
@@ -691,7 +691,7 @@ Audio Audio::filter_2pole_bandshelf(
 	uint16_t order
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	Audio tilt = base_filter_2pole_butterworth_tilt( *this, order, 
 		[&]( Second t, float ){ return cutoff( t ); }, 
 		[&]( Second t, float M ){ return damping( t ) * M; }, 
@@ -707,7 +707,7 @@ Audio Audio::filter_2pole_highshelf(
 	uint16_t order
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	auto half_gain = [&]( Second t ){ return gain( t ) / 2.0f; };
 	Audio tilt = base_filter_2pole_butterworth_tilt( *this, order, 
 		[&]( Second t, float M ){ return cutoff( t ) * M; }, 
@@ -791,12 +791,12 @@ Audio filter_1pole_allpass_n(
 
 Audio Audio::filter_1pole_multinotch(
 	const Function<Second, Frequency> & cutoff,
-	const Function<Second, float> wet_dry,
+	const Function<Second, float> & wet_dry,
 	uint16_t order,
 	bool invert
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	
 	// See section 11.1
 	Audio allpass = filter_1pole_allpass_n( *this, cutoff, order );
@@ -845,7 +845,7 @@ Audio Audio::filter_2pole_multinotch(
 	bool invert
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	// See section 11.2
 	Audio allpass = filter_2pole_allpass_n( *this, cutoff, damping, order );
@@ -861,7 +861,7 @@ Audio Audio::filter_comb(
 	bool invert
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	
 	// See sections 11.5 and 11.6
 	// Let k be the feedback amount. Let f by plus or minus one, depending on the comb filter being inverted.

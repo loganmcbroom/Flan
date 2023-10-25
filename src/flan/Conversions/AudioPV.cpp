@@ -11,8 +11,7 @@ using namespace flan;
 
 PV Audio::convert_to_PV( Frame window_size, Frame hopSize, Frame dft_size, flan_CANCEL_ARG_CPP ) const
 	{
-	flan_FUNCTION_LOG;
-
+	
 	const Bin num_bins = dft_size / 2 + 1;
 	//+1 since we analyze at start and end times
 	const Frame numHops = std::ceil( get_num_frames() / hopSize ) + 1;
@@ -86,7 +85,12 @@ PV Audio::convert_to_ms_PV( Frame window_size, Frame hop, Frame dft_size, flan_C
 
 Audio PV::convert_to_audio( flan_CANCEL_ARG_CPP ) const
 	{
-	flan_FUNCTION_LOG;
+	
+	std::for_each( get_buffer().begin(), get_buffer().end(), []( MF mf )
+		{ 
+		if( std::isnan( mf.m ) || std::isnan( mf.f ) )
+			std::cout << "f";
+		} );
 	
 	AudioBuffer::Format audio_format;
 	audio_format.num_channels = get_num_channels();
@@ -94,7 +98,7 @@ Audio PV::convert_to_audio( flan_CANCEL_ARG_CPP ) const
 	audio_format.sample_rate = get_sample_rate();
 	Audio out( audio_format );
 
-	//Sample hann window
+	// Sample hann window
 	std::vector<float> hann_window( get_window_size() );
 	const float window_scale = 2.67f / ( get_dft_size() * get_window_size() / get_hop_size() ); // I don't know why, converting audio->PV->audio reduces volume by an input specific amount, usually about 2.67
 	std::transform( std::execution::par_unseq, iota_iter(0), iota_iter(get_window_size()), hann_window.begin(), [&]( int i )

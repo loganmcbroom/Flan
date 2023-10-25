@@ -68,8 +68,7 @@ std::vector<std::pair<Graph::Plane,View>> Graph::get_intersecting_views( Rect U,
 
 void Graph::draw_waveform( const Function<float, float> & data, Rect rect, Plane plane, Color c, WaveformMode mode )
 	{
-	flan_FUNCTION_LOG;
-
+	
 	const auto active_views = get_intersecting_views( rect, plane );
 	for( auto & plane_view : active_views )
 		{
@@ -156,8 +155,7 @@ void Graph::draw_waveforms( const std::vector<const float *> & fs, int n, Rect r
 
 void Graph::draw_spectrogram( const Function<vec2, float> & data, Rect rect, Plane plane, float hue )
 	{
-	flan_FUNCTION_LOG;
-
+	
 	const int oversample_c = std::sqrt( oversample );
 
 	const auto active_views = get_intersecting_views( rect, plane );
@@ -231,8 +229,7 @@ void Graph::draw_spectrograms( const std::vector<const float *> & fs, int n, int
 
 void Graph::draw_function( const Function<float, float> & f, Interval domain, Plane plane, Color c )
 	{
-	flan_FUNCTION_LOG;
-
+	
 	//Draw function
 	image_drawer draw( *this );
 	draw.pen_color( c );

@@ -32,7 +32,9 @@ class Graph;
 template< typename I, typename O >
 struct Function
 {
-	using StdFuncType = std::function< O ( I ) >;
+	using StdFuncType = std::function< O ( I )>;
+	using ReturnType = O;
+	using ArgType = I;
 
 	Function( const Function & ) 				= delete;
 	Function & operator=( const Function & ) 	= delete;
@@ -47,14 +49,14 @@ struct Function
 
 	template<typename T>
 	requires std::convertible_to<T, StdFuncType>
-	Function( T f_, ExecutionPolicy policy = ExecutionPolicy::Parallel_Unsequenced ) 
-		: f( f_ ) 
+	Function( T && f_, ExecutionPolicy policy = ExecutionPolicy::Parallel_Unsequenced ) 
+		: f( std::move( f_ ) ) 
 		, executionPolicy( policy )
 		{}
 
 	template<typename T>
 	requires std::convertible_to<T, O>
-	Function( T t0 		  ) 
+	Function( T t0 ) 
 		: f( [t0]( I ){ return O( t0 ); } ) 
 		, executionPolicy( ExecutionPolicy::Parallel_Unsequenced )
 		{}
@@ -89,15 +91,15 @@ struct Function
 	// 		}, lowest_execution( mean.get_execution_policy(), sigma.get_execution_policy() ) );
 	// 	}
 
-	template<typename Input = I>
-	requires std::convertible_to<Input, float>
-	Function<Input, O> periodize( float period ) 
-		{
-		return [g = f.copy(), p = period]( float t )
-			{
-			return g( std::fmod( t, p ) + ( t < 0.0f ? p : 0.0f ) );
-			};
-		}
+	// template<typename Input = I>
+	// requires std::convertible_to<Input, float>
+	// Function<Input, O> periodize( float period ) 
+	// 	{
+	// 	return [g = f.copy(), p = period]( float t )
+	// 		{
+	// 		return g( std::fmod( t, p ) + ( t < 0.0f ? p : 0.0f ) );
+	// 		};
+	// 	}
 
 	template<typename Input = I>
 	requires std::convertible_to<Input, float>
@@ -177,7 +179,7 @@ struct Function
 	 */
 	template<typename Input = I, typename Output = O>
 	requires std::convertible_to<Input, float> && std::convertible_to<Output, float>
-	void save_as_bmp( 
+	void save_to_bmp( 
 		const std::string & filename, 
 		Rect view = { -5, -5, 5, 5 }, 
 		Interval domain = Interval::R, 
@@ -197,6 +199,22 @@ struct Function
 		: Function( [f = std::move(f)]( vec2 v ) { return f( v.x(), v.y() ); } ) 
 		{}
 
+	/** Constructor when argument is convertable to a std::function taking a pair of float convertable types
+	 */
+	// template<typename T, typename I1, typename I2>
+	// requires std::convertible_to< T, std::function< float ( std::pair<I1, I2> ) > >
+	// 	&& std::convertible_to< I1, float >
+	// 	&& std::convertible_to< I2, float >
+	// Function( T f ) 
+	// 	: Function( [f = std::move(f)]( vec2 v ) 
+	// 		{ 
+	// 		return f( std::make_pair( 
+	// 			static_cast<I1>( v.x() ), 
+	// 			static_cast<I2>( v.y() ) ) ); 
+	// 		} ) 
+	// 	{}
+
+	/* Call op taking two floats when vec2 would normally be needed. */
 	template<typename Input = I>
 	requires std::convertible_to<Input, vec2>
 	float operator()( float x, float y ) const { return Function::operator()( vec2{ x, y } ); }
@@ -234,10 +252,10 @@ Function<Second, Amplitude> ADSR(
 // Each waveform has a period and amplitude of one.
 namespace waveforms {
 
-extern const Function<Second, Amplitude> sine; 	
-extern const Function<Second, Amplitude> square; 	
-extern const Function<Second, Amplitude> saw; 		
-extern const Function<Second, Amplitude> triangle; 
+extern const std::function<Amplitude (Second)> sine; 	
+extern const std::function<Amplitude (Second)> square; 	
+extern const std::function<Amplitude (Second)> saw; 		
+extern const std::function<Amplitude (Second)> triangle; 
 
 }
 

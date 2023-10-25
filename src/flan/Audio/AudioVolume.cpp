@@ -6,7 +6,7 @@ Audio Audio::modify_volume(
 	const Function<Second, float> & volume_level 
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	Audio out = copy();
 	out.modify_volume_in_place( volume_level );
 	return out;
@@ -30,7 +30,7 @@ Audio Audio::set_volume(
 	const Function<Second, Amplitude> & level 
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	// Divide by get_max_sample_magnitude to normalize, multiply by level to set
 	const Sample max_mag = get_max_sample_magnitude();
@@ -44,7 +44,7 @@ Audio Audio::fade(
 	Interpolator interp 
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	return fade_frames( time_to_frame( start ), time_to_frame( end ), interp );
 	}
 
@@ -66,7 +66,7 @@ Audio Audio::fade_frames(
 	Interpolator interp 
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	Audio out = copy();
 	out.fade_frames_in_place( start, end, interp );
 	return out;
@@ -111,7 +111,7 @@ Audio& Audio::fade_frames_in_place(
 Audio Audio::invert_phase(
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	Audio out = copy();
 	std::for_each( std::execution::par_unseq, out.get_buffer().begin(), out.get_buffer().end(), []( Sample & s ){ s = -s; } );
 	return out;
@@ -122,7 +122,7 @@ Audio Audio::waveshape(
 	uint16_t oversample_factor
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	Audio oversampled = resample( get_sample_rate() * oversample_factor );
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
@@ -162,11 +162,11 @@ Audio Audio::add_moisture(
 	}
 
 Audio Audio::compress( 
-	Function<Second, Decibel> threshold, 
-	Function<Second, float> ratio, 
-	Function<Second, Second> attack, 
-	Function<Second, Second> release, 
-	Function<Second, Decibel> knee_width, 
+	const Function<Second, Decibel> & threshold, 
+	const Function<Second, float> & ratio, 
+	const Function<Second, Second> & attack, 
+	const Function<Second, Second> & release, 
+	const Function<Second, Decibel> & knee_width, 
 	const Audio * sidechain_source 
 	) const
 	{
@@ -176,7 +176,7 @@ Audio Audio::compress(
 	https://www.eecs.qmul.ac.uk/~josh/documents/2012/GiannoulisMassbergReiss-dynamicrangecompression-JAES2012.pdf
 	*/
 
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	if( sidechain_source == nullptr )
 		sidechain_source = this;

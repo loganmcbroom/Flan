@@ -138,7 +138,7 @@ float Audio::get_local_wavelength( Channel channel, Frame start, Frame window_si
 	{
 	const float absolute_cutoff = 0.2f;
 
-	flan_PROCESS_START( 0 );
+	if( is_null() ) return 0;
 
 	// Get d' - Cumulative mean normalized difference function (search for YIN algorithm for details)
 	const std::vector<float> d_prime = compute_d_prime( get_sample_pointer( channel, start ), window_size );
@@ -157,7 +157,8 @@ float Audio::get_local_wavelength( Channel channel, Frame start, Frame window_si
 
 std::vector<float> Audio::get_local_wavelengths( Channel channel, Frame start, Frame end, Frame window_size, Frame hop, flan_CANCEL_ARG_CPP ) const
 	{
-	flan_PROCESS_START( std::vector<float>() );
+	if( is_null() ) return std::vector<float>();
+
 
     if( end == -1 ) end = get_num_frames();
 
@@ -174,13 +175,13 @@ std::vector<float> Audio::get_local_wavelengths( Channel channel, Frame start, F
 float Audio::get_average_wavelength( Channel channel, float min_active_ratio, float max_length_sigma, 
 	Frame start, Frame end, Frame window_size, Frame hop, flan_CANCEL_ARG_CPP ) const
 	{
-	flan_PROCESS_START( 0 );
+	if( is_null() ) return 0;
 	return get_average_wavelength( get_local_wavelengths( channel, start, end, window_size, hop, canceller ), min_active_ratio, max_length_sigma );
 	}
 
 float Audio::get_average_wavelength( const std::vector<float> & locals, float min_active_ratio, float max_length_sigma ) const
 	{
-	flan_PROCESS_START( 0 );
+	if( is_null() ) return 0;
 
 	// Copy valid wavelengths
 	std::vector<float> valid_lengths;
@@ -201,7 +202,7 @@ Frequency Audio::get_local_frequency( Channel channel, Frame start, Frame window
 	const float minimum_proximity_cutoff = 0.2f;
 	const float absolute_cutoff = 0.15f;
 
-    flan_PROCESS_START( 0 );
+    if( is_null() ) return 0;
 
 	// Get d' - Cumulative mean normalized difference function (search for YIN algorithm for details)
 	const std::vector<float> d_prime = compute_d_prime( get_sample_pointer( channel, start ), window_size );
@@ -224,7 +225,7 @@ Frequency Audio::get_local_frequency( Channel channel, Frame start, Frame window
 
 std::vector<Frequency> Audio::get_local_frequencies( Channel channel, Frame start, Frame end, Frame window_size, Frame hop, flan_CANCEL_ARG_CPP ) const
     {
-    flan_PROCESS_START( std::vector<Frequency>() );
+	if( is_null() ) return std::vector<Frequency>();
 
     if( end == -1 ) end = get_num_frames();
 
@@ -242,7 +243,7 @@ Function<Second, Amplitude> Audio::get_amplitude_envelope(
 	Second window_width
 	) const
 	{
-	flan_PROCESS_START( 0 );
+	if( is_null() ) return 0;
 
 	if( window_width <= 0 ) return 0;
 
@@ -276,7 +277,7 @@ Function<Second, Amplitude> Audio::get_amplitude_envelope(
 		else return 0.0f;
 		};
 
-	// flan_PROCESS_START( 0 );
+	// if( is_null() ) return 0;
 
 	// Audio out = convert_to_mono();
 

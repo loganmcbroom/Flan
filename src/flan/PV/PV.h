@@ -248,11 +248,12 @@ public:
 	/** This is a classic "time-freeze" effect. At supplied times playback is "frozen", repeating the current frame 
 	 *	(or a linear interpolation of surrounding frames), for a specified amount of time. After this time has elapsed,
 	 *	playback resumes until another freeze time is encountered.
-	 *	\param timing Each element of timing describes a point of time to freeze, and for 
-	 *		how long it should be frozen, in that order
+	 *	\param pause_times 
+	 *	\param pause_lengths 
 	 */
 	PV freeze( 
-		const std::vector<std::array<Second,2>> & timing 
+		const std::vector<Second> & pause_times,
+		const std::vector<Second> & pause_lengths 
 		) const;
 
 
@@ -421,16 +422,14 @@ public:
 		) const;
 
 	/** Modifies the input data in random ways using normal distributions.
-	 *	\param magnitude_std_dev Standard deviation for magnitude distribution.
-	 *	\param frequency_std_dev Standard deviation for frequency distribution.
+	 *	\param magnitude_std_dev Standard deviation for MF distribution.
 	 *	\param damping How much each perturbation should be brought back towards zero per frame.
 	 		One will do nothing, zero gives complete damping, and values over one will cause the sound to explode.
 	 */
-	PV perturb( 
-		const Function<TF, Magnitude> & magnitude_std_dev, 
-		const Function<TF, Frequency> & frequency_std_dev, 
-		float damping = 0.99 
-		) const;
+	// PV perturb( 
+	// 	const Function<TF, MF> & mf_std_dev, 
+	// 	float damping = 0.99 
+	// 	) const;
 
 	/** At any given time, num_partials should return a number of bins, N, to retain.
 	 *	The N loudest bins are copied to the output.

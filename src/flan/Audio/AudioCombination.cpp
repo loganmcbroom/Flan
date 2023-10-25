@@ -81,8 +81,7 @@ Audio Audio::mix(
 	std::vector<Amplitude> amplitudes 
 	)
 	{
-	flan_FUNCTION_LOG;
-
+	
 	// Input validation
 	if( ins_unmatched.empty() ) return Audio();
 
@@ -143,8 +142,7 @@ Audio Audio::mix_variable_gain(
 	const std::vector<const Function<Second, Amplitude> *> & amplitudes 
 	)
 	{
-	flan_FUNCTION_LOG;
-
+	
 	// Input validation
 	if( ins_unmatched.empty() ) return Audio();
 
@@ -240,8 +238,7 @@ Audio Audio::join(
 	Second offset 
 	)
 	{
-	flan_FUNCTION_LOG;
-
+	
 	if( ins.empty() ) return Audio();
 
 	// Get input Audio lengths
@@ -271,8 +268,7 @@ Audio Audio::select(
 	const std::vector<Second> & start_times 
 	)
 	{
-	flan_FUNCTION_LOG;
-
+	
 	// Generate balances from selection
 	std::vector<Function<Second, Amplitude>> balances;
 	for( Index i = 0; i < ins.size(); ++i )
@@ -299,7 +295,7 @@ Audio Audio::select(
 
 // Audio Audio::convolve( const Function<Second, std::vector<float>> & ir ) const
 // 	{
-// 	flan_PROCESS_START( Audio() );
+// 	if( is_null() ) return Audio();
 
 // 	auto irSamples = ir.sample( 0, get_num_frames(), frame_to_time( 1 ) );
 // 	const size_t maxIrSize = max_element( irSamples, less(), []( const std::vector<float> & v ){ return v.size(); } )->size();
@@ -331,7 +327,7 @@ Audio Audio::convolve(
 	const Audio & ir 
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 	if( ir.is_null() ) return Audio();
 
 	const Audio resampled =	get_sample_rate() == ir.get_sample_rate() ? Audio() : ir.resample( get_sample_rate() );

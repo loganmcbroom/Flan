@@ -108,8 +108,7 @@ std::vector<Frame> Wavetable::get_waveform_starts(
 	Frame fixed_frame, 
 	flan_CANCEL_ARG_CPP )
 	{
-	flan_FUNCTION_LOG;
-
+	
 	// Input validation
 	if( source.is_null() ) return std::vector<Frame>();
 	const Audio mono_source = source.convert_to_mono(); // Convert input to mono
@@ -182,17 +181,17 @@ Wavetable::Wavetable( const Audio & source, SnapMode snap_mode, PitchMode pitch_
 	{
 	}
 
-Wavetable::Wavetable( Function<Second, Amplitude> f, int numWaves, flan_CANCEL_ARG_CPP )
+Wavetable::Wavetable( const Function<Second, Amplitude> & f, int num_waves, flan_CANCEL_ARG_CPP )
 	: wavelength( 2048 )
     , table()
-	, numWaveforms( numWaves )
+	, numWaveforms( num_waves )
 	{
 	const int oversample = 16;
 
 	// Set up output
     Audio::Format format;
 	format.num_channels = 1;
-    format.num_frames = wavelength * numWaves;
+    format.num_frames = wavelength * num_waves;
 	table = Audio( format );
 
 	const int overLength = wavelength * oversample;
@@ -201,7 +200,7 @@ Wavetable::Wavetable( Function<Second, Amplitude> f, int numWaves, flan_CANCEL_A
 	r8b::CDSPResampler rs( overLength, wavelength, fBuffer.size() );
 
 	// For each waveform, resample to wavelength
-	for( Waveform waveform = 0; waveform < numWaves; ++waveform )
+	for( Waveform waveform = 0; waveform < num_waves; ++waveform )
 		{
 		if( canceller ) return;
 		// Sample f into buffer
@@ -231,7 +230,13 @@ Wavetable::Wavetable()
 	{
 	}
 
-Audio Wavetable::synthesize( Second length, Function<Second, Frequency> freq, Function<Second, float> index, Second granularityTime, flan_CANCEL_ARG_CPP ) const
+Audio Wavetable::synthesize( 
+	Second length, 
+	const Function<Second, Frequency> & freq, 
+	const Function<Second, float> & index, 
+	Second granularityTime, 
+	flan_CANCEL_ARG_CPP 
+	) const
     {
 	// Ouput setup
 	Audio::Format format = table.get_format();

@@ -31,10 +31,10 @@ Function<Second, Amplitude> ADSR(
 
 namespace waveforms {
 
-const Function<Second, Amplitude> sine 		= []( Second t ){ const Second t0 = std::fmod( t, 1.0f ); return std::sin( pi2 * t0 ); };
-const Function<Second, Amplitude> square	= []( Second t ){ const Second t0 = std::fmod( t, 1.0f ); return t0 < 0.5f ? -1.0f : 1.0f; };
-const Function<Second, Amplitude> saw 		= []( Second t ){ const Second t0 = std::fmod( t, 1.0f ); return -1.0f + 2.0f * t0; };
-const Function<Second, Amplitude> triangle 	= []( Second t ){ const Second t0 = std::fmod( t, 1.0f ); return t0 < 0.5f ? -1.0f + 4.0f * t0 : 3.0f - 4.0f * t0; };
+const std::function<Amplitude (Second)> sine 	 = []( Second t ){ const Second t0 = std::fmod( t, 1.0f ); return std::sin( pi2 * t0 ); };
+const std::function<Amplitude (Second)> square	 = []( Second t ){ const Second t0 = std::fmod( t, 1.0f ); return t0 < 0.5f ? -1.0f : 1.0f; };
+const std::function<Amplitude (Second)> saw 	 = []( Second t ){ const Second t0 = std::fmod( t, 1.0f ); return -1.0f + 2.0f * t0; };
+const std::function<Amplitude (Second)> triangle = []( Second t ){ const Second t0 = std::fmod( t, 1.0f ); return t0 < 0.5f ? -1.0f + 4.0f * t0 : 3.0f - 4.0f * t0; };
 
 }
 

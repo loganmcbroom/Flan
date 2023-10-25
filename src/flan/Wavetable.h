@@ -35,16 +35,16 @@ public:
      * \param snap_mode This decides how waveforms starts and ends are nudged to avoid edge discontinuities. See Waveform::SnapMode.
      * \param pitch_mode This decides how waveforms lengths are estimated. See Waveform::PitchMode.
      * \param snap_ratio The proportion of the expected frame jump to search for frame snapping.
-     * \param fixed_frameSize When pitch_mode is None, this is used in place of pitch deduction.
+     * \param fixed_frame_size When pitch_mode is None, this is used in place of pitch deduction.
      */
     Wavetable( const Audio & source, SnapMode snap_mode = SnapMode::Zero, PitchMode pitch_mode = PitchMode::Local, float snap_ratio = .3, 
-        Frame fixed_frameSize = 256, flan_CANCEL_ARG );
+        Frame fixed_frame_size = 256, flan_CANCEL_ARG );
 
     /** Functional wavetable constructor.
      * \param f The function to sample. Each wave will be sampled on the interval [k,k+1), starting at 0.
-     * \param numWaves The number of waveforms to sample.
+     * \param num_waves The number of waveforms to sample.
      */
-    Wavetable( Function<Second, Amplitude> f, int numWaves, flan_CANCEL_ARG );
+    Wavetable( const Function<Second, Amplitude> & f, int num_waves, flan_CANCEL_ARG );
 
     /** This constructs a Wavetable using specific waveform start points. This is normally used only by the main constructor which calls get_waveform_starts. 
      *  If get_waveform_starts is having a hard time, you can manually set the waveform start frames and use this.
@@ -59,7 +59,13 @@ public:
      * \param index The waveform to read from. Choosing not-integer indices will read a linear interpolation of the surrounding waveforms.
      * \param granularity The time between input function evaluations.
      */
-    Audio synthesize( Second length, Function<Second, Frequency> freq, Function<Second, float> index, Second granularity = 0.001f, flan_CANCEL_ARG ) const;
+    Audio synthesize( 
+        Second length, 
+        const Function<Second, Frequency> & freq, 
+        const Function<Second, float> & index, 
+        Second granularity = 0.001f, 
+        flan_CANCEL_ARG 
+        ) const;
 
     /** Fade the edges of target waveforms towards zero.
      * \param fade_frames The fade length.

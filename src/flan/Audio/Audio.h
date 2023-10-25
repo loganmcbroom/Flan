@@ -140,6 +140,13 @@ public:
 		Frame smoothing_frames = 128
 		) const; 
 
+	void save_spectrum_to_bmp( 
+		const std::string & filename, 
+		Pixel width = -1, 
+		Pixel height = -1,
+		Frame smoothing_frames = 128
+		) const;
+
 	/** Apply a short-time Forier transform to the Audio, and phase vocode the output. See phase_vocoder for details on phase vocoding.
 	 *
 	 *	\param window_size This is the number of Frames copied into each fft input. 
@@ -234,6 +241,10 @@ public:
 
 	std::vector<Audio> split_channels(
 		) const;
+
+	static Audio combine_channels( 
+		const std::vector<const Audio *> & channels 
+		);
 
 	static Audio combine_channels( 
 		const std::vector<Audio> & channels 
@@ -591,11 +602,11 @@ public:
 	/** This is a dynamic range compressor.
 	 */
 	Audio compress( 
-		Function<Second, Decibel> threshold, 
-		Function<Second, float> compression_ratio = 3.0f, 
-		Function<Second, Second> attack = 5.0f / 1000.0f, 
-		Function<Second, Second> release = 100.0f / 1000.0f, 
-		Function<Second, Decibel> knee_width = Decibel( 0 ), 
+		const Function<Second, Decibel> & threshold, 
+		const Function<Second, float> & compression_ratio = 3.0f, 
+		const Function<Second, Second> & attack = 5.0f / 1000.0f, 
+		const Function<Second, Second> & release = 100.0f / 1000.0f, 
+		const Function<Second, Decibel> & knee_width = Decibel( 0 ), 
 		const Audio * sidechain_source = nullptr 
 		) const;
 
@@ -645,9 +656,9 @@ public:
 
 
 
-	//========================================================
+	//============================================================================================================================================================
 	// Filters
-	//========================================================
+	//============================================================================================================================================================
 
 	/*
 	There are an essentially unlimited number of filter types and use cases, so I have made no attempt to cover all of them.
@@ -749,7 +760,7 @@ public:
 
 	Audio filter_1pole_multinotch(
 		const Function<Second, Frequency> & cutoff,
-		const Function<Second, float> wet_dry = .5,
+		const Function<Second, float> & wet_dry = .5,
 		uint16_t order = 1,
 		bool invert = false
 		) const;
@@ -771,9 +782,9 @@ public:
 
 
 
-	//========================================================
+	//============================================================================================================================================================
 	// Combination
-	//========================================================
+	//============================================================================================================================================================
 
 	/** The main Audio mixing method. The ouput format will be that of the first input.
 	 *	\param ins The Audio to mix.
@@ -884,9 +895,9 @@ public:
 
 
 
-	//========================================================
+	//============================================================================================================================================================
 	// Synthesis
-	//========================================================
+	//============================================================================================================================================================
 
 	/** Generate an Audio from a waveform function. This can be accomplished in a more general setting using the function ctor of flan::Wavetable.
 	*  \param waveform This is evaluated from 0 to 1. This portion is repeated to create the Audio.
@@ -921,12 +932,15 @@ public:
 		FrameRate sample_rate = 48000
 		);
 
+	/* Same as synthesize_grains, but reuses the same sound source.
+	 * This could be achieved with synthesize_grains, but this version is optimized.
+	 */
 	Audio synthesize_grains_repeat(
 		Second length,
 		const Function<Second, float> & grains_per_second,
 		const Function<Second, float> & time_scatter,
 		const Function<Second, Amplitude> & gain,
-		FrameRate sample_rate
+		FrameRate sample_rate = 48000
 		) const;
 
 	Audio synthesize_grains_with_feedback_mod( 
@@ -934,8 +948,8 @@ public:
 		const Function<Second, float> & grains_per_second, 
 		const Function<Second, float> & time_scatter, 
 		const AudioMod & mod,
-		bool mod_feedback, 
-		FrameRate sample_rate
+		bool mod_feedback, // This should be remove if possible
+		FrameRate sample_rate = 48000
 		) const;
 
 	// Grain Compositions ===================================================================================================================

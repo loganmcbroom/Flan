@@ -28,8 +28,7 @@ Audio Audio::synthesize_waveform(
 	size_t oversample 
 	)
 	{
-	flan_FUNCTION_LOG;
-
+	
 	if( length <= 0 ) return Audio();
 
 	// Set up output
@@ -212,7 +211,7 @@ Audio Audio::synthesize_grains_repeat(
 	FrameRate sample_rate
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	// Input validation
 	if( length <= 0 ) return Audio();
@@ -235,7 +234,7 @@ Audio Audio::synthesize_grains_with_feedback_mod(
 	FrameRate sample_rate
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	if( mod.is_null() )
 		return synthesize_grains_repeat( length, grains_per_second, time_scatter, 1.0f, sample_rate );
@@ -324,7 +323,7 @@ Audio Audio::synthesize_granulation(
 	const AudioMod & mod
 	) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	const auto selection_sampled 	= time_selection.sample( 0, time_to_frame( length ), frame_to_time( 1 ) );
 	const auto grain_length_sampled = grain_length	.sample( 0, time_to_frame( length ), frame_to_time( 1 ) );

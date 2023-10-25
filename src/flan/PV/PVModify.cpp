@@ -13,7 +13,7 @@ namespace flan {
 
 PV PV::modify( const Function<TF, TF> & mod, Interpolator interp ) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 
 	const uint32_t in_channel_data_count = get_num_frames() * get_num_bins();
 
@@ -194,7 +194,7 @@ PV PV::modify( const Function<TF, TF> & mod, Interpolator interp ) const
 
 PV PV::modify_frequency( const Function<TF, Frequency> & mod, Interpolator interp ) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 
 	PV out( get_format() );
 	out.clear_buffer();
@@ -272,7 +272,7 @@ PV PV::modify_frequency( const Function<TF, Frequency> & mod, Interpolator inter
 
 PV PV::modify_time( const Function<TF, Second> & mod, Interpolator interp ) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 
 	// Sample mod function and convert output to frame/bin
 	auto mod_sampled = sample_function_over_domain( mod );
@@ -319,6 +319,9 @@ PV PV::modify_time( const Function<TF, Second> & mod, Interpolator interp ) cons
 					const Magnitude totalWeight = w0 + w1;
 					const float weightedFreqSum = w0 * lMF.f + w1 * rMF.f;
 
+					if( totalWeight == 0.0f )
+						return;
+
 					auto & outMF = out.get_MF( channel, x, bin );
 					outMF.f = ( outMF.f * outMF.m + weightedFreqSum ) / ( outMF.m + totalWeight );
 					outMF.m += totalWeight;
@@ -332,19 +335,17 @@ PV PV::modify_time( const Function<TF, Second> & mod, Interpolator interp ) cons
 
 PV PV::repitch( const Function<TF, float> & factor, Interpolator interp ) const
 	{
-	flan_FUNCTION_LOG;
-	return modify_frequency( [&]( TF tf ){ return factor( tf ) * tf.f; }, interp );
+		return modify_frequency( [&]( TF tf ){ return factor( tf ) * tf.f; }, interp );
 	}
 
 PV PV::stretch( const Function<TF, float> & factor, Interpolator interp ) const
 	{
-	flan_FUNCTION_LOG;
-	return modify_time( [&factor]( TF tf ){ return factor( tf ) * tf.t; }, interp );
+		return modify_time( [&factor]( TF tf ){ return factor( tf ) * tf.t; }, interp );
 	}
 
 PV PV::stretch_spline( const Function<Second, float> & interpolation ) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 
 	const auto safeInterpolation = [&interpolation, this]( Frame frame )
 		{
@@ -405,7 +406,7 @@ PV PV::desample( const Function<TF, float> & events_per_second, Interpolator int
 	// Sample factor over frames and bins
 	auto events_per_second_samples = sample_function_over_domain( events_per_second );
 
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 
 	PV out( get_format() );
 	out.clear_buffer();
@@ -471,7 +472,7 @@ PV PV::desample( const Function<TF, float> & events_per_second, Interpolator int
 
 PV PV::time_extrapolate( Second start_time, Second end_time, Second extrapolationTime, Interpolator interpolator ) const
 	{
-	flan_PROCESS_START( PV() );
+	if( is_null() ) return PV();
 
 	// Input validation
 	start_time = std::clamp( start_time, 0.0f, get_length() );

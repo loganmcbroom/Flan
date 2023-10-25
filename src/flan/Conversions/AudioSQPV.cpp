@@ -67,8 +67,7 @@
 // 	See "Sliding With A Constant-Q" - https://www.dafx.de/paper-archive/2008/papers/dafx08_63.pdf - for details on this algorithm.
 // 	*/
 
-// 	flan_FUNCTION_LOG;
-
+// 	
 // 	SQPV::Format format;
 // 	format.num_channels = get_num_channels();
 // 	format.num_frames = get_num_frames();
@@ -125,8 +124,7 @@
 
 // Audio SQPV::convert_to_audio() const
 // 	{
-// 	flan_FUNCTION_LOG;
-
+// 	
 // 	// Compute twiddles
 // 	std::vector<std::complex<float>> twiddles( get_num_bins() );
 // 	for( Bin bin = 0; bin < get_num_bins(); ++bin )

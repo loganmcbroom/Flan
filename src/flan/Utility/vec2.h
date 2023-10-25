@@ -3,6 +3,8 @@
 #include <array>
 #include <complex>
 
+#include "flan/defines.h"
+
 namespace flan {
 
 /** Simple two element math vector. Arithmetic overloads are defined component-wise.
@@ -29,6 +31,23 @@ struct vec2
 	vec2( std::array<float,2> c ) : _x( c[0] ), _y( c[1] ) {}
 	/** Convert to std::array */
 	operator std::array<float,2>() const { return std::array<float,2>{ x(), y() }; }
+
+	/** Construct from flan TF */
+	vec2( TF c ) : _x( c.t ), _y( c.f ) {}
+	/** Convert to flan TF */
+	operator TF() const { return TF{ x(), y() }; }
+
+	/** Construct from flan MF */
+	vec2( MF c ) : _x( c.m ), _y( c.f ) {}
+	/** Convert to flan MF */
+	operator MF() const { return MF{ x(), y() }; }
+
+	/** Construct from any pair */
+	template<typename A, typename B>
+	vec2( std::pair<A, B> c ) : _x( c.first ), _y( c.second ) {}
+	/** Convert to any pair */
+	template<typename A, typename B>
+	operator std::pair<A, B>() const { return std::make_pair<A, B>( x(), y() ); }
  
 	float & x() { return _x; }
 	float & y() { return _y; }

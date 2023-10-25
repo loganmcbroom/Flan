@@ -6,7 +6,7 @@ using namespace flan;
 
 Audio Audio::pan( const Function<Second, float> & pan_amount ) const
 	{
-	flan_PROCESS_START( Audio() );
+	if( is_null() ) return Audio();
 
 	if( get_num_channels() != 1 && get_num_channels() != 2 )
 		return Audio();
@@ -40,7 +40,6 @@ Audio& Audio::pan_in_place( const Function<Second, float> & pan_amount )
 
 Audio Audio::widen( const Function<Second, float> & widen_amount ) const
 	{
-	flan_FUNCTION_LOG
 	return convert_to_mid_side().pan( widen_amount ).convert_to_left_right();
 	}
 

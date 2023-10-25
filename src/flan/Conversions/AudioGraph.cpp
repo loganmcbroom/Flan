@@ -20,7 +20,7 @@ Graph Audio::convert_to_graph(
 	float timeline_scale 
 	) const
 	{
-	flan_PROCESS_START( Graph( width, height ) );
+	if( is_null() ) return Graph( width, height );( Graph( width, height ) );
 
 	if( I.x2 == -1 ) I.x2 = get_length();
 	
@@ -48,8 +48,7 @@ Graph Audio::convert_to_graph(
 
 void Audio::save_to_bmp( const std::string & filename, Interval I, int width, int height ) const
 	{
-	flan_FUNCTION_LOG;
-	auto b = convert_to_graph( I, width, height );
+		auto b = convert_to_graph( I, width, height );
 	b.save_image( filename );
 	}
 
@@ -122,4 +121,14 @@ Graph Audio::convert_to_spectrum_graph(
 	g.draw_x_ticks( 1.0f, 0, 2.0f, 6, 6, Graph::Plane::All, Color::White, 12 );
 
 	return g;
+	}
+
+void Audio::save_spectrum_to_bmp( 
+	const std::string & filename, 
+	Pixel width, 
+	Pixel height,
+	Frame smoothing_frames
+	) const	
+	{
+		convert_to_spectrum_graph( width, height, smoothing_frames ).save_image( filename );
 	}

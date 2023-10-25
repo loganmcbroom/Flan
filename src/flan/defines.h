@@ -46,17 +46,6 @@ const Radian pi2 = pi * 2.0f;
 
 };
 
-/** These macros are used for logging function calls in debug mode, and checking for input nullity in all modes.
- */
-#ifdef flan_LOG_FUNCTIONS
-#define flan_FUNCTION_LOG std::cout << __FUNCTION__ << std::endl;
-#else
-#define flan_FUNCTION_LOG
-#endif
-
-#define flan_PROCESS_START( T ) flan_FUNCTION_LOG if( is_null() ) \
-	{ std::cout << "Null input" << std::endl; return T; }
-
 /** These macros are used to inject voluntary cancellation points into flan algorithms
  *	Cancellation points can be used to halt algorithms from other threads.
  */
