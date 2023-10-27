@@ -31,22 +31,14 @@ const float pi = std::acos( -1.0f );
 
 int main()
 	{
-	auto synth = Audio::synthesize_waveform( waveforms::saw, 3, []( Second t ){ return 40; } ).set_volume( 1 );
+	auto synth = Audio::synthesize_waveform( waveforms::sine, .5, []( Second t ){ return 111; } ).set_volume( 1 );
 	auto bah = Audio( "Bah.wav" ).set_volume( .9 );
 
-	auto sound = Audio::synthesize_waveform( 
-		waveforms::sine,
-		1,
-		[]( Second t ){ return 220.0 + 220.0 * t; }
-	);
-
-	graph( sound.iterate( 3 )
-
+	play( bah
 		.convert_to_PV()
-		.modify_time( []( vec2 v ){ return v.x(); } )
+		.select( 5, []( TF tf ){ return TF{ tf.t / 4, std::sin(tf.t*50)*100*tf.t + tf.f }; } )
 		.convert_to_audio()
-
-		.convert_to_graph() );
+		.set_volume( .7 ) );
 
 	//play( bah.stereo_delay( 5, .5, 1, 0.5 ).set_volume( .5 ) );
 

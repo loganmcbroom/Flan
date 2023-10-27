@@ -56,7 +56,7 @@ add_library( Flan STATIC
 	src/flan/PV/PVBuffer.cpp
 	src/flan/PV/PVInformation.cpp
 	src/flan/PV/PVModify.cpp
-	src/flan/PV/PrismFunc.h
+	src/flan/PV/PrismFunc.cpp
 
 	src/flan/SPV/SPVBuffer.cpp
 	src/flan/SPV/SPV.cpp

@@ -83,63 +83,35 @@ MF PV::getBinInterpolated( Channel channel, Frame frame, float bin, Interpolator
 
 PV PV::select( 
 	Second length, 
-	const Function<TF, TF> & selector, 
-	bool interpolate_frames, 
-	Interpolator interp 
+	const Function<TF, TF> & selector
 	) const
 	{
 	if( is_null() ) return PV();
-
-	// Input validation
 	if( length <= 0.0f ) return PV();
 
 	auto format = get_format();
 	format.num_frames = time_to_frame( length );
 	PV out( format );
 
-	const auto selector_sampled = sample_function_over_domain( selector );
-	std::vector<std::pair<Frame, Bin>> selector_sampled_discretized( selector_sampled.size() );
-	std::transform( std::execution::par_unseq, selector_sampled.begin(), selector_sampled.end(), selector_sampled_discretized.begin(), [&]( TF tf ){
-		return std::make_pair<fFrame, fBin>( 
-			time_to_frame( tf.t ), 
-			frequency_to_bin( tf.f )  
-			);
-	 	} );
+	const auto selector_sampled = out.sample_function_over_domain( selector );
 
 	for( Channel channel = 0; channel < out.get_num_channels(); ++channel )
 		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( out.get_num_frames() ), [&]( Frame frame )
 			{
 			for( Bin bin = 0; bin < out.get_num_bins(); ++bin )
 				{
-				const std::pair<fFrame, fBin> s_typed = selector_sampled_discretized[ get_buffer_pos( 0, frame, bin ) ];
-				const vec2 s = { s_typed.first, s_typed.second };
+				const TF s = selector_sampled[ get_buffer_pos( 0, frame, bin ) ];
+				const Frame selection_frame = time_to_frame( s.t );
+				const Bin selection_bin = frequency_to_bin( s.f );
 
-				if( s.x()  < 0 || get_num_frames() - 1 <= s.x() ||
-				    s.y() < 0 || get_num_bins()   - 1 <= s.y() )
+				if( selection_frame  < 0 || get_num_frames() - 1 <= selection_frame ||
+				    selection_bin < 0 || get_num_bins()   - 1 <= selection_bin )
 					continue;
 
-				// Get the MFs surrounding the selected point s
-				const vec2 sFloor = { std::floor( s.x() ), std::floor( s.y() ) };
-				const std::array<MF, 4> MFs = {
-					get_MF( channel, sFloor.x()	  , sFloor.y()     ),
-					get_MF( channel, sFloor.x()	  , sFloor.y() + 1 ),
-					get_MF( channel, sFloor.x() + 1, sFloor.y()     ),
-					get_MF( channel, sFloor.x() + 1, sFloor.y() + 1 ),
-					};
-				
-				// Get the weighted magnitudes of those points
-				const vec2 mix = s - sFloor;
-				const std::array<Magnitude, 4> w = {
-					( 1.0f - mix.x() ) * ( 1.0f - mix.y() ) * MFs[0].m,
-					(        mix.x() ) * ( 1.0f - mix.y() ) * MFs[1].m,
-					(        mix.x() ) * (        mix.y() ) * MFs[2].m,
-					( 1.0f - mix.x() ) * (        mix.y() ) * MFs[3].m };
-
-				const auto maxWIter = std::max_element( w.begin(), w.end() );
-				const int maxWIndex = std::distance( w.begin(), maxWIter );
-				const MF selectedMF = MFs[maxWIndex];
-				
-				out.get_MF( channel, frame, bin ) = selectedMF;
+				MF selected_mf = get_MF( channel, selection_frame, selection_bin );
+				if( s.f > 1 )
+					selected_mf.f *= bin_to_frequency( bin ) / s.f;
+				out.get_MF( channel, frame, bin ) = selected_mf;
 				}
 			} );
 

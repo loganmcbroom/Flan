@@ -395,9 +395,18 @@ PV PV::prism( const PrismFunc & prismFunc, bool use_local_contour_time, flan_CAN
 						}
 					else // There is no harmonic to scale, so create one
 						{
-						//std::lock_guard<std::mutex> lock( mutexBuffer[frame] );
-						MF & destMF = out.get_MF( channel, frame, frequency_to_bin( modifiedHarmonic.f ) );
-						destMF = modifiedHarmonic;
+						const Frequency frequency_bandwidth = 10;
+						const Frequency low_frequency = modifiedHarmonic.f - frequency_bandwidth / 2;
+						const Frequency high_frequency = modifiedHarmonic.f + frequency_bandwidth / 2;
+						const Bin low_bin  = std::max( 0, 						(Bin) std::ceil ( out.frequency_to_bin( low_frequency ) ) );
+						const Bin high_bin = std::min( out.get_num_bins() - 1, 	(Bin) std::floor( out.frequency_to_bin( high_frequency ) ) );
+
+						for( Bin bin = low_bin; bin <= high_bin; ++bin )
+							{
+							const float window_position = ( out.bin_to_frequency( bin ) - low_frequency ) / frequency_bandwidth;
+							const Magnitude bin_magnitude = modifiedHarmonic.m * Windows::hann( window_position );
+							out.get_MF( channel, frame, bin ) = { bin_magnitude, modifiedHarmonic.f };
+							}
 						}
 					}
 				} ); 

@@ -367,8 +367,8 @@ auto AudioBuffer::get_length() const -> Second
 float AudioBuffer::get_max_sample_magnitude( Second start_time, Second end_time ) const
 	{
 	if( end_time == 0 ) end_time = get_length();
-	auto start_frame = time_to_frame( start_time );
-	auto end_frame   = time_to_frame( end_time );
+	auto start_frame = std::clamp( (Frame) time_to_frame( start_time ), 0, get_num_frames() - 1 );
+	auto end_frame   = std::clamp( (Frame) time_to_frame( end_time   ), 0, get_num_frames() - 1 );
 	Magnitude m = 0;
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
 		for( Frame frame = start_frame; frame < end_frame; ++frame )

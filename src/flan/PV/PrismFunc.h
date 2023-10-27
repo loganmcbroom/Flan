@@ -2,7 +2,7 @@
 
 #include <functional>
 
-#include "flan/PV/PVBuffer.h"
+#include "flan/defines.h"
 #include "flan/Utility/execution.h"
 
 namespace flan {
@@ -12,21 +12,39 @@ namespace flan {
 */
 class PrismFunc {
 public:
-	using FuncType = std::function<MF ( Index note, Second, Index harmonic, Frequency contourFreq, const std::vector<Magnitude> & harmonicMagnitudes )>;
+	using FuncType = std::function<MF ( Index note, Second, Harmonic harmonic, Frequency contourFreq, const std::vector<Magnitude> & harmonicMagnitudes )>;
+
+	PrismFunc( const PrismFunc & ) 				= delete;
+	PrismFunc & operator=( const PrismFunc & ) 	= delete;
+	PrismFunc( PrismFunc && ) 					= default;
+	PrismFunc & operator=( PrismFunc && ) 		= default;
+	~PrismFunc() 								= default;
 
 	template<typename C>
-	requires std::convertible_to<C, FuncType>
+	requires std::convertible_to<C, FuncType> && (!std::same_as<C, std::nullptr_t>)
 	PrismFunc( C f_, ExecutionPolicy p_ = ExecutionPolicy::Parallel_Unsequenced ) 
 		: func( f_ ) 
 		, policy( p_ )
+		, null( false )
 		{}
+	PrismFunc();
 
-	MF operator()( int n, Second t, int h, Frequency f, const std::vector<Magnitude> & hM ) const { return func(n, t, h, f, hM); }
-	ExecutionPolicy get_execution_policy() const { return policy; }
+	MF operator()( 
+		int n, 
+		Second t, 
+		int h, 
+		Frequency f, 
+		const std::vector<Magnitude> & hM 
+		) const;
+
+	bool is_null() const;
+
+	ExecutionPolicy get_execution_policy() const;
 
 private:
 	FuncType func;
 	ExecutionPolicy policy;
+	const bool null;
 };
 
 }

@@ -234,15 +234,10 @@ public:
 	 *	\param length The length of the output PV
 	 *	\param selector This function takes each time/frequency point in the output and returns 
 	 *		the time/frequency that should be read from the input into that output
-	 *	\param interpolate_frames Decides if selecting a point between frames should interpolate the surrounding frames or round to the nearest frame.
-	 		Using interpolation takes around twice as long to compute.
-	 *	\param interp This determines how input points surrounding selected points are interpolated
 	 */
 	PV select( 
 		Second length, 
-		const Function<TF, TF> & selector, 
-		bool interpolate_frames = false, 
-		Interpolator interp = Interpolators::linear 
+		const Function<TF, TF> & selector
 		) const;
 
 	/** This is a classic "time-freeze" effect. At supplied times playback is "frozen", repeating the current frame 
