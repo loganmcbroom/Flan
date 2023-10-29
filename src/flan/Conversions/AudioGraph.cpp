@@ -96,7 +96,7 @@ Graph Audio::convert_to_spectrum_graph(
 
 	std::vector<Function<Second, Sample>> channel_funcs;
 	for( Channel channel = 0; channel < spectrum.get_num_channels(); ++channel )
-		channel_funcs.emplace_back( [&, channel]( float x )
+		channel_funcs.emplace_back( [&, channel]( Second x ) -> Sample
 			{
 			const Frequency freq = std::pow( 2.0f, x );
 			const Bin bin = freq / ( float( get_sample_rate() ) / float( fft.real_buffer_size() ) );

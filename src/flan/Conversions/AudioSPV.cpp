@@ -14,7 +14,7 @@ static std::vector<std::complex<float>> createTwiddles( size_t n, Magnitude magn
 	{
 	std::vector<std::complex<float>> twiddles( n );
     const Radian omega = -pi2 / n;
-	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( twiddles.size() ), [&]( int i )
+	flan::for_each_i( twiddles.size(), ExecutionPolicy::Parallel_Unsequenced, [&]( int i )
 		{
       	twiddles[i] = std::polar( magnitude, omega * i);
 		} );
@@ -44,14 +44,14 @@ SPV Audio::convert_to_SPV( Bin num_bins ) const
 
 		// Compute sample deltas
 		std::vector<Sample> deltas( get_num_frames() );
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( deltas.size() ), [&]( Frame frame )
+		flan::for_each_i( deltas.size(), ExecutionPolicy::Parallel_Unsequenced, [&]( Frame frame )
 			{
 			auto samples_s = [&]( Channel c, Frame f ){ return f >= 0 ? get_sample( c, f ) : Sample( 0 ); };
 			deltas[frame] = get_sample( channel, frame ) - samples_s( channel, frame - 2 * out.get_num_bins() );
 			});
 
 		// Compute partial sums of fiddled deltas into out (out is being reused here to avoid a buffer alloc)
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( out.get_num_bins() ), [&]( Bin bin )
+		flan::for_each_i( out.get_num_bins(), ExecutionPolicy::Parallel_Unsequenced, [&]( Bin bin )
 			{
 			sdftBuffer[buffer_access( 0, bin )] = deltas[0];
 			for( Frame frame = 1; frame < get_num_frames(); ++frame )
@@ -62,7 +62,7 @@ SPV Audio::convert_to_SPV( Bin num_bins ) const
 		// We then iterate through the bins of that frame computing the fiddled values into that buffer
 		// Each set of three values in then convolved into the output for that frame and bin
 		// The first and last bins are handled differently because there aren't three fiddled values to convolve there
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
+		flan::for_each_i( get_num_frames(), ExecutionPolicy::Parallel_Unsequenced, [&]( Frame frame )
 			{
 			std::complex<float> fiddled[3];
 			fiddled[1] = sdftBuffer[buffer_access( frame, 0 )] * std::conj(getFiddle( frame + 1, 0 ));
@@ -92,7 +92,7 @@ SPV Audio::convert_to_SPV( Bin num_bins ) const
 			} );	
 	
 		// Phase vocode sdft data
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( out.get_num_bins() ), [&]( Bin bin )		
+		flan::for_each_i( out.get_num_bins(), ExecutionPolicy::Parallel_Unsequenced, [&]( Bin bin )		
 			{
 			double phase_buffer = 0;
 			const Frequency binFrequency = out.bin_to_frequency( bin );
@@ -123,7 +123,7 @@ Audio SPV::convert_to_audio()
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
 		{
 		// Invert phase vocoding
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( get_num_bins() ), [&]( Bin bin )		
+		flan::for_each_i( get_num_bins(), ExecutionPolicy::Parallel_Unsequenced, [&]( Bin bin )		
 			{
 			double phase_buffer = 0;
 			for( Frame frame = 0; frame < get_num_frames(); ++frame )
@@ -131,7 +131,7 @@ Audio SPV::convert_to_audio()
 			} );
 
 		// Invert sdft
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( out.get_num_frames() ), [&]( Frame frame )
+		flan::for_each_i( out.get_num_frames(), ExecutionPolicy::Parallel_Unsequenced, [&]( Frame frame )
 			{
 			float sample = 0.0f;
 			for( Bin bin = 0; bin < get_num_bins(); ++bin )

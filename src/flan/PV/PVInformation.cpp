@@ -52,9 +52,8 @@ PV::Salience PV::get_salience( Channel channel, Frequency min_frequency, Frequen
 
 	// Precompute cosine outputs
 	std::array<float, 2 * binEffectDist + 1> gOutputs;
-	//for( int i = 0; i <= binEffectDist; ++i )
-	std::transform( std::execution::par_unseq, iota_iter(0), iota_iter( binEffectDist+1 ), gOutputs.begin(), []( int i )
-		{ return .5f * ( 1.0f + std::cos( float( i ) / binEffectDist * pi / 2.0f ) ); } );
+	std::for_each( FLAN_PAR_UNSEQ iota_iter(0), iota_iter( binEffectDist+1 ), [&]( int i )
+		{ gOutputs[i] = .5f * ( 1.0f + std::cos( float( i ) / binEffectDist * pi / 2.0f ) ); } );
 
 	auto B = [log2MinFreq = std::log2( min_frequency )]( Frequency f ) -> Bin
 		{
@@ -66,7 +65,7 @@ PV::Salience PV::get_salience( Channel channel, Frequency min_frequency, Frequen
 	salience.num_frames = get_num_frames();
 	salience.buffer.resize( salience.num_bins * salience.num_frames, 0 );
 		
-	std::for_each( std::execution::par_unseq, iota_iter(0), iota_iter(salience.num_frames), [&]( Frame frame )
+	std::for_each( FLAN_PAR_UNSEQ iota_iter(0), iota_iter(salience.num_frames), [&]( Frame frame )
 		{
 		const Magnitude a_M = get_max_partial_magnitude( frame, frame + 1 ); // Get mazimum magnitude for this frame
 		const float aiLimit = a_M / eTestFactor; // Checking a_i > limit is equivalent to checking 10log_20(aM/ai) < gamma
@@ -298,13 +297,13 @@ PV PV::prism( const PrismFunc & prismFunc, bool use_local_contour_time, flan_CAN
 		{
 		std::vector<Contour> contours = get_contours( channel, min_frequency, max_frequency, 60, 20, canceller );
 		if( contours.empty() ) return PV();
-		std::sort( std::execution::par_unseq, contours.begin(), contours.end(), []( const Contour & a, const Contour & b ){ return a.start_frame < b.start_frame; } );
+		std::sort( FLAN_PAR_UNSEQ contours.begin(), contours.end(), []( const Contour & a, const Contour & b ){ return a.start_frame < b.start_frame; } );
 		for( int contourIndex = 0; contourIndex < contours.size(); ++contourIndex )
 			{
 			const Contour & contour = contours[contourIndex];
 
 			runtime_execution_policy_handler( prismFunc.get_execution_policy(), [&]( auto policy ) { 
-			std::for_each( policy, iota_iter(0), iota_iter( contour.bins.size() ), [&]( Frame contourFrame ) {
+			std::for_each( FLAN_POLICY iota_iter(0), iota_iter( contour.bins.size() ), [&]( Frame contourFrame ) {
 				const Frame frame = contourFrame + contour.start_frame;
 				const MF * const sourceFramePtr = get_MFPointer( channel, frame, 0 );
 

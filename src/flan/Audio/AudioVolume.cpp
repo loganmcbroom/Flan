@@ -19,7 +19,7 @@ Audio& Audio::modify_volume_in_place(
 	auto gain_sampled = sample_function_over_domain( gain );
 
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
+		flan::for_each_i( get_num_frames(), ExecutionPolicy::Parallel_Unsequenced, [&]( Frame frame )
 			{
 			get_sample( channel, frame ) *= gain_sampled[frame];
 			} );
@@ -113,7 +113,7 @@ Audio Audio::invert_phase(
 	{
 	if( is_null() ) return Audio();
 	Audio out = copy();
-	std::for_each( std::execution::par_unseq, out.get_buffer().begin(), out.get_buffer().end(), []( Sample & s ){ s = -s; } );
+	std::for_each( FLAN_PAR_UNSEQ out.get_buffer().begin(), out.get_buffer().end(), []( Sample & s ){ s = -s; } );
 	return out;
 	}
 
@@ -129,7 +129,7 @@ Audio Audio::waveshape(
 		{
 		runtime_execution_policy_handler( shaper.get_execution_policy(), [&]( auto policy )
 			{
-			std::for_each( policy, iota_iter( 0 ), iota_iter( oversampled.get_num_frames() ), [&]( Frame frame )
+			std::for_each( FLAN_POLICY iota_iter( 0 ), iota_iter( oversampled.get_num_frames() ), [&]( Frame frame )
 				{ 
 				Sample & s = oversampled.get_sample( channel, frame );
 				s = shaper( std::pair( oversampled.frame_to_time( frame ), s ) );
@@ -226,7 +226,7 @@ Audio Audio::compress(
 		return y_L;
 		};
 
-	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( get_num_channels() ), [&]( Channel channel)
+	flan::for_each_i( get_num_channels(), ExecutionPolicy::Parallel_Unsequenced, [&]( Channel channel)
 		{
 		// Peak detector buffers
 		float y_1 = 0;

@@ -32,13 +32,15 @@ const float pi = std::acos( -1.0f );
 int main()
 	{
 	auto synth = Audio::synthesize_waveform( waveforms::sine, .5, []( Second t ){ return 111; } ).set_volume( 1 );
-	auto bah = Audio( "Bah.wav" ).set_volume( .9 );
+	//auto bah = Audio( "Bah.wav" ).set_volume( .9 );
 
-	play( bah
-		.convert_to_PV()
-		.select( 5, []( TF tf ){ return TF{ tf.t / 4, std::sin(tf.t*50)*100*tf.t + tf.f }; } )
-		.convert_to_audio()
-		.set_volume( .7 ) );
+	std::cout << "f";
+
+	// play( bah
+	// 	.convert_to_PV()
+	// 	.select( 5, []( TF tf ){ return TF{ tf.t / 4, std::sin(tf.t*50)*100*tf.t + tf.f }; } )
+	// 	.convert_to_audio()
+	// 	.set_volume( .7 ) );
 
 	//play( bah.stereo_delay( 5, .5, 1, 0.5 ).set_volume( .5 ) );
 
@@ -86,16 +88,16 @@ int main()
 	}
 
 
-#include <Windows.h>
-#include <Mmsystem.h>
-void play( const Audio & toPlay )
-	{
-	if( !toPlay.save( "temp_file_save.wav" ) )
-        return;
-	std::cout << "Playing sound ... " << std::endl;
-	if( ! PlaySound("temp_file_save.wav", nullptr, SND_FILENAME) )
-		std::cout << "Error playing sound\n";
-	}
+// #include <Windows.h>
+// #include <Mmsystem.h>
+// void play( const Audio & toPlay )
+// 	{
+// 	if( !toPlay.save( "temp_file_save.wav" ) )
+//         return;
+// 	std::cout << "Playing sound ... " << std::endl;
+// 	if( ! PlaySound("temp_file_save.wav", nullptr, SND_FILENAME) )
+// 		std::cout << "Error playing sound\n";
+// 	}
 
 void graph( const std::string & f )
 	{
@@ -169,9 +171,9 @@ void frequency_response_2d( Second length, std::function< Audio ( const Audio & 
 	const float max_mag = filtered_pv.get_max_partial_magnitude();
 
 	std::vector<Function<vec2, Magnitude>> fs;
-	fs.push_back( [&filtered_pv, max_mag]( Second x, Frequency y )
+	fs.push_back( [&filtered_pv, max_mag]( vec2 xy )
 		{
-		const float m = filtered_pv.get_MF( 0, filtered_pv.time_to_frame( x ), filtered_pv.frequency_to_bin( y ) ).m / max_mag;
+		const float m = filtered_pv.get_MF( 0, filtered_pv.time_to_frame( xy.x() ), filtered_pv.frequency_to_bin( xy.y() ) ).m / max_mag;
 		return std::abs( m );
 		} );
 

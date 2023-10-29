@@ -28,9 +28,9 @@ PV Audio::convert_to_PV( Frame window_size, Frame hopSize, Frame dft_size, flan_
 
 	// Sample hann window
 	std::vector<float> hann_window( window_size );
-	std::transform( std::execution::par_unseq, iota_iter(0), iota_iter(window_size), hann_window.begin(), [&]( int i )
+	std::for_each( FLAN_PAR_UNSEQ iota_iter(0), iota_iter(window_size), [&]( int i )
 		{ 
-		return Windows::hann( float( i ) / float( window_size - 1 ) ); 
+		hann_window[i] = Windows::hann( float( i ) / float( window_size - 1 ) ); 
 		} );
 
 	// Allocate fft buffers and phase buffer
@@ -41,7 +41,7 @@ PV Audio::convert_to_PV( Frame window_size, Frame hopSize, Frame dft_size, flan_
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
 		{
 		//Set initial phase to 0
-		std::fill( std::execution::par_unseq, phase_buffer.begin(), phase_buffer.end(), 0 );
+		std::fill( FLAN_PAR_UNSEQ phase_buffer.begin(), phase_buffer.end(), 0 );
 
 		//For each hop, fft and save into buffer
 		for( Frame pvFrame = 0; pvFrame < numHops; ++pvFrame )
@@ -66,7 +66,7 @@ PV Audio::convert_to_PV( Frame window_size, Frame hopSize, Frame dft_size, flan_
 	
 			fft.r2c_execute();
 
-			std::for_each( std::execution::par_unseq, iota_iter(0), iota_iter(num_bins), [&]( Bin bin )
+			std::for_each( FLAN_PAR_UNSEQ iota_iter(0), iota_iter(num_bins), [&]( Bin bin )
 				{
 				out.get_MF( channel, pvFrame, bin ) = phase_vocoder( phase_buffer[bin], fft.get_complex_buffer()[bin], 
 					out.bin_to_frequency( bin ), out.get_analysis_rate(), out.get_sample_rate() );
@@ -101,9 +101,9 @@ Audio PV::convert_to_audio( flan_CANCEL_ARG_CPP ) const
 	// Sample hann window
 	std::vector<float> hann_window( get_window_size() );
 	const float window_scale = 2.67f / ( get_dft_size() * get_window_size() / get_hop_size() ); // I don't know why, converting audio->PV->audio reduces volume by an input specific amount, usually about 2.67
-	std::transform( std::execution::par_unseq, iota_iter(0), iota_iter(get_window_size()), hann_window.begin(), [&]( int i )
+	std::for_each( FLAN_PAR_UNSEQ iota_iter(0), iota_iter(get_window_size()), [&]( int i )
 		{
-		return Windows::hann( float( i ) / float( get_window_size() - 1 ) ) * window_scale;
+		hann_window[i] = Windows::hann( float( i ) / float( get_window_size() - 1 ) ) * window_scale;
 		} );
 
 	std::vector<double> phase_buffer( get_num_bins() );
@@ -112,15 +112,15 @@ Audio PV::convert_to_audio( flan_CANCEL_ARG_CPP ) const
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
 		{
 		// Initial phase? Using 0, but maybe something else would work better.
-		std::fill( std::execution::par_unseq, phase_buffer.begin(), phase_buffer.end(), 0 );
+		std::fill( FLAN_PAR_UNSEQ phase_buffer.begin(), phase_buffer.end(), 0 );
 
 		for( Frame pv_frame = 0; pv_frame < get_num_frames(); ++pv_frame )
 			{
 			flan_CANCEL_POINT( Audio() );
-			
-			std::transform( std::execution::par_unseq, iota_iter(0), iota_iter( get_num_bins() ), fft.complex_begin(), [&]( Bin bin )
+
+			std::for_each( FLAN_PAR_UNSEQ iota_iter(0), iota_iter( get_num_bins() ), [&]( Bin bin )
 				{
-				return inverse_phase_vocoder( phase_buffer[bin], get_MF( channel, pv_frame, bin ), get_analysis_rate() );
+				fft.get_complex_buffer()[bin] = inverse_phase_vocoder( phase_buffer[bin], get_MF( channel, pv_frame, bin ), get_analysis_rate() );
 				} );
 
 			fft.c2r_execute();

@@ -106,7 +106,21 @@
 			"__split_buffer": "cpp",
 			"__tree": "cpp",
 			"string_view": "cpp",
-			"__bit_reference": "cpp"
+			"__bit_reference": "cpp",
+			"__bits": "cpp",
+			"__config": "cpp",
+			"__debug": "cpp",
+			"__errc": "cpp",
+			"__mutex_base": "cpp",
+			"__node_handle": "cpp",
+			"__tuple": "cpp",
+			"__verbose_abort": "cpp",
+			"numbers": "cpp",
+			"semaphore": "cpp",
+			"variant": "cpp",
+			"*.tcc": "cpp",
+			"memory_resource": "cpp",
+			"cinttypes": "cpp"
 		}
 	}
 }

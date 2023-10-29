@@ -19,7 +19,7 @@ PV PV::modify( const Function<TF, TF> & mod, Interpolator interp ) const
 
 	//Sample mod function and convert output to frame/bin
 	auto mod_sampled = sample_function_over_domain( mod );
-	std::for_each( std::execution::par_unseq, mod_sampled.begin(), mod_sampled.end(), [&]( TF & v ){ 
+	std::for_each( FLAN_PAR_UNSEQ mod_sampled.begin(), mod_sampled.end(), [&]( TF & v ){ 
 		v.t = time_to_frame( v.t );
 		v.f = frequency_to_bin( v.f ); 
 		} );
@@ -60,7 +60,7 @@ PV PV::modify( const Function<TF, TF> & mod, Interpolator interp ) const
 					};
 				}
 		
-		std::for_each( std::execution::par, iota_iter( 1 ), iota_iter( get_num_frames() ), [&]( Frame frame )
+		std::for_each( FLAN_PAR_SEQ iota_iter( 1 ), iota_iter( get_num_frames() ), [&]( Frame frame )
 			{
 			//std::for_each( std::execution::par, iota_iter(1), iota_iter(get_num_bins()), [&]( Bin bin )
 			for( Bin bin = 1; bin < get_num_bins(); ++bin )
@@ -203,7 +203,7 @@ PV PV::modify_frequency( const Function<TF, Frequency> & mod, Interpolator inter
 
 	//Sample mod function and convert output to frame/bin
 	auto mod_sampled = sample_function_over_domain( mod );
-	std::for_each( std::execution::par_unseq, mod_sampled.begin(), mod_sampled.end(), [&]( Frequency & f ){ 
+	std::for_each( FLAN_PAR_UNSEQ mod_sampled.begin(), mod_sampled.end(), [&]( Frequency & f ){ 
 		f = frequency_to_bin( f ); 
 		} );
 
@@ -219,10 +219,10 @@ PV PV::modify_frequency( const Function<TF, Frequency> & mod, Interpolator inter
 			for( Bin bin = 0; bin < get_num_bins(); ++bin, ++modDataSamplesWriteHead, ++inBufferReadHead )
 				*modDataSamplesWriteHead = {
 					inBufferReadHead->m,
-					mod( TF( frame_to_time( frame ), inBufferReadHead->f ) ) 
+					mod( TF{ frame_to_time( frame ), inBufferReadHead->f } ) 
 					};
 
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
+		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
 			{
 			// For each adjacent pair of bins
 			for( Bin bin = 1; bin < get_num_bins(); ++bin )
@@ -276,7 +276,7 @@ PV PV::modify_time( const Function<TF, Second> & mod, Interpolator interp ) cons
 
 	// Sample mod function and convert output to frame/bin
 	auto mod_sampled = sample_function_over_domain( mod );
-	std::for_each( std::execution::par_unseq, mod_sampled.begin(), mod_sampled.end(), [&]( Second & t ){ 
+	std::for_each( FLAN_PAR_UNSEQ mod_sampled.begin(), mod_sampled.end(), [&]( Second & t ){ 
 		t = time_to_frame( t );
 		} );
 
@@ -288,16 +288,16 @@ PV PV::modify_time( const Function<TF, Second> & mod, Interpolator interp ) cons
 	PV out( format );
 	out.clear_buffer();
 
-	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( get_num_channels() ), [&]( Channel channel )
+	std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( get_num_channels() ), [&]( Channel channel )
 		{
 		// Note the bin loop happens first here. There are a lot of considerations involved in the ordering, but
 		//  it comes down to time displacement happening along frames. Paralellizing the frames requires synchronization
 		//  that isn't worth the benifits, and the parallel loop being first is faster. The algorithm isn't cache friendly 
 		//  either way because we store PV data in frame-major order.
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( get_num_bins() ), [&]( Bin bin )
+		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( get_num_bins() ), [&]( Bin bin )
 			{
 			// For each adjacent pair of frames
-			std::for_each( std::execution::seq, iota_iter( 1 ), iota_iter( get_num_frames() ), [&]( Frame frame )
+			std::for_each( iota_iter( 1 ), iota_iter( get_num_frames() ), [&]( Frame frame )
 				{
 				const float lFrame = mod_sampled[ buffer_access( bin, frame - 1, get_num_bins() ) ];
 				const float rFrame = mod_sampled[ buffer_access( bin, frame    , get_num_bins() ) ];
@@ -418,7 +418,7 @@ PV PV::desample( const Function<TF, float> & events_per_second, Interpolator int
 
 		// Factor is integrated, when the accumulator passes 1 the currest frame is selected as an interpolation endpoint
 		std::vector<float> accums( get_num_bins(), 1 ); // Start at one to trigger interp from starting frame
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( get_num_bins() ), [&]( Bin bin )
+		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( get_num_bins() ), [&]( Bin bin )
 			{
 			for( Frame frame = 0; frame < get_num_frames(); ++frame )
 				{
@@ -434,7 +434,7 @@ PV PV::desample( const Function<TF, float> & events_per_second, Interpolator int
 				}
 			} );
 
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( get_num_bins() ), [&]( Bin bin )
+		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( get_num_bins() ), [&]( Bin bin )
 			{
 			// For each pair of selected interpolation endpoints in selectedFrames, intepolate the frames between them
 			std::vector<Frame> & selectedFrames_c = selectedFrames[bin];
@@ -498,10 +498,10 @@ PV PV::time_extrapolate( Second start_time, Second end_time, Second extrapolatio
 	for( Channel channel = 0; channel < get_num_channels(); ++channel ) 
 		{
 		// Copy up to the start frame from input into output
-		std::copy( std::execution::par_unseq, channel_begin( channel ), channel_begin( channel ) + start_frame * get_num_bins(), out.channel_begin( channel ) );
+		std::copy( FLAN_PAR_UNSEQ channel_begin( channel ), channel_begin( channel ) + start_frame * get_num_bins(), out.channel_begin( channel ) );
 			
 		//Interpolate and continue beyond end_frame to extrapolate
-		std::for_each( std::execution::par_unseq, iota_iter( start_frame ), iota_iter( out.get_num_frames() ), [&]( Frame frame ) 
+		std::for_each( FLAN_PAR_UNSEQ iota_iter( start_frame ), iota_iter( out.get_num_frames() ), [&]( Frame frame ) 
 			{
 			const float mix = interpSamples[ frame - start_frame ];
 

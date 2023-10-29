@@ -17,6 +17,7 @@ find_path( SndFile_INCLUDE_DIR
 	PATH_SUFFIXES
 		include
 		libsndfile/include
+		libsndfile/1.2.2/include
   )
   
 find_library( SndFile_LIBRARY_RELEASE
@@ -25,6 +26,7 @@ find_library( SndFile_LIBRARY_RELEASE
 	PATH_SUFFIXES
 		lib
 		libsndfile/lib
+		libsndfile/1.2.2/lib
   )
 
 find_library( SndFile_LIBRARY_DEBUG
@@ -33,6 +35,7 @@ find_library( SndFile_LIBRARY_DEBUG
 	PATH_SUFFIXES
 		lib
 		libsndfile/lib
+		libsndfile/1.2.2/lib
   )
 
 # Handle Debug/Release builds

@@ -34,7 +34,7 @@ public:
 		std::vector<T> out( get_num_frames() * get_num_bins() );
 		runtime_execution_policy_handler( f.get_execution_policy(), [&]( auto policy )
 			{
-			std::for_each( policy, iota_iter( 0 ), iota_iter( out.size() ), [&]( Index i )
+			std::for_each( FLAN_POLICY iota_iter( 0 ), iota_iter( out.size() ), [&]( Index i )
 				{
 				const Frame frame = i / get_num_bins();
 				const Bin bin = i % get_num_bins();
@@ -50,7 +50,7 @@ public:
 		std::vector<T> out( get_num_frames() );
 		runtime_execution_policy_handler( f.get_execution_policy(), [&]( auto policy )
 			{
-			std::for_each( policy, iota_iter( 0 ), iota_iter( out.size() ), [&]( Frame frame )
+			std::for_each( FLAN_POLICY iota_iter( 0 ), iota_iter( out.size() ), [&]( Frame frame )
 				{
 				out[frame] = f( frame_to_time( frame ) );
 				} );

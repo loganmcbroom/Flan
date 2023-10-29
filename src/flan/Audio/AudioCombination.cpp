@@ -116,7 +116,7 @@ Audio Audio::mix(
 		{
 		const Audio & me = *ins[in];
 		for( Channel channel = 0; channel < me.get_num_channels(); ++channel )
-			std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( me.get_num_frames() ), [&]( Frame local_frame )
+			std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( me.get_num_frames() ), [&]( Frame local_frame )
 				{
 				const Frame global_frame = local_frame + start_frames[in];
 				if( 0 <= global_frame && global_frame < format.num_frames )
@@ -187,7 +187,7 @@ Audio Audio::mix_variable_gain(
 		{
 		const Audio & me = *ins[in];
 		for( Channel channel = 0; channel < me.get_num_channels(); ++channel )
-			std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( me.get_num_frames() ), [&]( Frame local_frame )
+			std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( me.get_num_frames() ), [&]( Frame local_frame )
 				{
 				const Frame global_frame = local_frame + start_frames[in];
 				if( 0 <= global_frame && global_frame < format.num_frames ) {

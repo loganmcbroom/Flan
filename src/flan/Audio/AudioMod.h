@@ -21,7 +21,11 @@ public:
 	~AudioMod() 								= default;
 
 	template<typename C>
-	requires std::convertible_to<C, FuncType> && (!std::same_as<C, std::nullptr_t>)
+	requires 
+#ifndef __APPLE__
+		std::convertible_to<C, FuncType> && 
+#endif
+		(!std::same_as<C, std::nullptr_t>)
 	AudioMod( C _f, ExecutionPolicy _p = ExecutionPolicy::Parallel_Unsequenced )
 		: func( _f )
 		, policy( _p )

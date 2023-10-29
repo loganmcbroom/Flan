@@ -24,26 +24,30 @@ bool is_unsequenced( ExecutionPolicy a )
 
 ExecutionPolicy lowest_execution( const std::vector<ExecutionPolicy> & ps )
 	{
-	bool linear = false;
-	for( auto p : ps )
-		if( is_linear( p ) )
-			linear = true;
+	#ifdef __APPLE__
+		return ExecutionPolicy::Linear_Sequenced;
+	#else
+		bool linear = false;
+		for( auto p : ps )
+			if( is_linear( p ) )
+				linear = true;
 
-	bool sequenced = false;
-	for( auto p : ps )
-		if( is_sequenced( p ) )
-			linear = true;
+		bool sequenced = false;
+		for( auto p : ps )
+			if( is_sequenced( p ) )
+				linear = true;
 
-	if( linear )
-		{
-		if( sequenced ) return ExecutionPolicy::Linear_Sequenced;
-		else return ExecutionPolicy::Linear_Unsequenced;
-		}
-	else
-		{
-		if( sequenced ) return ExecutionPolicy::Parallel_Sequenced;
-		else return ExecutionPolicy::Parallel_Unsequenced;
-		}
+		if( linear )
+			{
+			if( sequenced ) return ExecutionPolicy::Linear_Sequenced;
+			else return ExecutionPolicy::Linear_Unsequenced;
+			}
+		else
+			{
+			if( sequenced ) return ExecutionPolicy::Parallel_Sequenced;
+			else return ExecutionPolicy::Parallel_Unsequenced;
+			}
+	#endif
 	}
 
 }

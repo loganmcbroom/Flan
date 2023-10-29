@@ -1,7 +1,7 @@
 #include "SQPVBuffer.h"
 
 #include <algorithm>
-#include <execution>
+#include "flan/Utility/execution.h"
 
 using namespace flan;
 
@@ -150,7 +150,7 @@ bool SQPVBuffer::is_null() const
 
 void SQPVBuffer::clear_buffer()
 	{
-	std::fill( std::execution::par_unseq, buffer.begin(), buffer.end(), MP{ 0, Pitch( 0, true ) } );
+	std::fill( FLAN_PAR_UNSEQ buffer.begin(), buffer.end(), MP{ 0, Pitch( 0, true ) } );
 	}
 
 SQPVBuffer SQPVBuffer::copy() const
