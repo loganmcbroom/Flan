@@ -78,14 +78,14 @@ angles mixing these signals	sinusoidally as a function of angle. The maximal fil
 	// 	};
 	// auto falloff_filtered = filter_1pole_repeat( falloff_cutoff, 16 );
 
-Audio Audio::stereo_spatialize( 
+Audio Audio::stereo_spatialize_variable( 
 	const Function<Second, vec2> & position 
 	) const
 	{
 	if( get_num_channels() != 1 )
 		{
 		std::cout << "Audio::spacialize only operates on mono inputs." << std::endl;
-		return Audio();
+		return Audio::create_null();
 		}
 
 	const float sound_mps = 331.29f;

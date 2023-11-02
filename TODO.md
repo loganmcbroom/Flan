@@ -1,4 +1,4 @@
-Ideas:
+Maybe todo:
 	continuity maintenance in wavelength/frequency finders
 	octave error minimization in yin-based pitch finder (fast contour finder)
 	contour pitch mean should be magnitude weighted
@@ -7,7 +7,6 @@ Ideas:
 	perturb sucks currently but might have potential using something like simplex noise, see comments on process
 		it also could be placing frequencies outside bins that can hold them, use the bin shift strategy as in PV::extrapolateTime
 	PV::time_extrapolate could use a Func2x1 instead of interp, not sure the best way to set it up though
-	SPV and SQPV graphing, PV too actually, needs to handle that bins don't hold the frequency at that bin all the time
 	find a better way to handle function sampling, then remove buffer_access
 
 Process ideas:
@@ -18,6 +17,6 @@ Process ideas:
 	Audio::limiter
 		look-ahead option in compressor would take care of this
 	Audio::split_at_frequencies for multiple splits
-	PV::alignHarmonics
+	PV::align_harmonics
 
 Task:
