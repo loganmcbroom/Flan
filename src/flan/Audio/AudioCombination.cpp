@@ -83,7 +83,7 @@ Audio Audio::mix(
 	{
 	
 	// Input validation
-	if( ins_unmatched.empty() ) return Audio();
+	if( ins_unmatched.empty() ) return Audio::create_null();
 
 	std::vector<Audio> ins_resampled_container = match_sample_rates_or_return_null( ins_unmatched );
 	std::vector<const Audio *> ins = ins_resampled_container.empty() ? ins_unmatched : get_pointers( ins_resampled_container );
@@ -144,7 +144,7 @@ Audio Audio::mix_variable_gain(
 	{
 	
 	// Input validation
-	if( ins_unmatched.empty() ) return Audio();
+	if( ins_unmatched.empty() ) return Audio::create_null();
 
 	std::vector<Audio> ins_resampled_container = match_sample_rates_or_return_null( ins_unmatched );
 	std::vector<const Audio *> ins = ins_resampled_container.empty() ? ins_unmatched : get_pointers( ins_resampled_container );
@@ -215,7 +215,7 @@ Audio& Audio::mix_in_place(
 	const Function<Second, Amplitude> & other_amplitude 
 	)
 	{
-	const Audio resampled =	get_sample_rate() == other.get_sample_rate() ? Audio() : other.resample( get_sample_rate() );
+	const Audio resampled =	get_sample_rate() == other.get_sample_rate() ? Audio::create_null() : other.resample( get_sample_rate() );
 	const Audio * sr_correct_source = get_sample_rate() == other.get_sample_rate() ? &other : &resampled;
 
 	const Channel num_channels = std::min( get_num_channels(), sr_correct_source->get_num_channels() );
@@ -239,7 +239,7 @@ Audio Audio::join(
 	)
 	{
 	
-	if( ins.empty() ) return Audio();
+	if( ins.empty() ) return Audio::create_null();
 
 	// Get input Audio lengths
 	std::vector<Second> jumps( { 0 } );
@@ -295,7 +295,7 @@ Audio Audio::select(
 
 // Audio Audio::convolve( const Function<Second, std::vector<float>> & ir ) const
 // 	{
-// 	if( is_null() ) return Audio();
+// 	if( is_null() ) return Audio::create_null();
 
 // 	auto irSamples = ir.sample( 0, get_num_frames(), frame_to_time( 1 ) );
 // 	const size_t maxIrSize = max_element( irSamples, less(), []( const std::vector<float> & v ){ return v.size(); } )->size();
@@ -327,10 +327,10 @@ Audio Audio::convolve(
 	const Audio & ir 
 	) const
 	{
-	if( is_null() ) return Audio();
-	if( ir.is_null() ) return Audio();
+	if( is_null() ) return Audio::create_null();
+	if( ir.is_null() ) return Audio::create_null();
 
-	const Audio resampled =	get_sample_rate() == ir.get_sample_rate() ? Audio() : ir.resample( get_sample_rate() );
+	const Audio resampled =	get_sample_rate() == ir.get_sample_rate() ? Audio::create_null() : ir.resample( get_sample_rate() );
 	const Audio * sr_correct_ir = get_sample_rate() == ir.get_sample_rate() ? &ir : &resampled;
 
 	Audio::Format format;

@@ -2,27 +2,38 @@
 
 using namespace flan;
 
-Audio Audio::copy() const { return AudioBuffer::copy(); }
-
 Audio::Audio() 
 	: AudioBuffer() 
-	{}
-
-Audio::Audio( std::vector<float> && buffer, Channel num_channels, FrameRate sr )
-	: AudioBuffer( std::move( buffer ), num_channels, sr )
-	{}
-
-Audio::Audio( const AudioBuffer::Format & other ) 
-	: AudioBuffer( other ) 
-	{}
-
-Audio::Audio( const std::string & filename ) 
-	: AudioBuffer( filename ) 
 	{}
 
 Audio::Audio( AudioBuffer && other )
 	: AudioBuffer( std::move( other ) )
 	{
+	}
+
+Audio Audio::copy() const 
+	{ 
+	return AudioBuffer::copy(); 
+	}
+
+Audio Audio::create_null()
+	{
+	return Audio();
+	}
+
+Audio Audio::create_from_buffer( std::vector<float> && buffer, Channel num_channels, FrameRate sr )
+	{
+	return AudioBuffer( std::move( buffer ), num_channels, sr );
+	}
+
+Audio Audio::create_from_format( const AudioBuffer::Format & other ) 
+	{
+	return AudioBuffer( other );
+	}
+
+Audio Audio::load_from_file( const std::string & filename ) 
+	{
+	return AudioBuffer( filename );
 	}
 
 Audio Audio::create_empty_with_length( 

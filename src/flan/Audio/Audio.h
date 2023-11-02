@@ -47,18 +47,26 @@ public:
 	//============================================================================================================================================================
 	// Constructors
 	//============================================================================================================================================================
+	
+	Audio();
+
+	/** Audio is a stateless wrapper, so it can be constructed from a buffer
+	 */
+	Audio( 
+		AudioBuffer && 
+		);
 
 	Audio copy(
 		) const;
 	
 	/** Constructs 0 size Audio with default AudioBuffer::Format. 
 	 */
-	Audio(
+	static Audio create_null(
 		);
 
 	/** Constructs an audio from a temporary buffer.
 	 */
-	Audio( 
+	static Audio create_from_buffer( 
 		std::vector<float> && buffer, 
 		Channel num_channels, 
 		FrameRate sample_rate 
@@ -67,7 +75,7 @@ public:
 	/** Constructs an Audio with the Format other but with an initialized buffer.
 	 *	\param other Format for the constructed PV
 	 */
-	Audio( 
+	static Audio create_from_format( 
 		const AudioBuffer::Format & other 
 		);
 
@@ -75,14 +83,8 @@ public:
 	 *	Supports any file extensions supported by libsndfile. Wave is suggested, and mp3 is unsupported.
 	 *	\param filename Filename to load
 	 */
-	Audio( 
+	static Audio load_from_file( 
 		const std::string & filename 
-		);
-
-	/** Audio is a stateless wrapper, so it can be constructed from a buffer
-	 */
-	Audio( 
-		AudioBuffer && 
 		);
 
 	static Audio create_empty_with_length( 
@@ -260,7 +262,7 @@ public:
 		std::vector<const Audio *> p_ins;
 		( p_ins.push_back( &ins ), ... ); // Fold expression
 
-		if( p_ins.empty() ) return Audio();
+		if( p_ins.empty() ) return Audio::create_null();
 
 		// Use the total number of input channels, and the maximum number of input frames
 		Audio::Format format;

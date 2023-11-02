@@ -5,7 +5,7 @@
 #ifndef __APPLE__
 #include <execution>
 #define FLAN_PAR_UNSEQ std::execution::par_unseq,
-#define FLAN_PAR_SEQ std::execution::par_seq,
+#define FLAN_PAR_SEQ std::execution::par,
 #define FLAN_POLICY policy,
 #else
 #define FLAN_PAR_UNSEQ

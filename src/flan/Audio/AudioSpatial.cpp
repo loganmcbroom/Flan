@@ -6,10 +6,10 @@ using namespace flan;
 
 Audio Audio::pan( const Function<Second, float> & pan_amount ) const
 	{
-	if( is_null() ) return Audio();
+	if( is_null() ) return Audio::create_null();
 
 	if( get_num_channels() != 1 && get_num_channels() != 2 )
-		return Audio();
+		return Audio::create_null();
 
 	Audio out = get_num_channels() == 1 ? convert_to_stereo() : copy();
 	out.pan_in_place( pan_amount );
@@ -247,7 +247,7 @@ Audio Audio::stereo_spatialize(
 	if( get_num_channels() != 1 )
 		{
 		std::cout << "Audio::stereo_spatialize only operates on mono inputs." << std::endl;
-		return Audio();
+		return Audio::create_null();
 		}
 
 	const float sound_mps = 331.29f;
@@ -259,7 +259,7 @@ Audio Audio::stereo_spatialize(
 	const Meter l_dist = ( l_ear - position ).mag();
 	const Meter r_dist = ( r_ear - position ).mag();
 	if( l_dist < 0.00001 || r_dist < 0.00001 )
-		return Audio(); 
+		return Audio::create_null(); 
 
 	// Frame rounding here can cause around a quarter inch positional descrepency, less than we are concerned with.
 	const Frame l_delay = time_to_frame( l_dist / sound_mps );

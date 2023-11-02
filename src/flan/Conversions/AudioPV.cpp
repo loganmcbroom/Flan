@@ -116,7 +116,7 @@ Audio PV::convert_to_audio( flan_CANCEL_ARG_CPP ) const
 
 		for( Frame pv_frame = 0; pv_frame < get_num_frames(); ++pv_frame )
 			{
-			flan_CANCEL_POINT( Audio() );
+			flan_CANCEL_POINT( Audio::create_null() );
 
 			std::for_each( FLAN_PAR_UNSEQ iota_iter(0), iota_iter( get_num_bins() ), [&]( Bin bin )
 				{
@@ -144,6 +144,6 @@ Audio PV::convert_to_audio( flan_CANCEL_ARG_CPP ) const
 	
 Audio PV::convert_to_lr_audio( flan_CANCEL_ARG_CPP ) const
 	{
-	if( get_num_channels() != 2 ) return Audio();
+	if( get_num_channels() != 2 ) return Audio::create_null();
 	return convert_to_audio( canceller ).convert_to_left_right();
 	}

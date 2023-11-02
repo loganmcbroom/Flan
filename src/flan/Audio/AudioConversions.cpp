@@ -13,7 +13,7 @@ using namespace flan;
 
 Audio Audio::resample( FrameRate new_sample_rate ) const
 	{
-	if( is_null() ) return Audio(); 
+	if( is_null() ) return Audio::create_null(); 
 
 	if( new_sample_rate == get_sample_rate() ) 
 		return copy();
@@ -31,7 +31,7 @@ Audio Audio::resample( FrameRate new_sample_rate ) const
 
 Audio Audio::convert_to_mid_side() const
 	{
-	if( is_null() ) return Audio();
+	if( is_null() ) return Audio::create_null();
 
 	if( get_num_channels() != 2 )
 		{
@@ -54,7 +54,7 @@ Audio Audio::convert_to_left_right() const
 
 Audio Audio::convert_to_stereo() const
 	{
-	if( is_null() ) return Audio();
+	if( is_null() ) return Audio::create_null();
 
 	auto format = get_format();
 	format.num_channels = 2;
@@ -83,7 +83,7 @@ Audio Audio::convert_to_stereo() const
 
 Audio Audio::convert_to_mono() const
 	{
-	if( is_null() ) return Audio();
+	if( is_null() ) return Audio::create_null();
 
 	auto format = get_format();
 	format.num_channels = 1;

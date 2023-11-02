@@ -61,7 +61,7 @@ static Frame snap_frame_to_sample( const Audio & me, Frame frameToSnap, Sample s
 static Audio resample_waveforms( const Audio & source, const std::vector<Frame> & waveform_starts, Frame outputWavelength, flan_CANCEL_ARG_CPP )
     {
 	// Input validation
-	if( source.is_null() ) return Audio();
+	if( source.is_null() ) return Audio::create_null();
 	const Audio mono_source = source.get_num_channels() == 1? source.copy() : source.convert_to_mono();
 
 	// Set up output
@@ -73,7 +73,7 @@ static Audio resample_waveforms( const Audio & source, const std::vector<Frame> 
 	// For each waveform, resample to wavelength
 	for( Waveform waveform = 0; waveform < waveform_starts.size() - 1; ++waveform )
 		{
-		flan_CANCEL_POINT( Audio() );
+		flan_CANCEL_POINT( Audio::create_null() );
 
 		const Frame start_frame = waveform_starts[waveform];
 		const Frame end_frame =  waveform_starts[waveform + 1];
@@ -225,7 +225,7 @@ Wavetable::Wavetable( const Audio & source, const std::vector<Frame> & waveform_
 
 Wavetable::Wavetable()
 	: wavelength( 0 )
-    , table( Audio() )
+    , table( Audio::create_null() )
 	, numWaveforms( 0 )
 	{
 	}
@@ -253,7 +253,7 @@ Audio Wavetable::synthesize(
 	Frame phaseFrame = 0;
 	while( out_framesGenerated < out.get_num_frames() )
 		{
-		flan_CANCEL_POINT( Audio() );
+		flan_CANCEL_POINT( Audio::create_null() );
 
 		const double inFreq_c = double( table.get_sample_rate() ) / wavelength;
 		const double outFreq_c = freq( out.frame_to_time( out_framesGenerated ) );

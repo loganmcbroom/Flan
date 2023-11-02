@@ -34,8 +34,6 @@ int main()
 	auto synth = Audio::synthesize_waveform( waveforms::sine, .5, []( Second t ){ return 111; } ).set_volume( 1 );
 	//auto bah = Audio( "Bah.wav" ).set_volume( .9 );
 
-	std::cout << "f";
-
 	// play( bah
 	// 	.convert_to_PV()
 	// 	.select( 5, []( TF tf ){ return TF{ tf.t / 4, std::sin(tf.t*50)*100*tf.t + tf.f }; } )

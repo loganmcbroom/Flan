@@ -28,7 +28,7 @@ Audio Audio::synthesize_waveform(
 	size_t oversample 
 	)
 	{
-	if( length <= 0 ) return Audio();
+	if( length <= 0 ) return Audio::create_null();
 
 	// Set up output
 	Audio::Format format;
@@ -184,7 +184,7 @@ Audio Audio::synthesize_grains(
 	std::cout << __FUNCTION__ << std::endl;
 
 	// Input validation
-	if( length <= 0 ) return Audio();
+	if( length <= 0 ) return Audio::create_null();
 	
 	const std::vector<Second> event_times = integrate_event_rate( length, grains_per_second, time_scatter, sample_rate );
 
@@ -210,10 +210,10 @@ Audio Audio::synthesize_grains_repeat(
 	FrameRate sample_rate
 	) const
 	{
-	if( is_null() ) return Audio();
+	if( is_null() ) return Audio::create_null();
 
 	// Input validation
-	if( length <= 0 ) return Audio();
+	if( length <= 0 ) return Audio::create_null();
 	
 	const std::vector<Second> event_times = integrate_event_rate( length, grains_per_second, time_scatter, sample_rate );
 
@@ -233,7 +233,7 @@ Audio Audio::synthesize_grains_with_feedback_mod(
 	FrameRate sample_rate
 	) const
 	{
-	if( is_null() ) return Audio();
+	if( is_null() ) return Audio::create_null();
 
 	if( mod.is_null() )
 		return synthesize_grains_repeat( length, grains_per_second, time_scatter, 1.0f, sample_rate );
@@ -322,7 +322,7 @@ Audio Audio::synthesize_granulation(
 	const AudioMod & mod
 	) const
 	{
-	if( is_null() ) return Audio();
+	if( is_null() ) return Audio::create_null();
 
 	const auto selection_sampled 	= time_selection.sample( 0, time_to_frame( length ), frame_to_time( 1 ) );
 	const auto grain_length_sampled = grain_length	.sample( 0, time_to_frame( length ), frame_to_time( 1 ) );

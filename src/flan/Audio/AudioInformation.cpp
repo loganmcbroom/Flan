@@ -130,7 +130,7 @@ std::vector<float> Audio::get_total_energy() const
 
 std::vector<float> Audio::get_energy_difference( const Audio & other ) const
 	{	
-	const Audio resampled =	get_sample_rate() == other.get_sample_rate() ? Audio() : other.resample( get_sample_rate() );
+	const Audio resampled =	get_sample_rate() == other.get_sample_rate() ? Audio::create_null() : other.resample( get_sample_rate() );
 	const Audio * sr_correct_source = get_sample_rate() == other.get_sample_rate() ? &other : &resampled;
 	return Audio::mix( std::vector<const Audio *>{ this, sr_correct_source }, {0, 0}, { 1, -1 } ).get_total_energy();
 	}

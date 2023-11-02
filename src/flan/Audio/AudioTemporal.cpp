@@ -9,10 +9,10 @@ Audio Audio::modify_boundaries(
 	Second end 
 	) const
 	{
-	if( is_null() ) return Audio();
+	if( is_null() ) return Audio::create_null();
 
 	const Frame num_out_frames = time_to_frame( -start ) + get_num_frames() + time_to_frame( end );
-	if( num_out_frames <= 0 ) return Audio();
+	if( num_out_frames <= 0 ) return Audio::create_null();
 
 	Audio::Format format = get_format();
 	format.num_frames = num_out_frames;
@@ -124,7 +124,7 @@ Audio Audio::remove_silence(
 Audio Audio::reverse(
 	) const
 	{
-	if( is_null() ) return Audio();
+	if( is_null() ) return Audio::create_null();
 
 	Audio out( get_format() );
 
@@ -144,7 +144,7 @@ Audio Audio::cut(
 	Second end_fade 
 	) const
 	{
-	if( is_null() ) return Audio();
+	if( is_null() ) return Audio::create_null();
 
 	return cut_frames( 
 		time_to_frame( start_time	), 
@@ -161,10 +161,10 @@ Audio Audio::cut_frames(
 	Frame end_fade 
 	) const
 	{
-	if( is_null() ) return Audio();
+	if( is_null() ) return Audio::create_null();
 
 	// Input validation
-	if( end <= start ) return Audio();
+	if( end <= start ) return Audio::create_null();
 	const Frame start_frame = std::clamp( start, 0, get_num_frames() - 1 );
 	const Frame end_frame   = std::clamp( end,   0, get_num_frames() - 1 );
 	// Any fade errors are validated in Audio::fades
@@ -185,7 +185,7 @@ Audio Audio::cut_frames(
 
 Audio Audio::repitch( const Function<Second, float> & factor, Second granularity_in_seconds, WDLResampleType quality ) const
 	{
-	if( is_null() ) return Audio();
+	if( is_null() ) return Audio::create_null();
 
 	// Input validation
 	Frame granularity_in_frames = time_to_frame( granularity_in_seconds );
@@ -254,7 +254,7 @@ Audio Audio::iterate(
 	bool feedback 
 	) const
 	{
-	if( is_null() ) return Audio();
+	if( is_null() ) return Audio::create_null();
 	// Half a length is removed to avoid length rounding changing the number of events generated
 	return synthesize_grains_with_feedback_mod( get_length() * ( float( n ) - 0.5f ), 1.0f / get_length(), 0, mod, feedback, get_sample_rate() );
 	//return synthesize_grains_from_entire_audio( get_length() * ( float( n ) - 0.5f ), 1.0f / get_length(), 0, mod, feedback );
@@ -267,9 +267,9 @@ Audio Audio::delay(
 	const AudioMod & mod 
 	) const
 	{
-	if( is_null() ) return Audio();
+	if( is_null() ) return Audio::create_null();
 
-	if( length <= 0 ) return Audio();
+	if( length <= 0 ) return Audio::create_null();
 
 	auto delay_time_sampled = delay_time.sample( 0, time_to_frame( length ), frame_to_time( 1 ) );
 	auto decay_sampled = decay.sample( 0, time_to_frame( length ), frame_to_time( 1 ) );
@@ -309,7 +309,7 @@ Audio Audio::delay(
 // 		else return get_sample( c, f );
 // 		};
 
-// 	if( get_num_channels() != 2 ) return Audio();
+// 	if( get_num_channels() != 2 ) return Audio::create_null();
 
 // 	Audio out = Audio::create_empty_with_frames( time_to_frame( length ), 2, get_sample_rate() );
 
@@ -319,7 +319,7 @@ Audio Audio::delay(
 
 // 	const Frame l_buffer_size = time_to_frame( *std::max_element( l_time_sampled.begin(), l_time_sampled.end() ) );
 // 	const Frame r_buffer_size = time_to_frame( *std::max_element( r_time_sampled.begin(), r_time_sampled.end() ) );
-// 	if( l_buffer_size <= 0 || r_buffer_size <= 0 ) return Audio();
+// 	if( l_buffer_size <= 0 || r_buffer_size <= 0 ) return Audio::create_null();
 // 	std::vector<Sample> l_buffer( l_buffer_size, 0 );
 // 	std::vector<Sample> r_buffer( r_buffer_size, 0 );
 	
@@ -369,12 +369,12 @@ Audio Audio::rearrange(
 	Second fade 
 	) const
 	{
-	if( is_null() ) return Audio();
+	if( is_null() ) return Audio::create_null();
 
 	// + fade here accounts for + fade / 2 at both ends
 	std::vector<Audio> chops = chop( slice_length + fade, fade );
 	if( chops.size() < 2 )
-		return Audio();
+		return Audio::create_null();
 
 	chops.pop_back(); // Final slice usually isn't the correct length
 

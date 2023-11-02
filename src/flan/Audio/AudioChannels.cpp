@@ -32,7 +32,7 @@ Audio Audio::combine_channels(
 	const std::vector<const Audio *> & channels 
 	)
 	{
-	if( channels.empty() ) return Audio();
+	if( channels.empty() ) return Audio::create_null();
 
 	// Use the total number of input channels, and the maximum number of input frames
 	Audio::Format format;
