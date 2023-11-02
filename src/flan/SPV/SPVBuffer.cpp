@@ -1,6 +1,6 @@
 #include "SPVBuffer.h"
 
-#include <execution>
+#include "flan/Utility/execution.h"
 
 using namespace flan;
 
@@ -82,7 +82,7 @@ MF & SPVBuffer::get_MF( Channel channel, Frame frame, Bin bin )
 
 void SPVBuffer::clear_buffer()
 	{
-	std::fill( std::execution::par_unseq, buffer.begin(), buffer.end(), MF{0,0} );
+	std::fill( FLAN_PAR_UNSEQ buffer.begin(), buffer.end(), MF{0,0} );
 	}
 	
 SPVBuffer SPVBuffer::copy() const

@@ -91,7 +91,7 @@ static Audio resample_waveforms( const Audio & source, const std::vector<Frame> 
 		std::vector<Sample> outBuffer( paddedLength * expansion );
 		rs.oneshot( inPtr, paddedLength, outBuffer.data(), outBuffer.size() );
 	
-		std::copy( std::execution::par_unseq,
+		std::copy( FLAN_PAR_UNSEQ
 			outBuffer.begin() + leftPadSize * expansion, 
 			outBuffer.begin() + leftPadSize * expansion + outputWavelength, 
 			out.get_sample_pointer( 0, waveform * outputWavelength ) );
@@ -333,7 +333,7 @@ void Wavetable::remove_dc_in_place( Waveform w )
 		{
 		auto start_iter = table.get_buffer().begin() + wavelength * w;
 		const float dc = std::accumulate( start_iter, start_iter + wavelength, 0.0f ) / float( wavelength );
-		std::for_each( std::execution::par_unseq, start_iter, start_iter + wavelength, [dc]( Sample & s ){ s -= dc; } );
+		std::for_each( FLAN_PAR_UNSEQ start_iter, start_iter + wavelength, [dc]( Sample & s ){ s -= dc; } );
 		};
 
 	if( w == -1 ) 

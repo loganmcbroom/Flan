@@ -121,8 +121,9 @@ static std::vector<float> compute_d_prime( const float * in, Frame n )
 std::vector<float> Audio::get_total_energy() const
 	{
 	std::vector<float> energies( get_num_channels() );
-	std::transform( std::execution::par_unseq, iota_iter( 0 ), iota_iter( get_num_channels() ), energies.begin(), [&]( Channel channel ) {
-		return std::accumulate( channel_begin( channel ), channel_end( channel ), 0.0f, []( float x, Sample s ){ return x + s * s; } );
+	flan::for_each_i( get_num_channels(), ExecutionPolicy::Parallel_Unsequenced, [&]( Channel channel ) {
+		energies[channel] = std::accumulate( channel_begin( channel ), channel_end( channel ), 0.0f, 
+		[]( float x, Sample s ){ return x + s * s; } );
 		} );
 	return energies;
 	}
@@ -230,7 +231,7 @@ std::vector<Frequency> Audio::get_local_frequencies( Channel channel, Frame star
     if( end == -1 ) end = get_num_frames();
 
     std::vector<Frequency> out( (end - window_size - start) / hop ); // This will round toward zero
-	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( out.size() ), [&]( int i )
+	flan::for_each_i( out.size(), ExecutionPolicy::Parallel_Unsequenced, [&]( int i )
 		{
 		const Frame frame = start + i * hop;
         out[i] = get_local_frequency( channel, frame, window_size, canceller );

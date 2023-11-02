@@ -20,11 +20,14 @@ Graph PV::convert_to_graph( Rect D, Pixel width, Pixel height, float timeline_sc
 	const float max_mag = get_max_partial_magnitude( start_frame, end_frame, start_bin, end_bin );
 	std::vector<Function<vec2, float>> fs;
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
-		fs.emplace_back( [channel, max_mag, this]( Second x, Frequency y )
+		{
+		Function<vec2,float> func = [channel, max_mag, this]( vec2 xy ) -> float
 			{
-			const Magnitude m = get_MF( channel, time_to_frame( x ), frequency_to_bin( y ) ).m;
-			return std::sqrt( std::abs( m ) / max_mag ) * log2( 2.0f + y ) / 4.0f; // sqrt brings up dark areas, log scaling brings up high frequencies
-			} );
+			const Magnitude m = get_MF( channel, time_to_frame( xy.x() ), frequency_to_bin( xy.y() ) ).m;
+			return std::sqrt( std::abs( m ) / max_mag ) * log2( 2.0f + xy.y() ) / 4.0f; // sqrt brings up dark areas, log scaling brings up high frequencies
+			};
+		fs.push_back( std::move( func ) );
+		}
 
 	Graph g( width, height );
 	g.add_full_split_view_y( D, get_num_channels() ); 

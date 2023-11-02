@@ -27,7 +27,7 @@ Audio& Audio::pan_in_place( const Function<Second, float> & pan_amount )
 
 	for( Channel channel = 0; channel < 2; ++channel )
 		{
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
+		flan::for_each_i( get_num_frames(), ExecutionPolicy::Parallel_Unsequenced, [&]( Frame frame )
 			{
 			const float pan = pan_amount_sampled[frame] / 2.0f + 1.0f; // Convert [-1,1] to [0,1]
 			const float pan_func_input = channel == 0 ? pan : ( 1.0f - pan );

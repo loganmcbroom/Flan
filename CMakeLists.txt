@@ -92,7 +92,7 @@ add_library( Flan STATIC
 	)  
 add_library( Flan::Flan ALIAS Flan )
 
-target_compile_features( Flan PUBLIC cxx_std_23 )
+target_compile_features( Flan PUBLIC cxx_std_20 )
 set_target_properties( Flan PROPERTIES 
 	CXX_EXTENSIONS OFF 
 	DEBUG_POSTFIX d
@@ -111,8 +111,6 @@ target_include_directories( Flan
 #==================================================================================================
 
 set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/" )
-
-target_compile_definitions( Flan PUBLIC USE_SNDFILE USE_OPENCL )
 
 find_package( FFTWF REQUIRED ) # FFTWF::fftwf
 target_link_libraries( Flan PUBLIC FFTWF::fftwf )

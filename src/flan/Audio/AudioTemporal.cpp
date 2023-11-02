@@ -131,7 +131,7 @@ Audio Audio::reverse(
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
 		{
 		const auto iter = get_buffer().begin() + channel * get_num_frames();
-		std::copy( std::execution::par_unseq, iter, iter + get_num_frames(), out.get_buffer().rbegin() + channel * get_num_frames() );
+		std::copy( FLAN_PAR_UNSEQ iter, iter + get_num_frames(), out.get_buffer().rbegin() + channel * get_num_frames() );
 		}
 
 	return out;
@@ -174,7 +174,7 @@ Audio Audio::cut_frames(
 	Audio out( format );
 
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( out.get_num_frames() ), [&]( Frame frame )
+		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( out.get_num_frames() ), [&]( Frame frame )
 			{
 			out.set_sample( channel, frame, get_sample( channel, start_frame + frame ) );
 			} );
@@ -193,7 +193,7 @@ Audio Audio::repitch( const Function<Second, float> & factor, Second granularity
 
 	// This will be inverted momentarily, hence the name
 	auto factor_sampled_inverted = factor.sample( 0, std::ceil( get_num_frames() / float( granularity_in_frames ) ), granularity_in_seconds );
-	std::for_each( std::execution::par_unseq, factor_sampled_inverted.begin(), factor_sampled_inverted.end(), []( float & sample ){
+	std::for_each( FLAN_PAR_UNSEQ factor_sampled_inverted.begin(), factor_sampled_inverted.end(), []( float & sample ){
 		constexpr float bound = 1000.0f; // Arbitrary
 		sample = std::clamp( 1.0f / sample, 1.0f / bound, bound ); 
 		} );

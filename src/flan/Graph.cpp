@@ -82,7 +82,7 @@ void Graph::draw_waveform( const Function<float, float> & data, Rect rect, Plane
 		// Oversample data into buffer
 		//for( Pixel x = startPixel; x < endPixel; ++x )
 		runtime_execution_policy_handler( data.get_execution_policy(), [&]( auto policy ){
-		std::for_each( policy, iota_iter( startPixel ), iota_iter( endPixel ), [&]( Pixel x )
+		std::for_each( FLAN_POLICY iota_iter( startPixel ), iota_iter( endPixel ), [&]( Pixel x )
 			{
 			//Get average of subsamples
 			float sum = 0;
@@ -170,7 +170,7 @@ void Graph::draw_spectrogram( const Function<vec2, float> & data, Rect rect, Pla
 		const Pixel endYPixel	= std::floor( view.yUToV( drawRect.y2() ) );
 
 		runtime_execution_policy_handler( data.get_execution_policy(), [&]( auto policy ){
-		std::for_each( policy, iota_iter( startXPixel ), iota_iter( endXPixel ), [&]( Pixel x )
+		std::for_each( FLAN_POLICY iota_iter( startXPixel ), iota_iter( endXPixel ), [&]( Pixel x )
 			{
 			for( Pixel y = startYPixel; y < endYPixel; ++y )
 				{
@@ -194,14 +194,15 @@ void Graph::draw_spectrogram( const Function<vec2, float> & data, Rect rect, Pla
 
 void Graph::draw_spectrogram( const float * data, int n, int m, Rect rect, Plane plane, float hue )
 	{
-	draw_spectrogram( [&data, n, m, &rect]( float x, float y )
+	Function<vec2, float> func = [&data, n, m, &rect]( vec2 xy ) -> float
 		{ 
-		const int i = std::floor( ( x - rect.x1() ) / rect.w() * n );
-		const int j = std::floor( ( y - rect.y1() ) / rect.h() * m );
+		const int i = std::floor( ( xy.x() - rect.x1() ) / rect.w() * n );
+		const int j = std::floor( ( xy.y() - rect.y1() ) / rect.h() * m );
 		//if( i < 0 || i >= n || j < 0 || j >= m ) return 0.0f;
 		return data[ i * m + j ]; 
-		}, 
-		rect, plane, hue );
+		};
+
+	draw_spectrogram( func, rect, plane, hue );
 	}
 
 void Graph::draw_spectrograms( const std::vector<Function<vec2, float>> & fs, Rect rect, Plane start_plane )

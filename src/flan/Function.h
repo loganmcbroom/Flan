@@ -48,7 +48,10 @@ struct Function
 		}
 
 	template<typename T>
+#ifndef __APPLE__
+	// Christ apple clang, get your shit together
 	requires std::convertible_to<T, StdFuncType>
+#endif
 	Function( T && f_, ExecutionPolicy policy = ExecutionPolicy::Parallel_Unsequenced ) 
 		: f( std::move( f_ ) ) 
 		, executionPolicy( policy )
@@ -107,7 +110,7 @@ struct Function
 		{
 		std::vector<O> out( end - start );
 		runtime_execution_policy_handler( get_execution_policy(), [&]( auto policy ){
-			std::for_each( policy, iota_iter( start ), iota_iter( end ), [&]( int x ){ 
+			std::for_each( FLAN_POLICY iota_iter( start ), iota_iter( end ), [&]( int x ){ 
 				out[x-start] = operator()( x * scale ); 
 				} ); 
 			} );
@@ -122,7 +125,7 @@ struct Function
 		const int ySize = std::ceil( y_end - y_start );
 		std::vector<O> out( xSize * ySize );
 		runtime_execution_policy_handler( get_execution_policy(), [&]( auto policy ){
-			std::for_each( policy, iota_iter( x_start ), iota_iter( x_end ), [&]( int x ){ 
+			std::for_each( FLAN_POLICY iota_iter( x_start ), iota_iter( x_end ), [&]( int x ){ 
 				for( int y = y_start; y < y_end; ++y )
 					out[ buffer_access( (y-y_start), (x-x_start), ySize ) ] = operator()( vec2( x * xScale, y * yScale ) ); 
 				} ); 
@@ -138,7 +141,7 @@ struct Function
 		const int ySize = yPositions.size();
 		std::vector<O> out( xSize * ySize );
 		runtime_execution_policy_handler( get_execution_policy(), [&]( auto policy ){
-			std::for_each( policy, iota_iter( x_start ), iota_iter( x_end ), [&]( int x ){ 
+			std::for_each( FLAN_POLICY iota_iter( x_start ), iota_iter( x_end ), [&]( int x ){ 
 				for( int y = 0; y < ySize; ++y )
 					out[ buffer_access( y, (x-x_start), ySize ) ] = operator()( vec2( x * xScale, yPositions[y] ) ); 
 				} ); 
@@ -193,11 +196,11 @@ struct Function
 
 	/** Constructor when argument is convertable to std::function< float ( float, float ) >.
 	 */
-	template<typename T>
-	requires std::convertible_to< T, std::function< float ( float, float ) > >
-	Function( T f ) 
-		: Function( [f = std::move(f)]( vec2 v ) { return f( v.x(), v.y() ); } ) 
-		{}
+	// template<typename T>
+	// requires std::convertible_to< T, std::function< float ( float, float ) > >
+	// Function( T f ) 
+	// 	: Function( [f = std::move(f)]( vec2 v ) { return f( v.x(), v.y() ); } ) 
+	// 	{}
 
 	/** Constructor when argument is convertable to a std::function taking a pair of float convertable types
 	 */

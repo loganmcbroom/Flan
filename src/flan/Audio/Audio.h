@@ -36,7 +36,7 @@ public:
 		std::vector<T> out( get_num_frames() );
 		runtime_execution_policy_handler( f.get_execution_policy(), [&]( auto policy )
 			{
-			std::for_each( policy, iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
+			std::for_each( FLAN_POLICY iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
 				{
 				out[frame] = f( frame_to_time( frame ) );
 				} );
@@ -626,7 +626,7 @@ public:
 	//  */
 	// Audio pan( Function<Second,vec2> pan_position, Function<Second, vec2> listenerPosition, std::vector<vec2> speakerPositions, bool haasEffect = false ) const;
 
-	Audio stereo_spatialize( 
+	Audio stereo_spatialize_variable( 
 		const Function<Second, vec2> & position 
 		) const;
 

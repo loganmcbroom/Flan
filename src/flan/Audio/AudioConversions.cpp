@@ -1,6 +1,7 @@
 #include "flan/Audio/Audio.h"
 
 #include <iostream>
+#include <execution>
 
 #include "WDL/resample.h"
 #include "r8brain/CDSPResampler.h"
@@ -38,7 +39,7 @@ Audio Audio::convert_to_mid_side() const
 		return copy();
 		}
 	Audio out( get_format() );
-	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
+	flan::for_each_i( get_num_frames(), ExecutionPolicy::Parallel_Unsequenced, [&]( Frame frame )
 		{
 		out.set_sample( 0, frame, get_sample( 0, frame ) + get_sample( 1, frame ) );
 		out.set_sample( 1, frame, get_sample( 0, frame ) - get_sample( 1, frame ) );
@@ -64,11 +65,11 @@ Audio Audio::convert_to_stereo() const
 		case 1:
 			{
 			// Copy input channel one into the output channel one while scaling down by sqrt2
-			std::transform( std::execution::par_unseq, get_buffer().begin(), get_buffer().end(), out.get_buffer().begin(), 
+			std::transform( FLAN_PAR_UNSEQ get_buffer().begin(), get_buffer().end(), out.get_buffer().begin(), 
 				[sqrt2 = std::sqrt( 2.0f )]( Sample s ){ return s / sqrt2; } );
 
-			// // Copy output channel one to output channel two
-			std::copy( std::execution::par_unseq, out.get_buffer().begin(), out.get_buffer().begin() + get_num_frames(), out.get_buffer().begin() + get_num_frames() );
+			// Copy output channel one to output channel two
+			std::copy( FLAN_PAR_UNSEQ out.get_buffer().begin(), out.get_buffer().begin() + get_num_frames(), out.get_buffer().begin() + get_num_frames() );
 			break;
 			}
 		case 2:
@@ -88,7 +89,7 @@ Audio Audio::convert_to_mono() const
 	format.num_channels = 1;
 	Audio out( format );
 
-	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
+	flan::for_each_i( get_num_frames(), ExecutionPolicy::Parallel_Unsequenced, [&]( Frame frame )
 		{
 		Sample sampleAccumulator = 0;
 		for( Channel channel = 0; channel < get_num_channels(); ++channel )

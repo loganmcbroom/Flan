@@ -1,12 +1,12 @@
 #include "flan/DSPUtility.h"
 
 #include <algorithm>
-#include <execution>
 #include <ranges>
 
 #include "flan/FFTHelper.h"
 #include "flan/Utility/vec2.h"
 #include "flan/Utility/iota_iter.h"
+#include "flan/Utility/execution.h"
 
 namespace flan {
 
@@ -62,7 +62,7 @@ std::vector<vec2> find_peaks( std::function< float ( int ) > data, int size,  in
 
     // For each data point excluding first and last, check if that point is a peak
     std::mutex mutex;
-    std::for_each( std::execution::par, iota_iter( 1 ), iota_iter( size - 1 ), [&]( const Frame frame )
+    std::for_each( FLAN_PAR_SEQ iota_iter( 1 ), iota_iter( size - 1 ), [&]( const Frame frame )
         {
         const float frameVal = data(frame);
 
@@ -118,9 +118,9 @@ std::vector<vec2> find_peaks( std::function< float ( int ) > data, int size,  in
         } );
 
     if( ampOrder ) // Sort peaks by descending y value if requested
-        std::sort( std::execution::par_unseq, peaks.begin(), peaks.end(), []( auto & l, auto & r ){ return l.y() > r.y(); } );
+        std::sort( FLAN_PAR_UNSEQ peaks.begin(), peaks.end(), []( auto & l, auto & r ){ return l.y() > r.y(); } );
     else // Otherwise sort by ascending x value
-        std::sort( std::execution::par_unseq, peaks.begin(), peaks.end(), []( auto & l, auto & r ){ return l.x() < r.x(); } );
+        std::sort( FLAN_PAR_UNSEQ peaks.begin(), peaks.end(), []( auto & l, auto & r ){ return l.x() < r.x(); } );
 
     // We only want this many peaks
     const size_t nWantedPeaks = std::min( (size_t) maxPeaks, peaks.size() );
@@ -137,7 +137,7 @@ std::vector<vec2> find_peaks( const std::vector<float> & data, int maxPeaks, boo
 std::vector<vec2> find_valleys( std::function< float ( int ) > data, int size, int maxPeaks, bool ampOrder, bool interpolate )
     {
     std::vector<vec2> flippedPeaks = find_peaks( [&data]( int i ){ return -data( i ); }, size, maxPeaks, ampOrder, interpolate );
-    std::for_each( std::execution::par_unseq, flippedPeaks.begin(), flippedPeaks.end(), []( vec2 & v ){ v.y() *= -1; } );
+    std::for_each( FLAN_PAR_UNSEQ flippedPeaks.begin(), flippedPeaks.end(), []( vec2 & v ){ v.y() *= -1; } );
     return flippedPeaks;
     }
    

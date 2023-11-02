@@ -2,5 +2,5 @@
 
 target_link_libraries( flanTest  
 	Flan 
-	winmm.lib
+	# winmm.lib
 	)

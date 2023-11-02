@@ -16,6 +16,7 @@ struct iota_iter
 	iota_iter( int i ) : index( i ) {}
 	operator int() const { return index; }
 	int operator*() const { return index; }
+	int operator[]( int i ) const { return i; }
 	iota_iter operator++() { index++; return *this; }
 
 	int index;

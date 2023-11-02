@@ -96,7 +96,7 @@ PV PV::select(
 	const auto selector_sampled = out.sample_function_over_domain( selector );
 
 	for( Channel channel = 0; channel < out.get_num_channels(); ++channel )
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( out.get_num_frames() ), [&]( Frame frame )
+		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( out.get_num_frames() ), [&]( Frame frame )
 			{
 			for( Bin bin = 0; bin < out.get_num_bins(); ++bin )
 				{
@@ -146,7 +146,7 @@ PV PV::freeze(
 		});
 
 	// Sort by occurance frame
-	std::sort( std::execution::par_unseq, timing_frames.begin(), timing_frames.end(), []( FramePair & a, FramePair & b ){ return a[0] < b[0]; } );
+	std::sort( FLAN_PAR_UNSEQ timing_frames.begin(), timing_frames.end(), []( FramePair & a, FramePair & b ){ return a[0] < b[0]; } );
 
 	// Remove simultaneous events
 	auto timingEnd = std::unique( timing_frames.begin(), timing_frames.end(), []( const FramePair & a, const FramePair & b ) {
@@ -210,7 +210,7 @@ PV PV::replace_amplitudes( const PV & amp_source, const Function<TF, float> & am
 	const uint32_t num_bins     = std::min( amp_source.get_num_bins(),     get_num_bins()     );
 
 	for( Channel channel = 0; channel < num_channels; ++channel )
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( num_frames ), [&]( Frame frame )
+		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( num_frames ), [&]( Frame frame )
 			{
 			for( Bin bin = 0; bin < num_bins; ++bin )
 				{
@@ -241,7 +241,7 @@ PV PV::subtract_amplitudes( const PV & amp_source, const Function<TF, float> & a
 	const uint32_t num_bins     = std::min( amp_source.get_num_bins(),     get_num_bins()     );
 
 	for( Channel channel = 0; channel < num_channels; ++channel )
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( num_frames ), [&]( Frame frame )
+		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( num_frames ), [&]( Frame frame )
 			{
 			for( Bin bin = 0; bin < num_bins; ++bin )
 				{
@@ -313,7 +313,7 @@ PV PV::synthesize(
 
 	std::default_random_engine rng( std::time( nullptr ) );
 
-	std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( out.get_num_frames() ), [&]( Frame frame )
+	std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( out.get_num_frames() ), [&]( Frame frame )
 		{
 		const Frequency base_freq_c = frequency_sampled[frame];
 		const Harmonic num_harmonics = num_harmonics_per_frame[frame];
@@ -363,7 +363,7 @@ static PV harmonic_scaler(
 	std::vector<Frequency> series_sampled( num_harmonics * me.get_num_frames() );
 	runtime_execution_policy_handler( series.get_execution_policy(), [&]( auto policy )
 		{
-		std::for_each( policy, iota_iter( 0 ), iota_iter( me.get_num_frames() ), [&]( Frame frame )
+		std::for_each( FLAN_POLICY iota_iter( 0 ), iota_iter( me.get_num_frames() ), [&]( Frame frame )
 			{
 			for( Harmonic harmonic = 0; harmonic < num_harmonics; ++harmonic )
 				series_sampled[harmonic + frame*num_harmonics] = series( std::pair( me.frame_to_time( frame ), harmonic ) );
@@ -371,7 +371,7 @@ static PV harmonic_scaler(
 		} );
 
 	for( Channel channel = 0; channel < me.get_num_channels(); ++channel )
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( me.get_num_frames() ), [&]( Frame frame )
+		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( me.get_num_frames() ), [&]( Frame frame )
 			{
 			auto series_sampled_for_frame = series_sampled.begin() + frame * num_harmonics;
 
@@ -419,7 +419,7 @@ PV PV::shape( const Function<MF,MF> & shaper, bool use_shift_alignment ) const
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
 		{
 		runtime_execution_policy_handler( shaper.get_execution_policy(), [&]( auto policy ){
-		std::for_each( policy, iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
+		std::for_each( FLAN_POLICY iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
 			{
 			for( Bin bin = 0; bin < get_num_bins(); ++bin )
 				{
@@ -550,7 +550,7 @@ PV predicateNLoudestPartials( const PV & me, const Function<Second, Bin> & num_b
 	out.clear_buffer();
 
 	for( Channel channel = 0; channel < me.get_num_channels(); ++channel )
-		std::for_each( std::execution::par_unseq, iota_iter( 0 ), iota_iter( me.get_num_frames() ), [&]( Frame frame )
+		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( me.get_num_frames() ), [&]( Frame frame )
 			{
 			// Create a buffer storing the frame's magnitudes and which bin that magnitude came from
 			using BinMag = std::pair<Bin, Magnitude>;
@@ -559,7 +559,7 @@ PV predicateNLoudestPartials( const PV & me, const Function<Second, Bin> & num_b
 				indexAndVolumes[bin] = { bin, me.get_MF( channel, frame, bin ).m };
 
 			// Sort that buffer by magnitudes
-			std::sort( std::execution::par_unseq, indexAndVolumes.begin(), indexAndVolumes.end(), []( BinMag & a, BinMag & b )
+			std::sort( FLAN_PAR_UNSEQ indexAndVolumes.begin(), indexAndVolumes.end(), []( BinMag & a, BinMag & b )
 				{ return abs(a.second) > abs(b.second); } );
 				
 			// The sorted buffer now contains bin indices in loudness order, so go back through and use the predicate 
@@ -615,7 +615,7 @@ PV PV::resonate( Second length, const Function<TF, float> & decay ) const
 	const float secondsPerFrame_c = frame_to_time( 1 );
 
 	for( Channel channel = 0; channel < out.get_num_channels(); ++channel )
-		std::for_each( std::execution::par_unseq, iota_iter( 1 ), iota_iter( out.get_num_frames() ), [&]( Frame frame )
+		std::for_each( FLAN_PAR_UNSEQ iota_iter( 1 ), iota_iter( out.get_num_frames() ), [&]( Frame frame )
 			{
 			for( Bin bin = 0; bin < out.get_num_bins(); ++bin )
 				{

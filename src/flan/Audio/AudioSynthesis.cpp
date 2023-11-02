@@ -28,7 +28,6 @@ Audio Audio::synthesize_waveform(
 	size_t oversample 
 	)
 	{
-	
 	if( length <= 0 ) return Audio();
 
 	// Set up output
@@ -45,14 +44,14 @@ Audio Audio::synthesize_waveform(
 
 	// Get the phases that wave_samples needs to be evaluated at
 	std::vector<float> phases( frequency_sampled.size() );
-	std::exclusive_scan( std::execution::par_unseq, frequency_sampled.begin(), frequency_sampled.end(), phases.begin(), 0.0f, [&]( float a, float b ) -> float { 
+	std::exclusive_scan( FLAN_PAR_UNSEQ frequency_sampled.begin(), frequency_sampled.end(), phases.begin(), 0.0f, [&]( float a, float b ) -> float { 
 		return std::fmod( a + b, in_sample_rate ); } ); // Modular sum is associative, prefer exclusive_scan over partial_sum
-	std::for_each( std::execution::par_unseq, phases.begin(), phases.end(), [&]( float & phase ){ phase /= in_sample_rate; } ); // freq sum -> phase
+	std::for_each( FLAN_PAR_UNSEQ phases.begin(), phases.end(), [&]( float & phase ){ phase /= in_sample_rate; } ); // freq sum -> phase
 
 	// Evaluate wave at phases using wave execution policy
 	std::vector<float> wave_samples( phases.size() );
 	runtime_execution_policy_handler( wave.get_execution_policy(), [&]( auto policy ){
-		std::transform( policy, phases.begin(), phases.end(), wave_samples.begin(), [&]( const float phase ){ return wave( phase ); } );
+		std::transform( FLAN_POLICY phases.begin(), phases.end(), wave_samples.begin(), [&]( const float phase ){ return wave( phase ); } );
 		} );
 
 	// Downsample to requested sample rate
@@ -141,7 +140,7 @@ std::vector<Second> integrate_event_rate(
 	// Scatter event frames, removing those landing outside length
 	// This can cause the events around the boundaries to be less dense than expected
 	std::default_random_engine rng( std::time( nullptr ) );
-	std::for_each( std::execution::seq, event_frames.begin(), event_frames.end(), [&]( Frame & event_frame )
+	std::for_each( event_frames.begin(), event_frames.end(), [&]( Frame & event_frame )
 		{
 		// Scatter is standard deviation in seconds.
 		const Second t = fFrame( event_frame ) / sample_rate;
@@ -159,7 +158,7 @@ std::vector<Second> integrate_event_rate(
 		} );
 
 	// Get our ducks back in a row
-	std::sort( std::execution::par_unseq, event_frames.begin(), event_frames.end() ); 
+	std::sort( FLAN_PAR_UNSEQ event_frames.begin(), event_frames.end() ); 
 
 	// Remove anything set to max at the end of the events; these were scattered outside the bounds
 	auto oob_event_iter = std::lower_bound( event_frames.begin(), event_frames.end(), std::numeric_limits<Frame>::max() );
@@ -168,7 +167,7 @@ std::vector<Second> integrate_event_rate(
 
 	// Convert event frames back to times
 	std::vector<Second> event_times( event_frames.size() );
-	std::transform( std::execution::par_unseq, event_frames.begin(), event_frames.end(), event_times.begin(), 
+	std::transform( FLAN_PAR_UNSEQ event_frames.begin(), event_frames.end(), event_times.begin(), 
 		[&]( Frame frame ){ return frame / sample_rate; } );
 
 	return event_times;
@@ -193,7 +192,7 @@ Audio Audio::synthesize_grains(
 	std::vector<Audio> grains( event_times.size() );
 	runtime_execution_policy_handler( grain_source.get_execution_policy(), [&]( auto policy )
 		{
-		std::for_each( policy, iota_iter( 0 ), iota_iter( event_times.size() ), [&]( Index i )
+		std::for_each( FLAN_POLICY iota_iter( 0 ), iota_iter( event_times.size() ), [&]( Index i )
 			{
 			const Second t = event_times[i];
 			grains[i] = grain_source( t );
@@ -260,7 +259,7 @@ Audio Audio::synthesize_grains_with_feedback_mod(
 		{ // This could be handled by synthesize_grains, but it would make things a little harder in composition functions
 		modded_audio.resize( event_times.size() );
 		runtime_execution_policy_handler( mod.get_execution_policy(), [&]( auto policy ) {
-			std::transform( policy, event_times.begin(), event_times.end(), modded_audio.begin(), [&]( const Second event_time ) 
+			std::transform( FLAN_POLICY event_times.begin(), event_times.end(), modded_audio.begin(), [&]( const Second event_time ) 
 				{
 				Audio this_copy = copy();
 				mod( this_copy, event_time );

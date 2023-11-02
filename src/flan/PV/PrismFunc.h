@@ -21,7 +21,11 @@ public:
 	~PrismFunc() 								= default;
 
 	template<typename C>
-	requires std::convertible_to<C, FuncType> && (!std::same_as<C, std::nullptr_t>)
+	requires 
+#ifndef __APPLE__
+		std::convertible_to<C, FuncType> && 
+#endif
+		(!std::same_as<C, std::nullptr_t>)
 	PrismFunc( C f_, ExecutionPolicy p_ = ExecutionPolicy::Parallel_Unsequenced ) 
 		: func( f_ ) 
 		, policy( p_ )
