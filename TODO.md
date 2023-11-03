@@ -20,3 +20,4 @@ Process ideas:
 	PV::align_harmonics
 
 Task:
+	Speed up stereo spacialize

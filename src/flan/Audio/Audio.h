@@ -913,7 +913,7 @@ public:
 		const Function<Second, Amplitude> & waveform, 
 		Second length, 
 		const Function<Second, Frequency> & freq, 
-		size_t samplerate = 48000, 
+		FrameRate sample_rate = 48000, 
 		size_t oversample = 16 
 		);
 

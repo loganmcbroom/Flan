@@ -24,7 +24,7 @@ Audio Audio::synthesize_waveform(
 	const Function<Second, Amplitude> & wave, 
 	Second length, 
 	const Function<Second, Frequency> & freq, 
-	size_t samplerate, 
+	FrameRate sample_rate, 
 	size_t oversample 
 	)
 	{
@@ -33,12 +33,12 @@ Audio Audio::synthesize_waveform(
 	// Set up output
 	Audio::Format format;
 	format.num_channels = 1;
-	format.num_frames = length * samplerate;
-	format.sample_rate = samplerate;
+	format.num_frames = length * sample_rate;
+	format.sample_rate = sample_rate;
 	Audio out( format );
 
 	const Frame num_in_frames = out.get_num_frames() * oversample;
-	const double in_sample_rate = samplerate * oversample;
+	const double in_sample_rate = sample_rate * oversample;
 
 	auto frequency_sampled = freq.sample( 0, num_in_frames, 1.0f / in_sample_rate );
 
