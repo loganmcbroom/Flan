@@ -117,13 +117,13 @@ public:
 		float timeline_scale = 0 
 		) const;
 
-	/** Creates and saves a bmp spectrograph of the PV, then returns this.
+	/** Creates and saves a bmp spectrograph of the PV.
 	 *	\param filename A filename at which to save the generated bmp.
 	 *  \param domain The time/frequency rectangle to graph. Negative 1 for time or frequency end will use the maximum.
 	 *  \param width The bmp width.
 	 *  \param height The bmp height.
 	 */
-	const PV & save_to_bmp( 
+	void save_to_bmp( 
 		const std::string & filename, 
 		Rect domain = { 0, 0, -1, -1 }, 
 		Pixel width = -1, 
@@ -239,7 +239,6 @@ public:
 	//============================================================================================================================================================
 
 	/** Every time/frequency point in the output PV will read an arbitrary point in the input determined by selector.
-	 *	Selected non-integer coordinates will interpolate surrounding integer coordinates using interp.
 	 *	\param length The length of the output PV
 	 *	\param selector This function takes each time/frequency point in the output and returns 
 	 *		the time/frequency that should be read from the input into that output
@@ -280,7 +279,7 @@ public:
 		Interpolator interp = Interpolators::linear 
 		) const;
 
-	/** This is functionally equivalent to using PV::modify_cpu and only outputting the input time
+	/** This is functionally equivalent to using PV::modify and only outputting the input time
 	 *	\param mod Takes time/frequency pairs and returns frequency
 	 *	\param interp Interpolator used in frequency mapping
 	 */
@@ -289,7 +288,7 @@ public:
 		Interpolator = Interpolators::linear 
 		) const;
 
-	/** This is functionally equivalent to using PV::modify_cpu and only outputting the input frequency
+	/** This is functionally equivalent to using PV::modify and only outputting the input frequency
 	 *	\param mod Takes time/frequency pairs and returns time
 	 *	\param interp Interpolator used in time mapping
 	 */
@@ -328,11 +327,11 @@ public:
 
 	/** This is functionally equivalent to stretching the input down by factor, and then up.
 	 *	Resolution is lost, but the lost resolution is filled via interpolation
-	 *	\param events_per_second The number of MFs per second that are not removed before interpolation.
+	 *	\param decimation_ratio The ratio between kept and discarded data. Zero discards all data, one keeps all data.
 	 *	\param interp Interpolator deciding how lost frames are restored from their surroundings
 	 */
 	PV desample( 
-		const Function<TF, float> & events_per_second, 
+		const Function<TF, float> & decimation_ratio, 
 		Interpolator interp = Interpolators::linear 
 		) const;
 

@@ -32,70 +32,25 @@ const float pi = std::acos( -1.0f );
 int main()
 	{
 	auto synth = Audio::synthesize_waveform( waveforms::sine, .5, []( Second t ){ return 111; } ).set_volume( 1 );
-	//auto bah = Audio( "Bah.wav" ).set_volume( .9 );
+	auto bah = Audio::load_from_file( "Bah.wav" ).set_volume( .9 );
 
-	// play( bah
-	// 	.convert_to_PV()
-	// 	.select( 5, []( TF tf ){ return TF{ tf.t / 4, std::sin(tf.t*50)*100*tf.t + tf.f }; } )
-	// 	.convert_to_audio()
-	// 	.set_volume( .7 ) );
-
-	//play( bah.stereo_delay( 5, .5, 1, 0.5 ).set_volume( .5 ) );
-
-	// play( Audio::join(
-	// 	//synth,
-	// 	synth.add_moisture( 1, []( Second t ){ return 20; }, []( Second t ){ return 2; }, []( Second t ){ return std::sin(pi2*t*t); } )
-	// 	).set_volume( .7 )
-
-	// 	);
-
-	//const Second length = 35;
-	// play( PV::synthesize( length, 
-	// 	[]( Second t ){ return 40 + std::pow( 2.0f, t/4 ); }, 
-	// 	[]( std::pair<Second, Harmonic> sh ){ return 1.0f / ( 1.0f + sh.second ); },
-	// 	[]( Second t ){ return 20; },
-	// 	[]( TF tf ){ return 90 * std::pow( 2.0f, -tf.t ); }
-	// 	).convert_to_audio()
-	// 	//.modify_volume_in_place( []( Second t ){ return std::sin( std::pow( 2.0f, t / 3 ) ); } )
-	// 	.stereo_spatialize( []( Second t ){ return vec2{ std::sin( std::pow( 2.0f, t / 3 ) ), std::cos( std::pow( 2.0f, t / 3 ) ) }; } )
-	// 	.compress( -6 )
-	// 	.set_volume( .9 ) );
-
-	// graph( synth.set_volume( 1 ).get_amplitude_envelope().convert_to_graph() );
-
-	// auto env = bah.get_amplitude_envelope();
-
-	// play( bah.waveshape( [&]( Second t, Sample s )
-	// 	{ 
-	// 	const Sample a = s;
-	// 	const Sample b = std::abs( s );
-	// 	const float mix = env( t );
-	// 	return b * mix + a * (1.0f - mix);
-	// 	} ) );
-
-	// auto shaper = []( Second t, Sample s ){ return std::clamp( 4.0f*s, -1.0f, 1.0f ); };
-	// graph( Audio::combine_channels( 
-	// 	synth,
-	// 	synth.waveshape( shaper, 1 ),
-	// 	synth.waveshape( shaper, 4 ),
-	// 	synth.waveshape( shaper, 16 )
-	// 	).convert_to_PV().convert_to_graph() );
-
+	play( bah.convert_to_PV().desample( .1 ).convert_to_audio() );
 
 	return 0;
 	}
-
-
-// #include <Windows.h>
-// #include <Mmsystem.h>
-// void play( const Audio & toPlay )
-// 	{
-// 	if( !toPlay.save( "temp_file_save.wav" ) )
-//         return;
-// 	std::cout << "Playing sound ... " << std::endl;
-// 	if( ! PlaySound("temp_file_save.wav", nullptr, SND_FILENAME) )
-// 		std::cout << "Error playing sound\n";
-// 	}
+ 
+#ifdef _WIN32 || WIN32
+#include <Windows.h>
+#include <Mmsystem.h>
+void play( const Audio & toPlay )
+	{
+	if( !toPlay.save( "temp_file_save.wav" ) )
+        return;
+	std::cout << "Playing sound ... " << std::endl;
+	if( ! PlaySound("temp_file_save.wav", nullptr, SND_FILENAME) )
+		std::cout << "Error playing sound\n";
+	}
+#endif
 
 void graph( const std::string & f )
 	{

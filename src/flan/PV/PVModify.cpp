@@ -401,10 +401,10 @@ PV PV::stretch_spline( const Function<Second, float> & interpolation ) const
 	return out;
 	}
 
-PV PV::desample( const Function<TF, float> & events_per_second, Interpolator interp ) const
+PV PV::desample( const Function<TF, float> & decimation_ratio, Interpolator interp ) const
 	{
 	// Sample factor over frames and bins
-	auto events_per_second_samples = sample_function_over_domain( events_per_second );
+	auto decimation_ratio_samples = sample_function_over_domain( decimation_ratio );
 
 	if( is_null() ) return PV();
 
@@ -423,9 +423,8 @@ PV PV::desample( const Function<TF, float> & events_per_second, Interpolator int
 			for( Frame frame = 0; frame < get_num_frames(); ++frame )
 				{
 				float & accum = accums[bin];
-				if( events_per_second_samples[buffer_access( bin, frame, get_num_bins() )] < 1.0f ) continue;
-				const float factor_c = events_per_second_samples[buffer_access( bin, frame, get_num_bins() )];
-				accum += factor_c * frame_to_time( 1 );
+				const float factor_c = std::clamp( decimation_ratio_samples[buffer_access( bin, frame, get_num_bins() )], 0.0f, 1.0f );
+				accum += factor_c;
 				if( accum >= 1.0f )
 					{
 					selectedFrames[bin].push_back( frame );

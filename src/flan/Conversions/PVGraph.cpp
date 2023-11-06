@@ -46,8 +46,7 @@ Graph PV::convert_to_graph( Rect D, Pixel width, Pixel height, float timeline_sc
 	return g;
 	}
 
-const PV & PV::save_to_bmp( const std::string & fileName, Rect D, Pixel width, Pixel height ) const
+void PV::save_to_bmp( const std::string & fileName, Rect D, Pixel width, Pixel height ) const
 	{
-		convert_to_graph( D, width, height ).save_image( fileName );
-	return *this;
+	convert_to_graph( D, width, height ).save_image( fileName );
 	}
