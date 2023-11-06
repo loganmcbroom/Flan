@@ -598,12 +598,12 @@ PV PV::resonate( Second length, const Function<TF, float> & decay ) const
 	if( length < 0 ) 
 		length = 0;
 
-	auto decay_sampled = sample_function_over_domain( decay );
-	std::ranges::for_each( decay_sampled, []( float & x ){ x = std::max( x, 0.0f ); } );
-
 	auto format = get_format();
 	format.num_frames = get_num_frames() + ceil( time_to_frame( length )  );
 	PV out( format );
+
+	auto decay_sampled = out.sample_function_over_domain( decay );
+	std::ranges::for_each( decay_sampled, []( float & x ){ x = std::max( x, 0.0f ); } );
 
 	// Copy first frame into out
 	for( Channel channel = 0; channel < out.get_num_channels(); ++channel )
