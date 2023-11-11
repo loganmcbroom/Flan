@@ -8,6 +8,7 @@ Maybe todo:
 		it also could be placing frequencies outside bins that can hold them, use the bin shift strategy as in PV::extrapolateTime
 	PV::time_extrapolate could use a Func2x1 instead of interp, not sure the best way to set it up though
 	find a better way to handle function sampling, then remove buffer_access
+	Speed up stereo spatialize
 
 Process ideas:
 	Drum sequencing tools
@@ -20,4 +21,3 @@ Process ideas:
 	PV::align_harmonics
 
 Task:
-	Speed up stereo spacialize
