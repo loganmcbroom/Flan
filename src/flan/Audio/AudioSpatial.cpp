@@ -18,7 +18,6 @@ Audio Audio::pan( const Function<Second, float> & pan_amount ) const
 
 Audio& Audio::pan_in_place( const Function<Second, float> & pan_amount )
 	{
-	std::cout << __FUNCTION__ << std::endl; 
 	if( is_null() ) { std::cout << "Null input" << std::endl; return *this; }
 
 	if( get_num_channels() != 2 ) return *this; 

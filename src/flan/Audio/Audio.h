@@ -470,7 +470,7 @@ public:
 	 *	\param feedback When enabled, the previous iteration is sent to mod, rather than the original Audio.
 	 */
 	Audio iterate( 
-		uint32_t num_iterations, 
+		int32_t num_iterations, 
 		const AudioMod & mod = AudioMod(), 
 		bool feedback = false 
 		) const;
@@ -478,9 +478,9 @@ public:
 	/** Generates a volume-decaying iteration of the input. If a mod is supplied, it will 
 	 *	be fed the previous iteration's ouput, rather than the original Audio.
 	 *	\param length The time at which delay events stop generating.
-	 *	\param delaySecond The amount of time between delays.
+	 *	\param delay_time The amount of time between delays.
 	 *	\param decay Each delay event will have its gain scaled by the decay at the event time.
-	 *	\param mod This allows user-defined processing of each delay.
+	 *	\param mod This allows user-defined processing of each delay. Delay line feedback will have this repeatedly applied.
 	 */
 	Audio delay( 
 		Second length, 
@@ -496,24 +496,33 @@ public:
 	// 	const Function<Second, Amplitude> & decay
 	// 	) const;
 
+	std::vector<Audio> split_at_times(
+		std::vector<Second> split_times, // Pass by value is intentional
+		Second fade = 0
+		) const; 
+
+	std::vector<Audio> split_with_lengths(
+		std::vector<Second> split_lengths, // Pass by value is intentional
+		Second fade = 0
+		) const;
 
 	/** This slices the input into a vector of chunks, each slice_length seconds long.
 	 *	The final chunk will be zero padded to meet the slice_length.
 	 *  \param slice_length The length of each output.
 	 *  \param fade The start and end fade time of each slice.
 	 */
-	std::vector<Audio> chop( 
+	std::vector<Audio> split_with_equal_lengths( 
 		Second slice_length, 
-		Second fade = 0.05 
+		Second fade = 0
 		) const;
 
-	/** This performs chop, randomizes the order of the chopped pieces, and joins, crossfading.
+	/** This performs split_with_equal_lengths, randomizes the order of the chopped pieces, and joins, crossfading.
 	 *  \param slice_length The length of each output.
 	 *  \param fade The start and end fade time of each slice.
 	 */
 	Audio rearrange( 
 		Second slice_length, 
-		Second fade = 0.05 
+		Second fade = 0
 		) const;
 
 
@@ -777,8 +786,8 @@ public:
 
 	Audio filter_comb(
 		const Function<Second, Frequency> & cutoff,
+		const Function<Second, float> & feedback,
 		const Function<Second, float> & wet_dry = .5,
-		const Function<Second, float> & feedback = 1,
 		bool invert = false
 		) const;
 

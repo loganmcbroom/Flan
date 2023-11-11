@@ -34,7 +34,10 @@ int main()
 	auto synth = Audio::synthesize_waveform( waveforms::sine, .5, []( Second t ){ return 111; } ).set_volume( 1 );
 	auto bah = Audio::load_from_file( "Bah.wav" ).set_volume( .9 );
 
-	play( bah.convert_to_PV().desample( .1 ).convert_to_audio() );
+	play( bah.iterate( 3, []( Audio & a, Second t ){ a = a.repitch( 2 ); }, false ) );
+	play( bah.iterate( 3, []( Audio & a, Second t ){ a = a.repitch( 2 ); }, true ) );
+	play( bah.iterate( 3, []( Audio & a, Second t ){ a = a.repitch( .8 ); }, false ) );
+	play( bah.iterate( 3, []( Audio & a, Second t ){ a = a.repitch( .8 ); }, true ) );
 
 	return 0;
 	}

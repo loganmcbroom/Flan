@@ -615,9 +615,9 @@ PV PV::resonate( Second length, const Function<TF, float> & decay ) const
 	const float secondsPerFrame_c = frame_to_time( 1 );
 
 	for( Channel channel = 0; channel < out.get_num_channels(); ++channel )
-		std::for_each( FLAN_PAR_UNSEQ iota_iter( 1 ), iota_iter( out.get_num_frames() ), [&]( Frame frame )
+		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( out.get_num_bins() ), [&]( Bin bin )
 			{
-			for( Bin bin = 0; bin < out.get_num_bins(); ++bin )
+			for( Frame frame = 1; frame < out.get_num_frames(); ++frame )
 				{
 				const float decay_t = std::pow( decay_sampled[buffer_access( bin, frame, get_num_bins() )], secondsPerFrame_c );
 				const float decayedAmp = out.get_MF( channel, frame - 1, bin ).m * decay_t;

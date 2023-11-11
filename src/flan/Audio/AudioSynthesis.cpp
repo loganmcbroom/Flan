@@ -181,8 +181,6 @@ Audio Audio::synthesize_grains(
 	FrameRate sample_rate
 	)
 	{
-	std::cout << __FUNCTION__ << std::endl;
-
 	// Input validation
 	if( length <= 0 ) return Audio::create_null();
 	
@@ -288,8 +286,6 @@ Audio Audio::synthesize_trainlets(
 	FrameRate sample_rate
 	)
 	{
-	std::cout << __FUNCTION__ << std::endl;
-
 	const ExecutionPolicy ex_pol = lowest_execution( 
 			position.get_execution_policy(), 
 			trainlet_gain_envelope.get_execution_policy(),

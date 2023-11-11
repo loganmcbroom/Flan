@@ -856,8 +856,8 @@ Audio Audio::filter_2pole_multinotch(
 
 Audio Audio::filter_comb(
 	const Function<Second, Frequency> & cutoff,
-	const Function<Second, float> & wet_dry,
 	const Function<Second, float> & feedback,
+	const Function<Second, float> & wet_dry,
 	bool invert
 	) const
 	{

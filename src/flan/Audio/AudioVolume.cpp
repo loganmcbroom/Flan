@@ -54,7 +54,6 @@ Audio& Audio::fade_in_place(
 	Interpolator interp 
 	)
 	{
-	std::cout << __FUNCTION__ << std::endl; 
 	if( is_null() ) { std::cout << "Null input" << std::endl; return *this; }
 	fade_frames_in_place( time_to_frame( start ), time_to_frame( end ), interp );
 	return *this;
@@ -78,7 +77,6 @@ Audio& Audio::fade_frames_in_place(
 	Interpolator interp 
 	)
 	{
-	std::cout << __FUNCTION__ << std::endl; 
 	if( is_null() ) { std::cout << "Null input" << std::endl; return *this; }
 
 	// Input validation
