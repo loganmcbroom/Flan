@@ -249,15 +249,32 @@ Audio Audio::repitch( const Function<Second, float> & factor, Second granularity
 	}
 
 Audio Audio::iterate( 
-	uint32_t n, 
+	int32_t n, 
 	const AudioMod & mod, 
 	bool feedback 
 	) const
 	{
 	if( is_null() ) return Audio::create_null();
-	// Half a length is removed to avoid length rounding changing the number of events generated
-	return synthesize_grains_with_feedback_mod( get_length() * ( float( n ) - 0.5f ), 1.0f / get_length(), 0, mod, feedback, get_sample_rate() );
-	//return synthesize_grains_from_entire_audio( get_length() * ( float( n ) - 0.5f ), 1.0f / get_length(), 0, mod, feedback );
+	if( n < 1 ) return Audio::create_null();
+
+	// Without a mod, we are just repeating the input, which join can do already
+	if( mod.is_null() )
+		return join( std::vector<const Audio *>( n, this ) );
+
+	// It may be surprising that this has to be linear_sequenced executed. Because a mod could alter the length of
+	// an iteration, we can't know the time that should be passed to each mod call until all the previous mod outputs
+	// are computed. I've considered setting this process up to align the modded outputs to a time grid regardless
+	// of the mod changing iteration lengths, but that a lot less useful.
+	std::vector<Audio> this_modifieds( n );
+	Second iteration_start = 0;
+	flan::for_each_i( n, ExecutionPolicy::Linear_Sequenced, [&]( int i )
+		{
+		this_modifieds[i] = i > 0 && feedback ? this_modifieds[i-1].copy() : copy();
+		mod( this_modifieds[i], iteration_start );
+		iteration_start += this_modifieds.back().get_length();
+		} );
+
+	return join( this_modifieds );
 	}
 
 Audio Audio::delay( 
@@ -342,26 +359,58 @@ Audio Audio::delay(
 // 	return out;
 // 	}
 
-std::vector<Audio> Audio::chop( 
-	Second slice_length, 
-	Second fade 
+std::vector<Audio> Audio::split_at_times(
+	std::vector<Second> split_times,
+	Second fade
 	) const
 	{
 	if( is_null() ) return std::vector<Audio>();
 
-	// Input validation
-	if( slice_length <= 0 ) return std::vector<Audio>();
+	const Frame fade_frames = time_to_frame( fade );
 
-	// Get all but last slice
-	std::vector<Audio> outs;
-	Second slice_position = 0;
-	while( slice_position + slice_length < get_length() )
+	std::sort( split_times.begin(), split_times.end() );
+
+	std::vector<Frame> split_frames;
+	split_frames.push_back( 0 );
+	for( Second t : split_times )
 		{
-		outs.push_back( cut( slice_position, slice_position + slice_length, fade, fade ) );
-		slice_position += slice_length;
+		const Frame f = time_to_frame( t );
+		if( f <= 0 ) continue;
+		if( get_num_frames() <= f ) break;
+		split_frames.push_back( f );
 		}
+	split_frames.push_back( get_num_frames() );
+
+	std::vector<Audio> outs;
+	flan::for_each_i( split_frames.size() - 1, ExecutionPolicy::Parallel_Unsequenced, [&]( int i )
+		{
+		outs.push_back( cut_frames( split_frames[i], split_frames[i+1], fade_frames, fade_frames ) );
+		} );
 
 	return outs;
+	}
+
+std::vector<Audio> Audio::split_with_lengths(
+	std::vector<Second> split_lengths,
+	Second fade
+	) const
+	{
+	for( Second & t : split_lengths ) if( t < 0 ) t = 0; 
+
+	// Create split times form split lengths
+	std::vector<Second> split_times;
+	std::partial_sum( split_lengths.begin(), split_lengths.end(), std::back_inserter( split_times ) );
+	return split_at_times( split_times, fade );
+	}
+
+std::vector<Audio> Audio::split_with_equal_lengths( 
+	Second slice_length, 
+	Second fade 
+	) const
+	{
+	if( slice_length <= 0 ) return std::vector<Audio>();
+	std::vector<Second> slice_lengths( std::ceil( get_length() / slice_length ), slice_length );
+	return split_with_lengths( slice_lengths, fade );
 	}
 
 Audio Audio::rearrange( 
@@ -372,7 +421,7 @@ Audio Audio::rearrange(
 	if( is_null() ) return Audio::create_null();
 
 	// + fade here accounts for + fade / 2 at both ends
-	std::vector<Audio> chops = chop( slice_length + fade, fade );
+	std::vector<Audio> chops = split_with_equal_lengths( slice_length + fade, fade );
 	if( chops.size() < 2 )
 		return Audio::create_null();
 
