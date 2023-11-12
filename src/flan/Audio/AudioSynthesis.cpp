@@ -355,9 +355,6 @@ Audio Audio::synthesize_psola(
 
 	// A bit janky to sample here and wrap the samples in a lambda, but it's an easy way to protect from double calling
 	auto time_selection_sampled = time_selection.sample( 0, std::ceil( time_to_frame( length ) ), frame_to_time( 1 ) );
-
-	//auto grains_per_second = [&]( Second t ){ return 1.0f / freq( t ); };
-	auto grain_length = [&]( Second t ){ return 2.0f / freq( t ); };
 	AudioMod composition_mod = [&]( Audio & a, Second t )
 		{
 		if( ! mod.is_null() )
@@ -371,7 +368,7 @@ Audio Audio::synthesize_psola(
 		[&]( Second t ){ return freq( time_selection_sampled[time_to_frame(t)] ); },
 		0,
 		[&]( Second t ){ return time_selection_sampled[time_to_frame(t)]; },
-		grain_length,
+		[&]( Second t ){ return 2.0f / freq( time_selection_sampled[time_to_frame(t)] ); },
 		composition_mod 
 		);
 	}
