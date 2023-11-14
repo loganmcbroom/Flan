@@ -165,8 +165,8 @@ Audio Audio::cut_frames(
 
 	// Input validation
 	if( end <= start ) return Audio::create_null();
-	const Frame start_frame = std::clamp( start, 0, get_num_frames() - 1 );
-	const Frame end_frame   = std::clamp( end,   0, get_num_frames() - 1 );
+	start = std::clamp( start, 0, get_num_frames() - 1 );
+	end   = std::clamp( end,   0, get_num_frames() - 1 );
 	// Any fade errors are validated in Audio::fades
 	
 	auto format = get_format();
@@ -176,7 +176,7 @@ Audio Audio::cut_frames(
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
 		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( out.get_num_frames() ), [&]( Frame frame )
 			{
-			out.set_sample( channel, frame, get_sample( channel, start_frame + frame ) );
+			out.set_sample( channel, frame, get_sample( channel, start + frame ) );
 			} );
 
 	out.fade_frames_in_place( start_fade, end_fade, Interpolators::sqrt );
