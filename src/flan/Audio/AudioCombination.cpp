@@ -14,7 +14,7 @@ using namespace std::ranges;
 //================================================================================================================
 
 // If sample rates all match, return empty vec, else resample everything to highest sr
-static std::vector<Audio> match_sample_rates_or_return_null( const std::vector<const Audio *> & ins )
+std::vector<Audio> Audio::match_sample_rates_or_return_null( const std::vector<const Audio *> & ins )
 	{
 	if( ins.empty() ) return std::vector<Audio>();
 
@@ -81,11 +81,10 @@ Audio Audio::mix(
 	std::vector<Amplitude> amplitudes 
 	)
 	{
-	
 	// Input validation
 	if( ins_unmatched.empty() ) return Audio::create_null();
 
-	std::vector<Audio> ins_resampled_container = match_sample_rates_or_return_null( ins_unmatched );
+	const std::vector<Audio> ins_resampled_container = match_sample_rates_or_return_null( ins_unmatched );
 	std::vector<const Audio *> ins = ins_resampled_container.empty() ? ins_unmatched : get_pointers( ins_resampled_container );
 
 	// If start_times or amplitudes ore too small, fill with 0 and 1
