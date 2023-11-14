@@ -274,31 +274,49 @@ Audio base_filter_2pole_highpass(
 // 1-pole butterworth
 //===============================================================================================================================
 
-Audio Audio::filter_1pole_repeat(
+Audio filter_1pole_repeat_base(
+	const Audio & me,
 	const Function<Second, Frequency> & cutoff,
-	const uint16_t repeats
-	) const
+	const uint16_t repeats,
+	int index
+	)
 	{
-	if( is_null() ) return Audio::create_null();
+	if( me.is_null() ) return Audio::create_null();
 	
-	Audio out( get_format() );
+	Audio out( me.get_format() );
 
-	auto cutoff_sampled = sample_function_over_domain( cutoff );
+	auto cutoff_sampled = me.sample_function_over_domain( cutoff );
 
-	for( Channel channel = 0; channel < get_num_channels(); ++channel )
+	for( Channel channel = 0; channel < me.get_num_channels(); ++channel )
 		{
-		std::vector<Filter_1Pole> filter_1poles( repeats, get_sample_rate() );
-		for( Frame frame = 0; frame < get_num_frames(); ++frame )
+		std::vector<Filter_1Pole> filter_1poles( repeats, me.get_sample_rate() );
+		for( Frame frame = 0; frame < me.get_num_frames(); ++frame )
 			{
 			for( Index i = 0; i < repeats; ++i )
 				{
-				const Audio & source = i == 0? *this : out;
-				out.get_sample( channel, frame ) = filter_1poles[i].process_sample( source.get_sample( channel, frame ), cutoff_sampled[frame] )[0];
+				const Audio & source = i == 0? me : out;
+				out.get_sample( channel, frame ) = filter_1poles[i].process_sample( source.get_sample( channel, frame ), cutoff_sampled[frame] )[index];
 				}
 			}
 		}
 
 	return out;
+	}
+
+Audio Audio::filter_1pole_repeat_low(
+	const Function<Second, Frequency> & cutoff,
+	const uint16_t repeats
+	) const
+	{
+	return filter_1pole_repeat_base( *this, cutoff, repeats, 0 );
+	}
+
+Audio Audio::filter_1pole_repeat_high(
+	const Function<Second, Frequency> & cutoff,
+	const uint16_t repeats
+	) const
+	{
+	return filter_1pole_repeat_base( *this, cutoff, repeats, 1 );
 	}
 	
 
@@ -368,22 +386,35 @@ std::vector<Audio> Audio::filter_1pole_split(
 	uint16_t order
 	) const
 	{
+	/*
+	This may have you saying "that doesn't seem quite right".
+	I am tired of making filters and I'm choosing to not write a perfect L-R crossover filter.
+	Lets just agree this works pretty well and move on.
+	*/
+
+	// Classic janky forced single call for functional input
 	const auto cutoff_sampled = sample_function_over_domain( cutoff );
+	auto cutoff_no_resample_func = [&]( Second t ){ return cutoff_sampled[time_to_frame( t )]; };
+
+	if( order <= 1 )
+		{
+		std::vector<Audio> outs; 
+		outs.push_back( filter_1pole_lowpass ( cutoff_no_resample_func, 1 ) ); 
+		outs.push_back( filter_1pole_highpass( cutoff_no_resample_func, 1 ) ); 
+		return outs;
+		}
 
 	std::vector<Audio> outs;
-	outs.emplace_back( get_format() );
-	outs.emplace_back( get_format() );
-	for( Channel channel = 0; channel < get_num_channels(); ++channel )
-		{
-		Filter_1Pole filter( get_sample_rate() );
-		for( Frame frame = 0; frame < get_num_frames(); ++frame )
-			{
-			auto filter_output = filter.process_sample( get_sample( channel, frame ), cutoff_sampled[frame] );
-			outs[0].get_sample( channel, frame ) = filter_output[0];
-			outs[1].get_sample( channel, frame ) = filter_output[1];
-			}
-		}
-	return outs;
+	outs.push_back( 
+		 filter_1pole_lowpass( cutoff_no_resample_func, order ) 
+		.filter_1pole_lowpass( cutoff_no_resample_func, order ) 
+		);
+	outs.push_back( 
+		 filter_1pole_highpass( cutoff_no_resample_func, order ) 
+		.filter_1pole_highpass( cutoff_no_resample_func, order ) 
+		);
+
+	return outs;	
 	}
 
 //===============================================================================================================================

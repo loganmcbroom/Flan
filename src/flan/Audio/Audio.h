@@ -691,7 +691,12 @@ public:
 	/** This applies the same 1-pole low pass filter to the input n times. 
 		It is mainly a tool used for modeling atmospheric scattering in spacialization methods.
 	*/
-	Audio filter_1pole_repeat(
+	Audio filter_1pole_repeat_low(
+		const Function<Second, Frequency> & cutoff,
+		const uint16_t repeats
+		) const;
+
+	Audio filter_1pole_repeat_high(
 		const Function<Second, Frequency> & cutoff,
 		const uint16_t repeats
 		) const;
@@ -711,6 +716,12 @@ public:
 		) const;
 
 	Audio filter_2pole_highpass(
+		const Function<Second, Frequency> & cutoff,
+		const Function<Second, float> & damping,
+		uint16_t order = 1
+		) const;
+
+	std::vector<Audio> filter_2pole_split(
 		const Function<Second, Frequency> & cutoff,
 		const Function<Second, float> & damping,
 		uint16_t order = 1
@@ -877,7 +888,8 @@ public:
 	 *	\param ir An impulse response.
 	 */
 	Audio convolve( 
-		const Audio & ir 
+		const Audio & ir,
+		bool normalize = true
 		) const;
 
 
