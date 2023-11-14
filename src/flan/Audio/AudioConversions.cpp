@@ -38,18 +38,21 @@ Audio Audio::convert_to_mid_side() const
 		std::cout << "Can't transform non-stereo Audio between Mid-Side and Left-Right formats." << std::endl;
 		return copy();
 		}
+
+	const float sqrt2 = std::sqrt( 2.0f );
+
 	Audio out( get_format() );
 	flan::for_each_i( get_num_frames(), ExecutionPolicy::Parallel_Unsequenced, [&]( Frame frame )
 		{
-		out.set_sample( 0, frame, get_sample( 0, frame ) + get_sample( 1, frame ) );
-		out.set_sample( 1, frame, get_sample( 0, frame ) - get_sample( 1, frame ) );
+		out.get_sample( 0, frame ) = ( get_sample( 0, frame ) + get_sample( 1, frame ) ) / sqrt2;
+		out.get_sample( 1, frame ) = ( get_sample( 0, frame ) - get_sample( 1, frame ) ) / sqrt2;
 		} );
 	return out;
 	}
 
 Audio Audio::convert_to_left_right() const
 	{
-		return convert_to_mid_side();
+	return convert_to_mid_side();
 	}
 
 Audio Audio::convert_to_stereo() const
