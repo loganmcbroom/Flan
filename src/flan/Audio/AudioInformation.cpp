@@ -258,10 +258,17 @@ Function<Second, Amplitude> Audio::get_amplitude_envelope(
 	const fFrame window_width_frames = time_to_frame( window_width );
 
 	Audio hann_window = Audio::create_empty_with_frames( window_width_frames, 1, get_sample_rate() );
+	float hann_integral = 0;
 	for( Frame i = 0; i < hann_window.get_num_frames(); ++i )
+		{
 		hann_window.get_sample( 0, i ) = Windows::hann( float( i ) / ( window_width_frames - 1 ) );
+		hann_integral += hann_window.get_sample( 0, i );
+		}
 
-	auto convolved = mono.convolve( hann_window );
+	auto convolved = mono.convolve( hann_window, false );
+	convolved.modify_volume_in_place( pi / 2.0f / hann_integral );
+
+	float x = convolved.get_max_sample_magnitude();
 	
 	std::vector<float> ys = std::move( convolved.get_buffer() );
 	return [ys = std::move( ys ), sr = get_sample_rate() ]( float t )

@@ -323,7 +323,8 @@ Audio Audio::select(
 // 	}
 
 Audio Audio::convolve( 
-	const Audio & ir 
+	const Audio & ir,
+	bool normalize
 	) const
 	{
 	if( is_null() ) return Audio::create_null();
@@ -368,8 +369,11 @@ Audio Audio::convolve(
 			out.get_sample( channel, frame ) = fft.get_real_buffer()[frame];
 		}
 
-	const Sample max_sample_mag = out.get_max_sample_magnitude();
-	out.modify_volume_in_place( 1.0f / max_sample_mag ); 
+	if( normalize )
+		{
+		const Sample max_sample_mag = out.get_max_sample_magnitude();
+		out.modify_volume_in_place( 1.0f / max_sample_mag ); 
+		}
 
 	return out;
 	}
