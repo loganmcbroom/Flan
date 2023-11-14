@@ -29,10 +29,13 @@ std::vector<Audio> Audio::split_channels(
 	}
 
 Audio Audio::combine_channels( 
-	const std::vector<const Audio *> & channels 
+	const std::vector<const Audio *> & channels_unmatched 
 	)
 	{
-	if( channels.empty() ) return Audio::create_null();
+	if( channels_unmatched.empty() ) return Audio::create_null();
+
+	const std::vector<Audio> channels_resampled_container = match_sample_rates_or_return_null( channels_unmatched );
+	std::vector<const Audio *> channels = channels_resampled_container.empty() ? channels_unmatched : get_pointers( channels_resampled_container );
 
 	// Use the total number of input channels, and the maximum number of input frames
 	Audio::Format format;

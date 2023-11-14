@@ -252,7 +252,7 @@ public:
 		const std::vector<Audio> & channels 
 		);
 
-	/** Creates a new Audio with all the channels of the inputs. This does not check for matching sample rates.
+	/** Creates a new Audio with all the channels of the inputs.
 	 */
 	template<typename ... Ts, typename = AllAudios<Ts...> >
 	static Audio combine_channels( 
@@ -261,31 +261,7 @@ public:
 		{
 		std::vector<const Audio *> p_ins;
 		( p_ins.push_back( &ins ), ... ); // Fold expression
-
-		if( p_ins.empty() ) return Audio::create_null();
-
-		// Use the total number of input channels, and the maximum number of input frames
-		Audio::Format format;
-		format.sample_rate = p_ins[0]->get_sample_rate();
-		format.num_channels = std::accumulate( p_ins.begin(), p_ins.end(), 0, []( int c, const Audio * p ){ return c + p->get_num_channels(); } );
-		format.num_frames = (*std::max_element( p_ins.begin(), p_ins.end(), []( const Audio * a, const Audio * b )
-			{ return a->get_num_frames() < b->get_num_frames(); } )
-			)->get_num_frames();
-		Audio out( format ); 
-		out.clear_buffer();
-
-		Channel current_channel = 0;
-		for( auto a : p_ins )
-			{
-			for( Channel channel = 0; channel < a->get_num_channels(); ++channel )
-				{
-				for( Frame frame = 0; frame < a->get_num_frames(); ++frame )
-					out.set_sample( current_channel, frame, a->get_sample( channel, frame ) );
-				++current_channel;
-				}
-			}
-
-		return out;
+		return combine_channels( p_ins );
 		}
 
 
@@ -786,7 +762,7 @@ public:
 
 	Audio filter_comb(
 		const Function<Second, Frequency> & cutoff,
-		const Function<Second, float> & feedback,
+		const Function<Second, float> & feedback = 0,
 		const Function<Second, float> & wet_dry = .5,
 		bool invert = false
 		) const;
@@ -1023,6 +999,9 @@ public:
 	// 	const Function<Second, Frequency> & waveform_frequency,
 	// 	const Function<float, Amplitude> & pulsaret_envelope,
 	// 	);
+
+private:
+	static std::vector<Audio> match_sample_rates_or_return_null( const std::vector<const Audio *> & ins );
 
 	};
 
