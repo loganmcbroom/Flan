@@ -63,10 +63,10 @@ struct Function
 		: f( [t0]( I ){ return O( t0 ); } ) 
 		, executionPolicy( ExecutionPolicy::Parallel_Unsequenced )
 		{}
-	Function() 
-		: f( []( I ){ return O( 0 ); } ) 
-		, executionPolicy( ExecutionPolicy::Parallel_Unsequenced )
-		{}
+	// Function() 
+	// 	: f( []( I ){ return O( 0 ); } ) 
+	// 	, executionPolicy( ExecutionPolicy::Parallel_Unsequenced )
+	// 	{}
 
 	ExecutionPolicy get_execution_policy() const { return executionPolicy; }
 
