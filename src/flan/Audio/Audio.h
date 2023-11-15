@@ -938,8 +938,7 @@ public:
 		Second length,
 		const Function<Second, float> & grains_per_second,
 		const Function<Second, float> & time_scatter,
-		const Function<Second, Amplitude> & gain,
-		FrameRate sample_rate = 48000
+		const Function<Second, Amplitude> & gain
 		) const;
 
 	Audio synthesize_grains_with_feedback_mod( 
@@ -947,8 +946,7 @@ public:
 		const Function<Second, float> & grains_per_second, 
 		const Function<Second, float> & time_scatter, 
 		const AudioMod & mod,
-		bool mod_feedback, // This should be remove if possible
-		FrameRate sample_rate = 48000
+		bool mod_feedback // This should be removed if possible
 		) const;
 
 	// Grain Compositions ===================================================================================================================
@@ -986,7 +984,7 @@ public:
 	 *		grains_per_second will cause scatter to have less of an effect.
 	 *  \param selection The input time from which grains will be read.
 	 *  \param grain_length The length of grains.
-	 *  \param fade The start and end fade time for each grain. Fades use a sqrt curve.
+	 *  \param fade_time The start and end fade time for each grain. Fades use a sqrt curve.
 	 *  \param mod Each grain is fed into this along with the event time.
 	 */
 	Audio synthesize_granulation( 
@@ -995,6 +993,7 @@ public:
 		const Function<Second, float> & time_scatter, 
 		const Function<Second, Second> & time_selection, 
 		const Function<Second, Second> & grain_length,
+		Second fade_time = 0,
 		const AudioMod & mod = AudioMod()
 		) const;
 

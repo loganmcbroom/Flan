@@ -151,7 +151,7 @@ std::vector<Second> integrate_event_rate(
 
 		const Second std_in_seconds = scatter_t / events_per_second_t;
 		const fFrame std_in_frames = std_in_seconds * sample_rate;
-		const Frame scattered_frame = std::normal_distribution<Second>( event_frame, std_in_frames )( rng );
+		const Frame scattered_frame = std::normal_distribution<fFrame>( event_frame, std_in_frames )( rng );
 		if( 0 <= scattered_frame && scattered_frame < length_frames )
 			event_frame = scattered_frame;
 		else event_frame = std::numeric_limits<Frame>::max(); // Using max to indicate "don't use", it will be sorted to the end shortly
@@ -163,7 +163,7 @@ std::vector<Second> integrate_event_rate(
 	// Remove anything set to max at the end of the events; these were scattered outside the bounds
 	auto oob_event_iter = std::lower_bound( event_frames.begin(), event_frames.end(), std::numeric_limits<Frame>::max() );
 	if( oob_event_iter != event_frames.end() )
-		event_frames.erase( oob_event_iter );
+		event_frames.erase( oob_event_iter, event_frames.end() );
 
 	// Convert event frames back to times
 	std::vector<Second> event_times( event_frames.size() );
@@ -204,8 +204,7 @@ Audio Audio::synthesize_grains_repeat(
 	Second length,
 	const Function<Second, float> & grains_per_second,
 	const Function<Second, float> & time_scatter,
-	const Function<Second, Amplitude> & gain,
-	FrameRate sample_rate
+	const Function<Second, Amplitude> & gain
 	) const
 	{
 	if( is_null() ) return Audio::create_null();
@@ -213,7 +212,7 @@ Audio Audio::synthesize_grains_repeat(
 	// Input validation
 	if( length <= 0 ) return Audio::create_null();
 	
-	const std::vector<Second> event_times = integrate_event_rate( length, grains_per_second, time_scatter, sample_rate );
+	const std::vector<Second> event_times = integrate_event_rate( length, grains_per_second, time_scatter, get_sample_rate() );
 
 	std::vector<Amplitude> gains( event_times.size() );
 	for( int i = 0; i < event_times.size(); ++i )
@@ -227,16 +226,15 @@ Audio Audio::synthesize_grains_with_feedback_mod(
 	const Function<Second, float> & grains_per_second, 
 	const Function<Second, float> & time_scatter, 
 	const AudioMod & mod,
-	bool mod_feedback, 
-	FrameRate sample_rate
+	bool mod_feedback
 	) const
 	{
 	if( is_null() ) return Audio::create_null();
 
 	if( mod.is_null() )
-		return synthesize_grains_repeat( length, grains_per_second, time_scatter, 1.0f, sample_rate );
+		return synthesize_grains_repeat( length, grains_per_second, time_scatter, 1.0f );
 
-	const std::vector<Second> event_times = integrate_event_rate( length, grains_per_second, time_scatter, sample_rate );
+	const std::vector<Second> event_times = integrate_event_rate( length, grains_per_second, time_scatter, get_sample_rate() );
 
 	std::vector<Audio> modded_audio;
 	modded_audio.reserve( event_times.size() );
@@ -303,8 +301,7 @@ Audio Audio::synthesize_trainlets(
 			trainlet_length( t ),
 			freq,
 			0,
-			trainlet_gain_envelope,
-			sample_rate 
+			trainlet_gain_envelope
 			).stereo_spatialize( position( t ) );
 		}, ex_pol ) );
 	}
@@ -315,6 +312,7 @@ Audio Audio::synthesize_granulation(
 	const Function<Second, float> & time_scatter, 
 	const Function<Second, Second> & time_selection, 
 	const Function<Second, Second> & grain_length,
+	Second fade_time,
 	const AudioMod & mod
 	) const
 	{
@@ -327,7 +325,7 @@ Audio Audio::synthesize_granulation(
 		{
 		const Second selection_c = selection_sampled[ time_to_frame( t ) ];
 		const Second grain_length_c = grain_length_sampled[ time_to_frame( t ) ];
-		Audio grain = in.cut( selection_c, selection_c + grain_length_c );
+		Audio grain = in.cut( selection_c, selection_c + grain_length_c, fade_time, fade_time );
 		return std::move( grain );
 		};
 
@@ -369,6 +367,7 @@ Audio Audio::synthesize_psola(
 		0,
 		[&]( Second t ){ return time_selection_sampled[time_to_frame(t)]; },
 		[&]( Second t ){ return 2.0f / freq( time_selection_sampled[time_to_frame(t)] ); },
+		0.05,
 		composition_mod 
 		);
 	}

@@ -310,7 +310,7 @@ Audio Audio::delay(
 		std::for_each( in.get_buffer().begin(), in.get_buffer().end(), [decay_t]( Sample & s ){ s *= decay_t; } );
 		};
 
-	return synthesize_grains_with_feedback_mod( length, events_per_second, 0, delay_mod, true, get_sample_rate() );
+	return synthesize_grains_with_feedback_mod( length, events_per_second, 0, delay_mod, true );
 	}
 
 // Audio Audio::stereo_delay(

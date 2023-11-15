@@ -62,6 +62,7 @@ static Audio resample_waveforms( const Audio & source, const std::vector<Frame> 
     {
 	// Input validation
 	if( source.is_null() ) return Audio::create_null();
+	if( waveform_starts.empty() ) return Audio::create_null();
 	const Audio mono_source = source.get_num_channels() == 1? source.copy() : source.convert_to_mono();
 
 	// Set up output
@@ -108,21 +109,20 @@ std::vector<Frame> Wavetable::get_waveform_starts(
 	Frame fixed_frame, 
 	flan_CANCEL_ARG_CPP )
 	{
-	
 	// Input validation
 	if( source.is_null() ) return std::vector<Frame>();
 	const Audio mono_source = source.convert_to_mono(); // Convert input to mono
 
 	// Find expected waveform lengths via autocorrelation-based pitch detection
-	const int ac_granularity = 128;
-	const int ac_windowSize = 4096;
-	std::vector<float> local_wavelengths;
-	Frame globalWavelength = 0;
+	const Frame ac_granularity = 128;
+	const Frame ac_windowSize = 4096;
+	std::vector<fFrame> local_wavelengths;
+	Frame global_wavelength = 0;
 	if( pitch_mode != Wavetable::PitchMode::None )
 		{
 		local_wavelengths = mono_source.get_local_wavelengths( 0, 0, -1, 2048, 128, canceller );
-		globalWavelength = mono_source.get_average_wavelength( local_wavelengths, .5, 64 ); 
-		if( globalWavelength == -1 ) 
+		global_wavelength = mono_source.get_average_wavelength( local_wavelengths, .5, 64 ); 
+		if( global_wavelength == -1 ) 
 			{
 			std::cout << "Insignificant pitch data found in Wavetable construction.\n";
 			return std::vector<Frame>();
@@ -131,7 +131,7 @@ std::vector<Frame> Wavetable::get_waveform_starts(
 
 	std::vector<Frame> waveform_starts;
 
-	auto snapHandler = [&]( Frame frameToSnap, Frame snapSourceFrame, Frame maxSnap )
+	auto snap_handler = [&]( Frame frameToSnap, Frame snapSourceFrame, Frame maxSnap )
 		{
 		//const Frame maxSnap = snap_ratio * std::abs( frameToSnap - snapSourceFrame );
 		switch( snap_mode )
@@ -143,32 +143,31 @@ std::vector<Frame> Wavetable::get_waveform_starts(
 			}
 		};
 	
-	waveform_starts.push_back( snapHandler( 0, 0, snap_ratio * globalWavelength ) );
+	waveform_starts.push_back( snap_handler( 0, 0, snap_ratio * global_wavelength ) );
 
 	while( true ) // Eat until we run out of buffer
 		{
 		flan_CANCEL_POINT( std::vector<Frame>() );
 
 		// Guess how many frames the next wavelength will be
-		Frame expectedNumFrames = 0;
+		Frame expected_num_frames = 0;
 		if( pitch_mode ==  Wavetable::PitchMode::Local )
 			{
-			const int localWavelengthIndex = std::floor( waveform_starts.back() / ac_granularity );
-			if( localWavelengthIndex >= local_wavelengths.size() ) break;
-			const Frame localWavelength_c = local_wavelengths[localWavelengthIndex];
-			if( localWavelength_c == 0 ) continue;
-
-			expectedNumFrames =  localWavelength_c != -1? localWavelength_c : globalWavelength; 
+			// Where in the local wavelegnths vector we currently are
+			const int local_wavelength_index = std::floor( waveform_starts.back() / ac_granularity );
+			if( local_wavelength_index >= local_wavelengths.size() ) break;
+			const Frame local_wavelength_c = local_wavelengths[local_wavelength_index];
+			expected_num_frames = local_wavelength_c > 0? local_wavelength_c : global_wavelength; 
 			}
 		else if( pitch_mode == Wavetable::PitchMode::Global )
-				expectedNumFrames = globalWavelength; 
+				expected_num_frames = global_wavelength; 
 		else if( pitch_mode == Wavetable::PitchMode::None )
-			expectedNumFrames = fixed_frame;
+			expected_num_frames = fixed_frame;
 
-		if( waveform_starts.back() + expectedNumFrames >= mono_source.get_num_frames() ) break;
+		if( waveform_starts.back() + expected_num_frames >= mono_source.get_num_frames() ) break;
 
 		// Snap expected waveform end if needed
-		waveform_starts.push_back( snapHandler( waveform_starts.back() + expectedNumFrames, waveform_starts.back(), snap_ratio * expectedNumFrames ) );
+		waveform_starts.push_back( snap_handler( waveform_starts.back() + expected_num_frames, waveform_starts.back(), snap_ratio * expected_num_frames ) );
 		}
 
     return waveform_starts;

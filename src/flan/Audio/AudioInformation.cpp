@@ -190,7 +190,7 @@ float Audio::get_average_wavelength( const std::vector<float> & locals, float mi
 	const int num_valids = locals.size() - std::count( locals.begin(), locals.end(), -1 );
 	if( num_valids <= min_active_ratio * locals.size() ) return -1; // Check that a sufficient amount of data had a detectable wavelength
 
-	std::copy_if( locals.begin(), locals.end(), std::back_inserter( valid_lengths ), []( float x ){ return x != -1; } );
+	std::copy_if( locals.begin(), locals.end(), std::back_inserter( valid_lengths ), []( float x ){ return x != 0; } );
 
 	const vec2 msd = mean_and_sd( valid_lengths );
 	if( max_length_sigma != -1 && msd.y() > max_length_sigma ) return -1; // Check that the lengths didn't vary too much
