@@ -4,8 +4,8 @@
 
 namespace flan {
 
-/** -1 will imply "Apply to all" */
-using Waveform = int;
+/** -1 will mean "Apply to all", otherwise should be a value on [0,1] */
+using Waveform = float;
 
 /* Functions for working with wavetable synthesis
  */
@@ -73,13 +73,13 @@ public:
     /** Generate Audio.
      * \param length The output length.
      * \param freq The output frequency over time.
-     * \param index The waveform to read from. Choosing not-integer indices will read a linear interpolation of the surrounding waveforms.
+     * \param index The waveform to read from. Values from zero to one will read from the start to the end of the table.
      * \param granularity The time between input function evaluations.
      */
     Audio synthesize( 
         Second length, 
         const Function<Second, Frequency> & freq, 
-        const Function<Second, float> & index, 
+        const Function<Second, Waveform> & index, 
         Second granularity = 0.001f, 
         flan_CANCEL_ARG 
         ) const;
@@ -104,11 +104,11 @@ public:
 private:
     Wavetable();
 
-    Sample * getWaveform( Waveform waveform );
+    Sample * get_waveform( Waveform waveform );
 
     const Frame wavelength;
     Audio table;
-    const int numWaveforms;
+    const int num_waveforms;
 };
 
 };

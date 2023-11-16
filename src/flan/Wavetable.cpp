@@ -176,14 +176,14 @@ std::vector<Frame> Wavetable::get_waveform_starts(
 Wavetable::Wavetable( const Audio & source, SnapMode snap_mode, PitchMode pitch_mode, float snap_ratio, Frame fixed, flan_CANCEL_ARG_CPP )
 	: wavelength( 2048 )
     , table( resample_waveforms( source, get_waveform_starts( source, snap_mode, pitch_mode, snap_ratio, fixed, canceller ), wavelength, canceller ).set_volume( 1 ) )
-	, numWaveforms( table.get_num_frames() / wavelength )
+	, num_waveforms( table.get_num_frames() / wavelength )
 	{
 	}
 
 Wavetable::Wavetable( const Function<Second, Amplitude> & f, int num_waves, flan_CANCEL_ARG_CPP )
 	: wavelength( 2048 )
     , table()
-	, numWaveforms( num_waves )
+	, num_waveforms( num_waves )
 	{
 	const int oversample = 16;
 
@@ -218,14 +218,14 @@ Wavetable::Wavetable( const Function<Second, Amplitude> & f, int num_waves, flan
 Wavetable::Wavetable( const Audio & source, const std::vector<Frame> & waveform_starts, flan_CANCEL_ARG_CPP )
 	: wavelength( 2048 )
     , table( resample_waveforms( source, waveform_starts, wavelength, canceller ).set_volume( 1 ) )
-	, numWaveforms( waveform_starts.size() - 1 )
+	, num_waveforms( waveform_starts.size() - 1 )
 	{
 	}
 
 Wavetable::Wavetable()
 	: wavelength( 0 )
     , table( Audio::create_null() )
-	, numWaveforms( 0 )
+	, num_waveforms( 0 )
 	{
 	}
 
@@ -233,30 +233,32 @@ Audio Wavetable::synthesize(
 	Second length, 
 	const Function<Second, Frequency> & freq, 
 	const Function<Second, float> & index, 
-	Second granularityTime, 
+	Second granularity_time, 
 	flan_CANCEL_ARG_CPP 
 	) const
     {
+	if( num_waveforms == 0 ) return Audio::create_null();
+	
 	// Ouput setup
 	Audio::Format format = table.get_format();
     format.num_frames = table.time_to_frame( length );
     Audio out( format );
 
-	const Frame granularity = out.time_to_frame( granularityTime );
+	const Frame granularity = out.time_to_frame( granularity_time );
 
 	// Resampler setup
 	WDL_Resampler rs;
 	rs.SetMode( true, 1, true, 512 );
 	
-	Frame out_framesGenerated = 0;
+	Frame out_frames_generated = 0;
 	Frame phaseFrame = 0;
-	while( out_framesGenerated < out.get_num_frames() )
+	while( out_frames_generated < out.get_num_frames() )
 		{
 		flan_CANCEL_POINT( Audio::create_null() );
 
 		const double inFreq_c = double( table.get_sample_rate() ) / wavelength;
-		const double outFreq_c = freq( out.frame_to_time( out_framesGenerated ) );
-		const float index_c = std::clamp( index( out.frame_to_time( out_framesGenerated ) ), 0.0f, float( numWaveforms - 1 ) );
+		const double outFreq_c = freq( out.frame_to_time( out_frames_generated ) );
+		const float index_c = std::clamp( num_waveforms * index( out.frame_to_time( out_frames_generated ) ), 0.0f, float( num_waveforms - 1 ) );
 		const Frame leftIndex = std::floor( index_c );
 		const Frame rightIndex = std::ceil( index_c );
 		const float indexRemainder = index_c - leftIndex;
@@ -275,18 +277,20 @@ Audio Wavetable::synthesize(
 			}
 				
 		// Resample directly into output buffer and update frame indices.
-		out_framesGenerated += rs.ResampleOut( out.get_sample_pointer( 0, out_framesGenerated ), wdlWanted, out.get_num_frames() - out_framesGenerated, 1 );
+		out_frames_generated += rs.ResampleOut( out.get_sample_pointer( 0, out_frames_generated ), wdlWanted, out.get_num_frames() - out_frames_generated, 1 );
 		phaseFrame = ( phaseFrame + wdlWanted ) % wavelength;
 		}
 	
 	return out;
     }
 
-void Wavetable::add_fades_in_place( Frame fade_frames, Waveform w )
+void Wavetable::add_fades_in_place( Frame fade_frames, Waveform waveform )
 	{
-	auto singleTransform = [this, fade_frames]( Waveform w )
+	const int waveform_index = std::clamp( int( waveform * num_waveforms ), 0, num_waveforms - 1 );
+
+	auto singleTransform = [this, fade_frames]( int w )
 		{
-		Sample * waveform = getWaveform( w );
+		Sample * waveform = get_waveform( w );
 		for( Frame frame = 0; frame < fade_frames - 1; ++frame )
 			{
 			const float fade = std::sin( pi / 2.0f * ( frame + 1 ) / fade_frames );
@@ -295,17 +299,19 @@ void Wavetable::add_fades_in_place( Frame fade_frames, Waveform w )
 			}
 		};
 
-	if( w == -1 ) 
-		for( Waveform i = 0; i < numWaveforms; ++i )
+	if( waveform == -1 ) 
+		for( int i = 0; i < num_waveforms; ++i )
 			singleTransform( i );
-	else singleTransform( w );
+	else singleTransform( waveform_index );
 	}
 
-void Wavetable::remove_jumps_in_place( Frame fade_frames, Waveform w )
+void Wavetable::remove_jumps_in_place( Frame fade_frames, Waveform waveform )
 	{
-	auto singleTransform = [this, fade_frames]( Waveform w )
+	const int waveform_index = std::clamp( int( waveform * num_waveforms ), 0, num_waveforms - 1 );
+
+	auto singleTransform = [this, fade_frames]( int w )
 		{
-		Sample * waveform = getWaveform( w );
+		Sample * waveform = get_waveform( w );
 		const Sample l = *waveform;
 		const Sample r = *( waveform + wavelength - 1 );
 		const Sample mid = ( l + r ) / 2.0f;
@@ -320,29 +326,32 @@ void Wavetable::remove_jumps_in_place( Frame fade_frames, Waveform w )
 			}
 		};
 
-	if( w == -1 ) 
-		for( Waveform i = 0; i < numWaveforms; ++i )
+	if( waveform == -1 ) 
+		for( int i = 0; i < num_waveforms; ++i )
 			singleTransform( i );
-	else singleTransform( w );
+	else singleTransform( waveform_index );
 	}
 
-void Wavetable::remove_dc_in_place( Waveform w )
+void Wavetable::remove_dc_in_place( Waveform waveform )
 	{
-	auto singleTransform = [this]( Waveform w )
+	const int waveform_index = std::clamp( int( waveform * num_waveforms ), 0, num_waveforms - 1 );
+
+	auto singleTransform = [this]( int w )
 		{
 		auto start_iter = table.get_buffer().begin() + wavelength * w;
 		const float dc = std::accumulate( start_iter, start_iter + wavelength, 0.0f ) / float( wavelength );
 		std::for_each( FLAN_PAR_UNSEQ start_iter, start_iter + wavelength, [dc]( Sample & s ){ s -= dc; } );
 		};
 
-	if( w == -1 ) 
-		for( Waveform i = 0; i < numWaveforms; ++i )
+	if( waveform == -1 ) 
+		for( int i = 0; i < num_waveforms; ++i )
 			singleTransform( i );
-	else singleTransform( w );
+	else singleTransform( waveform_index );
 	}
 
-Sample * Wavetable::getWaveform( int waveform )
+Sample * Wavetable::get_waveform( Waveform waveform )
 	{
-	return table.get_sample_pointer( 0, waveform * wavelength );
+	const int waveform_index = std::clamp( int( waveform * num_waveforms ), 0, num_waveforms - 1 );
+	return table.get_sample_pointer( 0, waveform_index * wavelength );
 	}
 	

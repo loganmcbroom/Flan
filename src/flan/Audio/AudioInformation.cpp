@@ -148,12 +148,18 @@ float Audio::get_local_wavelength( Channel channel, Frame start, Frame window_si
 	const std::vector<vec2> minima = find_valleys( d_prime );
 	
 	// For wavelength finding, we want absolute minimum, as long as it's low enough
-	vec2 best_minima = {0,-1};
-	for( const vec2 & m : minima )
-		if( m.y() < absolute_cutoff ) 
-			best_minima = m;
+	const vec2 lowest_minima = *std::min_element( minima.begin(), minima.end(), []( vec2 a, vec2 b ){ return a.y() < b.y(); } );
+
+	// Find smallest wavelength within a set ratio of the best.
+	// This roots out most "off by an octave" errors.
+	// There is no perfect solution to octave errors, so the ratio here is a magic number.
+	vec2 best_minima;
+	for( int i = minima.size() - 1; i >= 0; --i )
+		if( minima[i].y() < lowest_minima.y() * 2 )
+			best_minima = minima[i];
     
-    return best_minima.x();
+	if( best_minima.y() < absolute_cutoff ) return best_minima.x();
+    else return 0;
 	}
 
 std::vector<float> Audio::get_local_wavelengths( Channel channel, Frame start, Frame end, Frame window_size, Frame hop, flan_CANCEL_ARG_CPP ) const
@@ -168,6 +174,47 @@ std::vector<float> Audio::get_local_wavelengths( Channel channel, Frame start, F
 		{
 		flan_CANCEL_POINT( std::vector<float>() );
         out.push_back( get_local_wavelength( channel, frame, window_size ) );
+		}
+
+	// Continuity mainainance
+	// In an effort to minimize octave flickering, any very short sections of wavelength data jumping an octave up from an established
+	// pattern will be cut back down.
+	const Second minimum_note_length = 0.1; // Magic number
+	const int minimum_num_hops = time_to_frame( minimum_note_length ) / hop;
+
+	// Find any suspicious points where the wavelength suddenly doubles
+	std::vector<Frame> sus_hops;
+	for( int i = 0; i < out.size() - 1; ++i )
+		{
+		if( out[i] == 0 ) continue;
+		const float r = out[i+1] / out[i];
+		if( 1.95 < r && r < 2.05 )
+			sus_hops.push_back( i+1 );
+		}
+
+	// For each sus frame, see how long the doubling sticks around
+	for( Frame hop : sus_hops )
+		{
+		// Find the length of the susiness for the current sus frame
+		int sus_length = 0;
+		while( true )
+			{
+			const Frame global_hop = hop + sus_length;
+			if( global_hop >= get_num_frames() ) break; // Hit end of file
+			if( out[global_hop] == 0 ) continue; // 0 may not indicate sus end
+			const float r = out[global_hop] / out[hop];
+			if( r < .95f || r > 1.05f ) break; // As long as data keeps chilling here
+			++sus_length;
+			if( sus_length > minimum_num_hops )
+				break;
+			}
+		// If we get this much length, it's not sus, just a new note
+		if( sus_length > minimum_num_hops )
+			break;
+
+		// Align the sus hops
+		for( Frame i = hop; i < hop + sus_length; ++i )
+			out[i] /= 2.0f;
 		}
         
     return out;

@@ -1,6 +1,4 @@
 Maybe todo:
-	continuity maintenance in wavelength/frequency finders
-	octave error minimization in yin-based pitch finder (fast contour finder)
 	contour pitch mean should be magnitude weighted
 	ir generation - https://dsp.stackexchange.com/questions/41696/calculating-the-inverse-filter-for-the-exponential-sine-sweep-method/41700#41700
 	Audio/PV conversions can compute all non-overlapping windows at the same time using this http://fftw.org/fftw3_doc/Advanced-Complex-DFTs.html
