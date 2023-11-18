@@ -19,3 +19,5 @@ Process ideas:
 	PV::align_harmonics
 
 Task:
+	in Audio info, frequency extractors should just be calling wavelength extractors I would think
+		they haven't gotten upgraded by any of the new code

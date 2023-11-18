@@ -76,9 +76,8 @@ public:
         flan_CANCEL_ARG 
         ) const;
 
-    Graph graph_waveform( int waveform_index ) const;
-
     Graph graph_waveform_range( Channel channel, int start, int end ) const;
+    void save_waveform_range_to_bmp( const std::string & filename, Channel channel, int start, int end ) const;
 
     int get_num_waveforms( Channel ) const;
 

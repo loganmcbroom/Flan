@@ -328,13 +328,6 @@ Audio Wavetable::synthesize(
 	return out;
     }
 
-Graph Wavetable::graph_waveform(int waveform_index ) const
-	{
-	const Second start_time = table.frame_to_time( wavelength * waveform_index );
-	const Second end_time = table.frame_to_time( wavelength * ( waveform_index + 1 ) );
-	return table.convert_to_graph( { start_time, end_time } );
-	}
-
 Graph Wavetable::graph_waveform_range( Channel channel, int start, int end ) const
 	{
 	if( is_null() ) return Graph();
@@ -352,6 +345,12 @@ Graph Wavetable::graph_waveform_range( Channel channel, int start, int end ) con
 	g.draw_waveforms( channel_starts, wavelength );
 
 	return g;
+	}
+
+void Wavetable::save_waveform_range_to_bmp( const std::string & filename, Channel channel, int start, int end ) const
+	{
+	const Graph g = graph_waveform_range( channel, start, end );
+	g.save_image( filename );
 	}
 
 int Wavetable::get_num_waveforms( Channel c ) const

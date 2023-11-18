@@ -278,7 +278,7 @@ Frequency Audio::get_local_frequency( Channel channel, Frame start, Frame window
 	// Get local minima of d_prime, sorted from largest to smallest
 	const std::vector<vec2> minima = find_valleys( d_prime, -1, true );
 
-	// Filter out anything that isn't at least within 20% of the minimum minima.
+	// Filter out anything that isn't at least within 15% of the minimum minima.
 	// Also filter anything that isn't below a global cutoff ( d_prime is normalized to some degree ).
 	const float cutoff = std::min( minima.back().y() * ( 1.0f + minimum_proximity_cutoff ), absolute_cutoff );
 	
