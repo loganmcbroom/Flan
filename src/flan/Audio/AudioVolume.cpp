@@ -31,11 +31,21 @@ Audio Audio::set_volume(
 	) const
 	{
 	if( is_null() ) return Audio::create_null();
+	Audio out = copy();
+	out.set_volume_in_place( level );
+	return out;
+	}
+
+Audio& Audio::set_volume_in_place(
+	const Function<Second, Amplitude> & level
+	)
+	{
+	if( is_null() ) return *this;
 
 	// Divide by get_max_sample_magnitude to normalize, multiply by level to set
 	const Sample max_mag = get_max_sample_magnitude();
-	if( max_mag == 0 ) return copy();
-	return modify_volume( [&]( float t ){ return level(t) / max_mag; } );
+	if( max_mag == 0 ) return *this;
+	else modify_volume_in_place( [&]( float t ){ return level(t) / max_mag; } );
 	}
 
 Audio Audio::fade( 

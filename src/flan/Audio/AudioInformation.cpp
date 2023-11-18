@@ -135,10 +135,8 @@ std::vector<float> Audio::get_energy_difference( const Audio & other ) const
 	return Audio::mix( std::vector<const Audio *>{ this, sr_correct_source }, {0, 0}, { 1, -1 } ).get_total_energy();
 	}
 
-float Audio::get_local_wavelength( Channel channel, Frame start, Frame window_size ) const
+float Audio::get_local_wavelength( Channel channel, Frame start, Frame window_size, float absolute_cutoff, Frame minimum_wavelength ) const
 	{
-	const float absolute_cutoff = 0.2f;
-
 	if( is_null() ) return 0;
 
 	// Get d' - Cumulative mean normalized difference function (search for YIN algorithm for details)
@@ -148,13 +146,18 @@ float Audio::get_local_wavelength( Channel channel, Frame start, Frame window_si
 	const std::vector<vec2> minima = find_valleys( d_prime );
 	
 	// For wavelength finding, we want absolute minimum, as long as it's low enough
-	const vec2 lowest_minima = *std::min_element( minima.begin(), minima.end(), []( vec2 a, vec2 b ){ return a.y() < b.y(); } );
+	const auto lowest_valid_minima = std::upper_bound( minima.begin(), minima.end(), minimum_wavelength, []( Frame f, const vec2 & v){ return f < v.x(); } );
+	if( lowest_valid_minima == minima.end() ) return 0;
+	const int lowest_valid_minima_index = std::distance( minima.begin(), lowest_valid_minima );
+	const auto lowest_minima_iter = std::min_element( lowest_valid_minima, minima.end(), []( vec2 a, vec2 b ){ return a.y() < b.y(); } );
+	if( lowest_minima_iter == minima.end() ) return 0;
+	const vec2 lowest_minima = *lowest_minima_iter;
 
 	// Find smallest wavelength within a set ratio of the best.
 	// This roots out most "off by an octave" errors.
 	// There is no perfect solution to octave errors, so the ratio here is a magic number.
 	vec2 best_minima;
-	for( int i = minima.size() - 1; i >= 0; --i )
+	for( int i = minima.size() - 1; i >= lowest_valid_minima_index; --i )
 		if( minima[i].y() < lowest_minima.y() * 2 )
 			best_minima = minima[i];
     
@@ -162,22 +165,31 @@ float Audio::get_local_wavelength( Channel channel, Frame start, Frame window_si
     else return 0;
 	}
 
-std::vector<float> Audio::get_local_wavelengths( Channel channel, Frame start, Frame end, Frame window_size, Frame hop, flan_CANCEL_ARG_CPP ) const
+std::vector<fFrame> Audio::get_local_wavelengths( 
+	Channel channel, 
+	Frame start, 
+	Frame end, 
+	Frame window_size, 
+	Frame hop, 
+	float absolute_cutoff, 
+	Frame minimum_wavelength, 
+	flan_CANCEL_ARG_CPP ) const
 	{
 	if( is_null() ) return std::vector<float>();
 
-
     if( end == -1 ) end = get_num_frames();
 
-    std::vector<Frequency> out;
+    std::vector<fFrame> out;
     for( Frame frame = start; frame + window_size < end; frame += hop )
 		{
+		if( out.size() == 672 )
+			std::cout << "f";
 		flan_CANCEL_POINT( std::vector<float>() );
-        out.push_back( get_local_wavelength( channel, frame, window_size ) );
+        out.push_back( get_local_wavelength( channel, frame, window_size, absolute_cutoff, minimum_wavelength ) );
 		}
 
 	// Continuity mainainance
-	// In an effort to minimize octave flickering, any very short sections of wavelength data jumping an octave up from an established
+	// In an effort to minimize octave flicker, any very short sections of wavelength data jumping an octave up from an established
 	// pattern will be cut back down.
 	const Second minimum_note_length = 0.1; // Magic number
 	const int minimum_num_hops = time_to_frame( minimum_note_length ) / hop;
@@ -197,17 +209,14 @@ std::vector<float> Audio::get_local_wavelengths( Channel channel, Frame start, F
 		{
 		// Find the length of the susiness for the current sus frame
 		int sus_length = 0;
-		while( true )
+		do
 			{
 			const Frame global_hop = hop + sus_length;
 			if( global_hop >= get_num_frames() ) break; // Hit end of file
 			if( out[global_hop] == 0 ) continue; // 0 may not indicate sus end
 			const float r = out[global_hop] / out[hop];
 			if( r < .95f || r > 1.05f ) break; // As long as data keeps chilling here
-			++sus_length;
-			if( sus_length > minimum_num_hops )
-				break;
-			}
+			} while( ++sus_length <= minimum_num_hops );
 		// If we get this much length, it's not sus, just a new note
 		if( sus_length > minimum_num_hops )
 			break;
@@ -220,14 +229,25 @@ std::vector<float> Audio::get_local_wavelengths( Channel channel, Frame start, F
     return out;
 	}
 
-float Audio::get_average_wavelength( Channel channel, float min_active_ratio, float max_length_sigma, 
-	Frame start, Frame end, Frame window_size, Frame hop, flan_CANCEL_ARG_CPP ) const
+float Audio::get_average_wavelength( 
+	Channel channel, 
+	float min_active_ratio, 
+	float max_length_sigma, 
+	Frame start, 
+	Frame end, 
+	Frame window_size, 
+	Frame hop, 
+	flan_CANCEL_ARG_CPP ) const
 	{
 	if( is_null() ) return 0;
 	return get_average_wavelength( get_local_wavelengths( channel, start, end, window_size, hop, canceller ), min_active_ratio, max_length_sigma );
 	}
 
-float Audio::get_average_wavelength( const std::vector<float> & locals, float min_active_ratio, float max_length_sigma ) const
+float Audio::get_average_wavelength( 
+	const std::vector<float> & locals, 
+	float min_active_ratio, 
+	float max_length_sigma 
+	) const
 	{
 	if( is_null() ) return 0;
 

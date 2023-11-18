@@ -20,7 +20,7 @@ Graph Audio::convert_to_graph(
 	float timeline_scale 
 	) const
 	{
-	if( is_null() ) return Graph( width, height );( Graph( width, height ) );
+	if( is_null() ) return Graph( width, height );
 
 	if( I.x2 == -1 ) I.x2 = get_length();
 	

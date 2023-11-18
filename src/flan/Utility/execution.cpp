@@ -35,7 +35,7 @@ ExecutionPolicy lowest_execution( const std::vector<ExecutionPolicy> & ps )
 		bool sequenced = false;
 		for( auto p : ps )
 			if( is_sequenced( p ) )
-				linear = true;
+				sequenced = true;
 
 		if( linear )
 			{

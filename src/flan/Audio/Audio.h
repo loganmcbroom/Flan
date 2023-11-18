@@ -290,7 +290,9 @@ public:
 	float get_local_wavelength( 
 		Channel channel,
 		Frame start, 
-		Frame window_size = 2048 
+		Frame window_size = 2048,
+		float absolute_cutoff = 0.2f, 
+		Frame minimum_wavelength = 10
 		) const;
 
 	/** Try to find the wavelength of the input over time. This is estimated using parabolic interpolation, so it may not be an integer.
@@ -307,6 +309,8 @@ public:
 		Frame end = -1, 
 		Frame window_size = 2048, 
 		Frame hop = 128, 
+		float absolute_cutoff = 0.2f,
+		Frame minimum_wavelength = 10,
 		flan_CANCEL_ARG 
 		) const;
 
@@ -524,6 +528,10 @@ public:
 	Audio set_volume( 
 		const Function<Second, Amplitude> & level 
 		) const;
+
+	Audio& set_volume_in_place(
+		const Function<Second, Amplitude> & level
+		);
 
 	/** This adds a fade to the ends of the input Audio.
 	 *	\param start Length of the start fade.

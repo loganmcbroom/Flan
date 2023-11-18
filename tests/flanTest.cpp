@@ -31,13 +31,22 @@ const float pi = std::acos( -1.0f );
 
 int main()
 	{
-	auto synth = Audio::synthesize_waveform( waveforms::sine, .5, []( Second t ){ return 111; } ).set_volume( 1 );
-	auto bah = Audio::load_from_file( "Bah.wav" ).set_volume( .9 );
+	auto synth = Audio::synthesize_waveform( waveforms::saw, 1, []( Second t ){ return 111; } ).set_volume( .7 );
+	auto bah = Audio::load_from_file( "cmajor.wav" ).set_volume( .9 );
 
-	play( bah.iterate( 3, []( Audio & a, Second t ){ a = a.repitch( 2 ); }, false ) );
-	play( bah.iterate( 3, []( Audio & a, Second t ){ a = a.repitch( 2 ); }, true ) );
-	play( bah.iterate( 3, []( Audio & a, Second t ){ a = a.repitch( .8 ); }, false ) );
-	play( bah.iterate( 3, []( Audio & a, Second t ){ a = a.repitch( .8 ); }, true ) );
+	Wavetable table = Wavetable( bah.convert_to_mono() );
+	table.remove_dc_in_place();
+	table.remove_jumps_in_place();
+	//table.normalize_in_place();
+	graph( table.graph_waveform_range( 0, 400, 410 ) );
+	//play( synth );
+	play( table
+		.synthesize( 10, []( Second t ){ return 200; }, [&]( Second t ){ return t/10; } )
+		.set_volume( .7 )
+		// .modify_volume( ADSR( 0, 0, 0, 2, 1, 1, 1, 2 ) )
+		// .add_moisture( 0.05, 10, 2 )
+		// .compress( .8 )
+		);
 
 	return 0;
 	}
