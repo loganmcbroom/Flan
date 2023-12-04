@@ -9,57 +9,63 @@
 #include "r8brain/CDSPResampler.h"
 #include "flan/PV/PV.h"
 #include "flan/Graph.h"
+#include "flan/FFTHelper.h"
 
 #undef min
 #undef max
 
 using namespace flan;
 
-static Frame snap_frame_to_sample( const Audio & me, Channel channel, Frame frameToSnap, Sample snapHeight, Frame searchDistance )
+static Frame snap_frame_to_sample( const Sample * data, int n, Frame frame_to_snap, Sample snapHeight, Frame search_distance )
 	{	
-	const Frame leftFrameLimit = std::max( frameToSnap - searchDistance, 0 );
-	const Frame rightFrameLimit = std::min( frameToSnap + searchDistance, me.get_num_frames() - 1 );
+	const Frame left_frame_limit = std::max( frame_to_snap - search_distance, 0 );
+	const Frame right_frame_limit = std::min( frame_to_snap + search_distance, n - 1 );
 
 	// Bidirectionally search from start_frame until a crossing is found
-	const bool isAbove = me.get_sample( channel, frameToSnap ) > snapHeight;
-	for( Frame searchOffset = 0; searchOffset <= searchDistance; ++searchOffset )
+	const bool is_above = data[frame_to_snap] > snapHeight;
+	for( Frame search_offset = 0; search_offset <= search_distance; ++search_offset )
 		{
 		// Check left
-		const Frame leftSearchFrame = frameToSnap - searchOffset;
-		if( leftSearchFrame >= leftFrameLimit && me.get_sample( channel, leftSearchFrame ) > snapHeight != isAbove )
-			return leftSearchFrame + 1;
+		const Frame left_search_frame = frame_to_snap - search_offset;
+		if( left_search_frame >= left_frame_limit && data[left_search_frame] > snapHeight != is_above )
+			return left_search_frame + 1;
 			
 		// Check right
-		const Frame rightSearchFrame = frameToSnap + searchOffset;
-		if( rightSearchFrame < rightFrameLimit && me.get_sample( channel, rightSearchFrame ) > snapHeight != isAbove )
-			return rightSearchFrame;
+		const Frame right_search_frame = frame_to_snap + search_offset;
+		if( right_search_frame < right_frame_limit && data[right_search_frame] > snapHeight != is_above )
+			return right_search_frame;
 		}
 	
 	// If control reaches here, cross search failed. Use frame with output nearest to crossing.
 	auto norm = [&]( Frame f )
 		{ 
 		const float m = 1.0f;
-		const float r = 1.0f + m * float( std::abs( f - frameToSnap ) ) / searchDistance; // Slightly prefer frames nearer to initial
-		return std::abs( me.get_sample( channel, f ) - snapHeight ) * r;
+		const float r = 1.0f + m * float( std::abs( f - frame_to_snap ) ) / search_distance; // Slightly prefer frames nearer to initial
+		return std::abs( data[f] - snapHeight ) * r;
 		};
 
-	Frame currentBestFrame = frameToSnap;
-	Sample currentBestSampleDistance = norm( frameToSnap );
-	for( Frame searchFrame = leftFrameLimit; searchFrame <= rightFrameLimit; ++searchFrame )
+	Frame current_best_frame = frame_to_snap;
+	Sample current_best_sample_distance = norm( frame_to_snap );
+	for( Frame search_frame = left_frame_limit; search_frame <= right_frame_limit; ++search_frame )
 		{
-		const Sample currentSampleDistance = norm( searchFrame );
-		if( currentSampleDistance < currentBestSampleDistance )
+		const Sample current_sample_distance = norm( search_frame );
+		if( current_sample_distance < current_best_sample_distance )
 			{
-			currentBestFrame = searchFrame;
-			currentBestSampleDistance = currentSampleDistance;
+			current_best_frame = search_frame;
+			current_best_sample_distance = current_sample_distance;
 			}
 		}
 
-	return currentBestFrame;
+	return current_best_frame;
 	}
 
-static Audio resample_waveforms( const Audio & source, const std::vector<std::vector<Frame>> & waveform_starts, Frame output_wavelength, flan_CANCEL_ARG_CPP )
-    {
+static Frame snap_frame_to_sample( const Audio & me, Channel channel, Frame frame_to_snap, Sample snapHeight, Frame search_distance )
+	{
+	return snap_frame_to_sample( me.get_sample_pointer( channel, 0 ), me.get_num_frames(), frame_to_snap, snapHeight, search_distance );
+	}
+
+static Audio resample_waveforms( const Audio & source, const std::vector<std::vector<Frame>> & waveform_starts, Frame output_wavelength )
+	{
 	// Input validation
 	if( source.is_null() ) return Audio::create_null();
 	if( waveform_starts.empty() ) return Audio::create_null();
@@ -74,38 +80,54 @@ static Audio resample_waveforms( const Audio & source, const std::vector<std::ve
 	Audio out( format );
 	out.clear_buffer();
 
+	FFTHelper ifft( output_wavelength, false, true, true );
+
 	for( Channel channel = 0; channel < source.get_num_channels(); ++channel )
 		{	
 		// For each waveform, resample to wavelength
-		flan::for_each_i( waveform_starts[channel].size() - 1, ExecutionPolicy::Parallel_Unsequenced, [&]( int waveform )
-		//for( int waveform = 0; waveform < waveform_starts[channel].size() - 1; ++waveform )
+		for( int waveform = 0; waveform < waveform_starts[channel].size() - 1; ++waveform )
 			{
-			if( canceller ) return;
-
 			const Frame start_frame = waveform_starts[channel][waveform];
 			const Frame end_frame =  waveform_starts[channel][waveform + 1];
 			const Frame num_input_frames = end_frame - start_frame;
 			const float expansion = float( output_wavelength ) / num_input_frames;
-			const Frame padded_start_frame = std::max( start_frame - num_input_frames, 0 );
-			const Frame padded_end_frame = std::min( end_frame + num_input_frames, source.get_num_frames() );
-			const Frame padded_length = padded_end_frame - padded_start_frame;
-			const Frame left_pad_size = start_frame - padded_start_frame;
-			const Frame right_pad_size = padded_end_frame - end_frame;
 
-			// Resample
-			r8b::CDSPResampler rs( num_input_frames, output_wavelength, 3 * num_input_frames );
-			const Sample * in_ptr = source.get_sample_pointer( channel, padded_start_frame );
-			std::vector<Sample> out_buffer( padded_length * expansion );
-			rs.oneshot( in_ptr, padded_length, out_buffer.data(), out_buffer.size() );
-		
-			std::copy( FLAN_PAR_UNSEQ
-				out_buffer.begin() + left_pad_size * expansion, 
-				out_buffer.begin() + left_pad_size * expansion + output_wavelength, 
-				out.get_sample_pointer( channel, waveform * output_wavelength ) );
-			} );
+			FFTHelper fft( num_input_frames, true, false, false );
+			std::copy( source.channel_begin( channel ) + start_frame, source.channel_begin( channel ) + end_frame, fft.real_begin() );
+			fft.r2c_execute();
+
+			std::fill( ifft.complex_begin(), ifft.complex_end(), 0 );
+			std::copy( fft.complex_begin(), fft.complex_end(), ifft.complex_begin() );
+			ifft.c2r_execute();
+
+			// We would love to just copy directly to out, but the resampling process will usually shift the zero-crossing, so we need to realign
+			// the output so it sits at the start of the waveform.
+			Frame zero_crossing_frame = 0;
+			const Frame search_distance = output_wavelength * 0.1f;
+			const bool is_above = ifft.get_real_buffer()[0] > 0;
+			for( Frame search_offset = 1; search_offset <= search_distance; ++search_offset )
+				{
+				if( ifft.get_real_buffer()[output_wavelength - search_offset] > 0 != is_above )
+					{
+					zero_crossing_frame = output_wavelength - search_offset;
+					break;
+					}
+				if( ifft.get_real_buffer()[search_offset] > 0 != is_above )
+					{
+					zero_crossing_frame = search_offset;
+					break;
+					}
+				}
+
+			for( Frame f = 0; f < output_wavelength; ++f )
+				{
+				const Sample unscaled_output = ifft.get_real_buffer()[( zero_crossing_frame + f ) % output_wavelength];
+				out.get_sample( channel, waveform * output_wavelength + f ) = unscaled_output / std::sqrt( num_input_frames * num_input_frames );
+				}
+			};
 		}
 
-	out.set_volume_in_place( 1 );
+	//out.set_volume_in_place( 1 );
     return out;
     }
 
@@ -113,6 +135,7 @@ static std::vector<std::vector<Frame>> get_waveform_starts(
 	const Audio & source, 
 	Wavetable::SnapMode snap_mode, 
 	Wavetable::PitchMode pitch_mode, 
+	Frame wavelength,
 	float snap_ratio, 
 	Frame fixed_frame, 
 	flan_CANCEL_ARG_CPP )
@@ -122,37 +145,36 @@ static std::vector<std::vector<Frame>> get_waveform_starts(
 	if( fixed_frame < 1 )  return std::vector<std::vector<Frame>>();
 	if( snap_ratio <= 0 || snap_ratio >= .95 ) return std::vector<std::vector<Frame>>();
 
-	const Audio lp_source = source.filter_1pole_lowpass( 4096, 2 );
+	const Audio lp_source = source.filter_1pole_lowpass( 4000, 2 );
 
 	std::vector<std::vector<Frame>> waveform_starts( source.get_num_channels() );
 
 	// Find expected waveform lengths via autocorrelation-based pitch detection
 	const Frame ac_granularity = 128;
-	const Frame ac_windowSize = 4096;
+	const Frame ac_windowSize = wavelength * 2;
 	for( Channel channel = 0; channel < source.get_num_channels(); ++channel )
 		{
 		std::vector<fFrame> local_wavelengths;
 		Frame global_wavelength = 0;
 		if( pitch_mode != Wavetable::PitchMode::None )
 			{
-			local_wavelengths = lp_source.get_local_wavelengths( channel, 0, -1, 2048, 128, 1, 32, canceller );
+			local_wavelengths = lp_source.get_local_wavelengths( channel, 0, -1, wavelength, ac_granularity, 1, 32, canceller );
 			global_wavelength = lp_source.get_average_wavelength( local_wavelengths, .2, 64 ); 
 			if( pitch_mode == Wavetable::PitchMode::Global && global_wavelength == -1 ) 
 				pitch_mode = Wavetable::PitchMode::None;
 			}
 		
-		auto snap_handler = [&]( Frame frameToSnap, Frame snapSourceFrame, Frame max_snap )
+		auto snap_handler = [&]( Frame frame_to_snap, Frame snapSourceFrame, Frame max_snap )
 			{
-			//const Frame max_snap = snap_ratio * std::abs( frameToSnap - snapSourceFrame );
 			switch( snap_mode )
 				{
 				case Wavetable::SnapMode::None: 
-					return frameToSnap;
+					return frame_to_snap;
 				case Wavetable::SnapMode::Zero: 
-					return snap_frame_to_sample( source, channel, frameToSnap, 0, max_snap );
+					return snap_frame_to_sample( source, channel, frame_to_snap, 0, max_snap );
 				case Wavetable::SnapMode::Level: 
-					return snap_frame_to_sample( source, channel, frameToSnap, source.get_sample( channel, snapSourceFrame ), max_snap );
-				default: return frameToSnap;
+					return snap_frame_to_sample( source, channel, frame_to_snap, source.get_sample( channel, snapSourceFrame ), max_snap );
+				default: return frame_to_snap;
 				}
 			};
 
@@ -195,55 +217,38 @@ static std::vector<std::vector<Frame>> get_waveform_starts(
     return waveform_starts;
 	}
 
-Wavetable::Wavetable( const Audio & source, SnapMode snap_mode, PitchMode pitch_mode, float snap_ratio, Frame fixed, flan_CANCEL_ARG_CPP )
-	: wavelength( 2048 )
+Wavetable::Wavetable( 
+	const Audio & source, 
+	SnapMode snap_mode, 
+	PitchMode pitch_mode, 
+	Frame _wavelength,
+	float snap_ratio, 
+	Frame fixed, 
+	flan_CANCEL_ARG_CPP )
+	: wavelength( _wavelength )
 	, num_source_frames( source.get_num_frames() )
-	, waveform_starts( get_waveform_starts( source, snap_mode, pitch_mode, snap_ratio, fixed, canceller ) )
-    , table( resample_waveforms( source, waveform_starts, wavelength, canceller ) )
+	, waveform_starts( get_waveform_starts( source, snap_mode, pitch_mode, wavelength, snap_ratio, fixed, canceller ) )
+    , table( resample_waveforms( source, waveform_starts, wavelength ) )
 	{
 	}
 
-Wavetable::Wavetable( const Function<Second, Amplitude> & f, int num_waves, flan_CANCEL_ARG_CPP )
-	: wavelength( 2048 )
+Wavetable::Wavetable( const Function<Second, Amplitude> & f, int num_waves, Frame _wavelength, flan_CANCEL_ARG_CPP )
+	: wavelength( _wavelength )
 	, num_source_frames( num_waves )
 	, waveform_starts( 1, std::vector<Frame>( num_waves ) )
-    , table()
+    , table( Audio::create_empty_with_frames( wavelength * num_waves, 1, 48000 ) )
 	{
 	for( int i = 0; i < num_waves; ++i )
 		waveform_starts[0][i] = i; 
 
-	const int oversample = 16;
-
-	// Set up output
-    Audio::Format format;
-	format.num_channels = 1;
-    format.num_frames = wavelength * num_waves;
-	table = Audio( format );
-
-	const int overLength = wavelength * oversample;
-	std::vector<Sample> fBuffer( overLength * 3 );
-
-	r8b::CDSPResampler rs( overLength, wavelength, fBuffer.size() );
-
 	// For each waveform, resample to wavelength
 	for( Waveform waveform = 0; waveform < num_waves; ++waveform )
-		{
-		if( canceller ) return;
-		// Sample f into buffer
-		for( int s = 0; s < overLength; ++s )
-			{
-			fBuffer[s] = f( waveform + float( s ) / overLength );
-			fBuffer[s + 1 * wavelength * oversample] = fBuffer[s];
-			fBuffer[s + 2 * wavelength * oversample] = fBuffer[s];
-			}
-
-		// Resample
-		rs.oneshot( fBuffer.data(), fBuffer.size(), table.get_sample_pointer( 0, wavelength * waveform ), wavelength );
-		}
+		for( Frame frame = 0; frame < wavelength; ++frame )
+			table.get_sample( 0, frame ) = f( waveform + float( frame ) / wavelength );
 	}
 
 // Wavetable::Wavetable( const Audio & source, const std::vector<std::vector<Frame>> & waveform_starts, flan_CANCEL_ARG_CPP )
-// 	: wavelength( 2048 )
+// 	: wavelength( _wavelength )
 //     , table()
 // 	, table_info()
 // 	{
@@ -328,20 +333,18 @@ Audio Wavetable::synthesize(
 	return out;
     }
 
-Graph Wavetable::graph_waveform_range( Channel channel, int start, int end ) const
+Graph Wavetable::graph_waveform_range( Channel channel, int start, int num ) const
 	{
 	if( is_null() ) return Graph();
 
-	const int num_waveforms = end - start;
-
 	Graph g( -1, -1 );
 	g.fill_image( Color::from_hsv( 0, 0, .04 ) );
-	g.add_full_split_view_y( Rect( 0, 0, 1, 1 ), num_waveforms );
+	g.add_full_split_view_y( Rect( 0, 0, 1, 1 ), num );
 		
-	std::vector<const float *> channel_starts( num_waveforms );
-	for( int i = start; i < end; ++i )
+	std::vector<const float *> channel_starts;
+	for( int i = start; i < start + num; ++i )
 		if( 0 <= i && i < get_num_waveforms( channel ) )
-			channel_starts[i-start] = get_waveform( i, channel );
+			channel_starts.push_back( get_waveform( i, channel ) );
 	g.draw_waveforms( channel_starts, wavelength );
 
 	return g;

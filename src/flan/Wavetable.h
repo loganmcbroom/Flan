@@ -12,6 +12,11 @@ using Waveform = float;
 class Wavetable
 {
 public:
+    Wavetable( const Wavetable & ) = delete;
+	Wavetable( Wavetable && ) = default;
+	Wavetable& operator=( const Wavetable & ) = delete;
+	Wavetable& operator=( Wavetable && ) = default;
+	~Wavetable() = default;
 
     enum class SnapMode
         {
@@ -31,13 +36,15 @@ public:
      * \param source The Audio source.
      * \param snap_mode This decides how waveforms starts and ends are nudged to avoid edge discontinuities. See Waveform::SnapMode.
      * \param pitch_mode This decides how waveforms lengths are estimated. See Waveform::PitchMode.
+     * \param wavelength The length of the internal representation of the wavetable for each waveform.
      * \param snap_ratio The proportion of the expected frame jump to search for frame snapping.
      * \param fixed_frame_size When pitch_mode is None, this is used in place of pitch deduction.
      */
     Wavetable( 
         const Audio & source, 
         SnapMode snap_mode = SnapMode::Zero, 
-        PitchMode pitch_mode = PitchMode::Local, 
+        PitchMode pitch_mode = PitchMode::Local,
+        Frame wavelength = 2048,
         float snap_ratio = .3, 
         Frame fixed_frame_size = 256, 
         flan_CANCEL_ARG );
@@ -45,10 +52,12 @@ public:
     /** Functional wavetable constructor.
      * \param f The function to sample. Each wave will be sampled on the interval [k,k+1), starting at 0.
      * \param num_waves The number of waveforms to sample.
+     * \param wavelength The length of the internal representation of the wavetable for each waveform.
      */
     Wavetable( 
         const Function<Second, Amplitude> & f, 
         int num_waves, 
+        Frame wavelength = 2048,
         flan_CANCEL_ARG );
 
     // /** This constructs a Wavetable using specific waveform start points. This is normally used only by the main constructor which calls get_waveform_starts. 
@@ -76,7 +85,7 @@ public:
         flan_CANCEL_ARG 
         ) const;
 
-    Graph graph_waveform_range( Channel channel, int start, int end ) const;
+    Graph graph_waveform_range( Channel channel, int start, int num ) const;
     void save_waveform_range_to_bmp( const std::string & filename, Channel channel, int start, int end ) const;
 
     int get_num_waveforms( Channel ) const;
@@ -114,6 +123,7 @@ private:
     std::vector<std::vector<Frame>> waveform_starts;
 
     Audio table;
-};
+}; 
+
 
 };

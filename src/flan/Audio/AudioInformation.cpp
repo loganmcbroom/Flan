@@ -182,11 +182,10 @@ std::vector<fFrame> Audio::get_local_wavelengths(
     std::vector<fFrame> out;
     for( Frame frame = start; frame + window_size < end; frame += hop )
 		{
-		if( out.size() == 672 )
-			std::cout << "f";
 		flan_CANCEL_POINT( std::vector<float>() );
         out.push_back( get_local_wavelength( channel, frame, window_size, absolute_cutoff, minimum_wavelength ) );
 		}
+	if( out.empty() ) return std::vector<float>();
 
 	// Continuity mainainance
 	// In an effort to minimize octave flicker, any very short sections of wavelength data jumping an octave up from an established
@@ -267,44 +266,55 @@ float Audio::get_average_wavelength(
 
 Frequency Audio::get_local_frequency( Channel channel, Frame start, Frame window_size, flan_CANCEL_ARG_CPP ) const
 	{
-	const float minimum_proximity_cutoff = 0.2f;
-	const float absolute_cutoff = 0.15f;
+	const fFrame wavelength = get_local_wavelength( channel, start, window_size, 0.2f, 10 );
+	return get_sample_rate() / wavelength;
 
-    if( is_null() ) return 0;
+	// const float minimum_proximity_cutoff = 0.2f;
+	// const float absolute_cutoff = 0.15f;
 
-	// Get d' - Cumulative mean normalized difference function (search for YIN algorithm for details)
-	const std::vector<float> d_prime = compute_d_prime( get_sample_pointer( channel, start ), window_size );
+    // if( is_null() ) return 0;
+
+	// // Get d' - Cumulative mean normalized difference function (search for YIN algorithm for details)
+	// const std::vector<float> d_prime = compute_d_prime( get_sample_pointer( channel, start ), window_size );
 	
-	// Get local minima of d_prime, sorted from largest to smallest
-	const std::vector<vec2> minima = find_valleys( d_prime, -1, true );
+	// // Get local minima of d_prime, sorted from largest to smallest
+	// const std::vector<vec2> minima = find_valleys( d_prime, -1, true );
 
-	// Filter out anything that isn't at least within 15% of the minimum minima.
-	// Also filter anything that isn't below a global cutoff ( d_prime is normalized to some degree ).
-	const float cutoff = std::min( minima.back().y() * ( 1.0f + minimum_proximity_cutoff ), absolute_cutoff );
+	// // Filter out anything that isn't at least within 15% of the minimum minima.
+	// // Also filter anything that isn't below a global cutoff ( d_prime is normalized to some degree ).
+	// const float cutoff = std::min( minima.back().y() * ( 1.0f + minimum_proximity_cutoff ), absolute_cutoff );
 	
-	// For frequency finding, we want small wavelength to minimize octave errors
-	vec2 best_minima = { float( window_size ),-1 };
-	for( const vec2 & m : minima )
-		if( m.y() < cutoff && m.x() < best_minima.x() ) 
-			best_minima = m;
+	// // For frequency finding, we want small wavelength to minimize octave errors
+	// vec2 best_minima = { float( window_size ),-1 };
+	// for( const vec2 & m : minima )
+	// 	if( m.y() < cutoff && m.x() < best_minima.x() ) 
+	// 		best_minima = m;
     
-    return float( get_sample_rate() ) / best_minima.x();
+    // return float( get_sample_rate() ) / best_minima.x();
     }
 
 std::vector<Frequency> Audio::get_local_frequencies( Channel channel, Frame start, Frame end, Frame window_size, Frame hop, flan_CANCEL_ARG_CPP ) const
     {
-	if( is_null() ) return std::vector<Frequency>();
-
-    if( end == -1 ) end = get_num_frames();
-
-    std::vector<Frequency> out( (end - window_size - start) / hop ); // This will round toward zero
-	flan::for_each_i( out.size(), ExecutionPolicy::Parallel_Unsequenced, [&]( int i )
-		{
-		const Frame frame = start + i * hop;
-        out[i] = get_local_frequency( channel, frame, window_size, canceller );
+	std::vector<fFrame> wavelengths = get_local_wavelengths( channel, start, end, window_size, hop, 0.2f, 10, canceller );
+	flan::for_each_i( wavelengths.size(), ExecutionPolicy::Parallel_Unsequenced, [&]( int i )
+		{ 
+		if( wavelengths[i] != 0 )
+			wavelengths[i] = get_sample_rate() / wavelengths[i]; 
 		} );
+	return wavelengths;
+
+	// if( is_null() ) return std::vector<Frequency>();
+
+    // if( end == -1 ) end = get_num_frames();
+
+    // std::vector<Frequency> out( (end - window_size - start) / hop ); // This will round toward zero
+	// flan::for_each_i( out.size(), ExecutionPolicy::Parallel_Unsequenced, [&]( int i )
+	// 	{
+	// 	const Frame frame = start + i * hop;
+    //     out[i] = get_local_frequency( channel, frame, window_size, canceller );
+	// 	} );
         
-    return out;
+    // return out;
     }
 
 Function<Second, Amplitude> Audio::get_amplitude_envelope(
