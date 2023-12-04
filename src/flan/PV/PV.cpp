@@ -384,9 +384,9 @@ static PV harmonic_scaler(
 					{
 					const Frequency harmonic_frequency = harmonic_func( source.f, harmonic );
 					const Bin harmonic_bin = me.frequency_to_bin( harmonic_frequency );
-					if( harmonic_bin >= me.get_height() ) break;
+					if( harmonic_bin >= me.get_num_bins() ) break;
 
-					MF & dest = out.get_MF( channel, frame, me.frequency_to_bin( harmonic_frequency ) );
+					MF & dest = out.get_MF( channel, frame, harmonic_bin );
 					const Magnitude overwrite_mag = source.m * series_sampled_for_frame[harmonic];
 					if( dest.m < overwrite_mag )
 						dest = { overwrite_mag, harmonic_frequency };

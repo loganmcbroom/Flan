@@ -621,13 +621,9 @@ public:
 	//  */
 	// Audio pan( Function<Second,vec2> pan_position, Function<Second, vec2> listenerPosition, std::vector<vec2> speakerPositions, bool haasEffect = false ) const;
 
-	Audio stereo_spatialize_variable( 
+	Audio stereo_spatialize( 
 		const Function<Second, vec2> & position 
 		) const;
-
-	Audio stereo_spatialize( 
-		vec2 position 
-		) const; 
 
 	/** This spatially repositions the input for mono and stereo inputs. Stereo speakers are assumed form an equilateral trangle with side
 	 *	length 1 meter with the listener. The input position is assumed to sit halfway between the speakers.

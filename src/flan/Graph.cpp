@@ -66,23 +66,22 @@ std::vector<std::pair<Graph::Plane,View>> Graph::get_intersecting_views( Rect U,
 // Waveforms
 //======================================================================================================================================================
 
-void Graph::draw_waveform( const Function<float, float> & data, Rect rect, Plane plane, Color c, WaveformMode mode )
+void Graph::draw_waveform( const Function<float, float> & data, Rect rect, Plane plane, Color c, WaveformMode mode, uint32_t oversample )
 	{
-	
 	const auto active_views = get_intersecting_views( rect, plane );
 	for( auto & plane_view : active_views )
 		{
 		const View & view = plane_view.second;
 		const Rect drawRect = rect.intersect( view.U );
 
-		const Pixel startPixel = std::ceil(  view.xUToV( drawRect.x1() ) );
-		const Pixel endPixel   = std::floor( view.xUToV( drawRect.x2() ) );
-		const Pixel yMidPixel = view.yUToV( rect.r.midpoint() );
+		const Pixel start_pixel = std::ceil(  view.xUToV( drawRect.x1() ) );
+		const Pixel end_pixel   = std::floor( view.xUToV( drawRect.x2() ) );
+		const Pixel y_mid_pixel = view.yUToV( rect.r.midpoint() );
 
 		// Oversample data into buffer
-		//for( Pixel x = startPixel; x < endPixel; ++x )
+		//for( Pixel x = start_pixel; x < end_pixel; ++x )
 		runtime_execution_policy_handler( data.get_execution_policy(), [&]( auto policy ){
-		std::for_each( FLAN_POLICY iota_iter( startPixel ), iota_iter( endPixel ), [&]( Pixel x )
+		std::for_each( FLAN_POLICY iota_iter( start_pixel ), iota_iter( end_pixel ), [&]( Pixel x )
 			{
 			//Get average of subsamples
 			float sum = 0;
@@ -94,57 +93,59 @@ void Graph::draw_waveform( const Function<float, float> & data, Rect rect, Plane
 				}
 			sum /= oversample;
 
-			const Pixel yOffset_pixels = view.hUToV( std::clamp( sum, -1.0f, 1.0f ) * rect.h() / 2.0f );
+			const Pixel y_offset_pixels = view.hUToV( std::clamp( sum, -1.0f, 1.0f ) * rect.h() / 2.0f );
 
-			auto set_pixelWithColor = [this, yMidPixel, &rect, &view, c]( Pixel x, Pixel y )
+			auto set_pixel_to_color = [this, y_mid_pixel, &rect, &view, c]( Pixel x, Pixel y )
 				{ 
 				if( y < view.V.y1() ||  view.V.y2() <= y ) return;
-				//const float r = std::abs( y - yMidPixel ) / view.hUToV( rect.h() / 2.0f );
+				//const float r = std::abs( y - y_mid_pixel ) / view.hUToV( rect.h() / 2.0f );
 				set_pixel( x, y, c );
 				};
 
 			if( mode == WaveformMode::Direct )
 				{
-				if( yOffset_pixels < 0 )
-					for( Pixel y = yMidPixel; y >= yMidPixel + yOffset_pixels; --y ) 
-						set_pixelWithColor( x, y );
+				if( y_offset_pixels < 0 )
+					for( Pixel y = y_mid_pixel; y >= y_mid_pixel + y_offset_pixels; --y ) 
+						set_pixel_to_color( x, y );
 				else
-					for( Pixel y = yMidPixel; y <= yMidPixel + yOffset_pixels; ++y ) 
-						set_pixelWithColor( x, y );
+					for( Pixel y = y_mid_pixel; y <= y_mid_pixel + y_offset_pixels; ++y ) 
+						set_pixel_to_color( x, y );
 				}
 			else
-				for( Pixel y = yMidPixel - yOffset_pixels; y <= yMidPixel + yOffset_pixels; ++y ) 
-					set_pixelWithColor( x, y );
+				for( Pixel y = y_mid_pixel - y_offset_pixels; y <= y_mid_pixel + y_offset_pixels; ++y ) 
+					set_pixel_to_color( x, y );
 			} ); } );
 		}
 	}
 
-void Graph::draw_waveform( const float * data, int n, Rect rect, Plane plane, Color c, WaveformMode mode )
+void Graph::draw_waveform( const float * data, int n, Rect rect, Plane plane, Color c, WaveformMode mode, uint32_t oversample )
 	{
+	if( n < width() ) 
+		oversample = 1;
 	draw_waveform( [data, n, &rect]( float x )
 		{ 
 		const int i = std::floor( ( x - rect.x1() ) / rect.w() * n );
 		//if( i < 0 || i >= n ) return 0.0f;
 		return data[i]; 
 		}, 
-		rect, plane, c, mode );
+		rect, plane, c, mode, oversample );
 	}
 
-void Graph::draw_waveforms( const std::vector<Function<float, float>> & fs, Rect rect, Plane start_plane, WaveformMode mode )
+void Graph::draw_waveforms( const std::vector<Function<float, float>> & fs, Rect rect, Plane start_plane, WaveformMode mode, uint32_t oversample )
 	{
 	for( int f = 0; f < fs.size(); ++f )
 		{
 		const Color c = Color::from_hsv( 360.0f * f / fs.size(), .8, .65 );
-		draw_waveform( fs[f], rect, start_plane + f, c, mode );
+		draw_waveform( fs[f], rect, start_plane + f, c, mode, oversample );
 		}
 	}
 
-void Graph::draw_waveforms( const std::vector<const float *> & fs, int n, Rect rect, Plane start_plane, WaveformMode mode )
+void Graph::draw_waveforms( const std::vector<const float *> & fs, int n, Rect rect, Plane start_plane, WaveformMode mode, uint32_t oversample )
 	{
 	for( int f = 0; f < fs.size(); ++f )
 		{
 		const Color c = Color::from_hsv( 360.0f * f / fs.size(), .8, .65 );
-		draw_waveform( fs[f], n, rect, start_plane + f, c, mode );
+		draw_waveform( fs[f], n, rect, start_plane + f, c, mode, n < width() ? 1 : oversample );
 		}
 	}
 
@@ -153,7 +154,7 @@ void Graph::draw_waveforms( const std::vector<const float *> & fs, int n, Rect r
 // Spectrograms
 //======================================================================================================================================================
 
-void Graph::draw_spectrogram( const Function<vec2, float> & data, Rect rect, Plane plane, float hue )
+void Graph::draw_spectrogram( const Function<vec2, float> & data, Rect rect, Plane plane, float hue, uint32_t oversample )
 	{
 	
 	const int oversample_c = std::sqrt( oversample );
@@ -192,7 +193,7 @@ void Graph::draw_spectrogram( const Function<vec2, float> & data, Rect rect, Pla
 		}
 	}
 
-void Graph::draw_spectrogram( const float * data, int n, int m, Rect rect, Plane plane, float hue )
+void Graph::draw_spectrogram( const float * data, int n, int m, Rect rect, Plane plane, float hue, uint32_t oversample )
 	{
 	Function<vec2, float> func = [&data, n, m, &rect]( vec2 xy ) -> float
 		{ 
@@ -202,24 +203,24 @@ void Graph::draw_spectrogram( const float * data, int n, int m, Rect rect, Plane
 		return data[ i * m + j ]; 
 		};
 
-	draw_spectrogram( func, rect, plane, hue );
+	draw_spectrogram( func, rect, plane, hue, oversample );
 	}
 
-void Graph::draw_spectrograms( const std::vector<Function<vec2, float>> & fs, Rect rect, Plane start_plane )
+void Graph::draw_spectrograms( const std::vector<Function<vec2, float>> & fs, Rect rect, Plane start_plane, uint32_t oversample )
 	{
 	for( int f = 0; f < fs.size(); ++f )
 		{
 		const float hue = 360.0f * f / fs.size();
-		draw_spectrogram( fs[f], rect, start_plane + f, hue );
+		draw_spectrogram( fs[f], rect, start_plane + f, hue, oversample );
 		}
 	}
 
-void Graph::draw_spectrograms( const std::vector<const float *> & fs, int n, int m, Rect rect, Plane start_plane )
+void Graph::draw_spectrograms( const std::vector<const float *> & fs, int n, int m, Rect rect, Plane start_plane, uint32_t oversample )
 	{
 	for( int f = 0; f < fs.size(); ++f )
 		{
 		const float hue = 360.0f * f / fs.size();
-		draw_spectrogram( fs[f], n, m, rect, start_plane + f, hue );
+		draw_spectrogram( fs[f], n, m, rect, start_plane + f, hue, oversample );
 		}
 	}
 

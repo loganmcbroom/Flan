@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <concepts>
 #include <ranges>
+#include <variant>
 
 #include "flan/defines.h"
 #include "flan/Utility/vec2.h"
@@ -44,7 +45,12 @@ struct Function
 
 	Function copy() const 
 		{
-		return Function( f, executionPolicy );
+		return Function( f, execution_policy );
+		}
+
+	bool is_constant() const 
+		{
+		return std::holds_alternative<O>( f );
 		}
 
 	template<typename T>
@@ -54,24 +60,38 @@ struct Function
 #endif
 	Function( T && f_, ExecutionPolicy policy = ExecutionPolicy::Parallel_Unsequenced ) 
 		: f( std::move( f_ ) ) 
-		, executionPolicy( policy )
+		, execution_policy( policy )
 		{}
 
 	template<typename T>
 	requires std::convertible_to<T, O>
 	Function( T t0 ) 
-		: f( [t0]( I ){ return O( t0 ); } ) 
-		, executionPolicy( ExecutionPolicy::Parallel_Unsequenced )
+		: f( static_cast<O>( t0 ) ) 
+		, execution_policy( ExecutionPolicy::Parallel_Unsequenced )
 		{}
 	// Function() 
 	// 	: f( []( I ){ return O( 0 ); } ) 
-	// 	, executionPolicy( ExecutionPolicy::Parallel_Unsequenced )
+	// 	, execution_policy( ExecutionPolicy::Parallel_Unsequenced )
 	// 	{}
 
-	ExecutionPolicy get_execution_policy() const { return executionPolicy; }
+	ExecutionPolicy get_execution_policy() const { return execution_policy; }
 
 	/** Function application */
-	O operator()( I t ) const { return f(t); }
+	O operator()( I t ) const 
+		{ 
+		if constexpr ( std::is_copy_constructible_v<O> )
+			{
+			if( is_constant() )
+				return std::get<O>( f );
+			else 
+				return std::get<StdFuncType>( f )( t ); 
+			}
+		else // If O isn't copy constructable, there shouldn't be a need for constants that I know of
+			// Another way to do this is test if O has a copy method and use that for constants in this else
+			{
+			return std::get<StdFuncType>( f )( t ); 
+			}
+		}
 
 	// static Function<I,O> uniformDistribution( Function<I,O> lowerBound, Function<I,O> upperBound )
 	// 	{
@@ -223,8 +243,8 @@ struct Function
 	float operator()( float x, float y ) const { return Function::operator()( vec2{ x, y } ); }
 
 protected:
-	StdFuncType f;
-	const ExecutionPolicy executionPolicy;
+	std::variant<O, StdFuncType> f;
+	const ExecutionPolicy execution_policy;
 };
 
 /** Generate an ADSR envelope. Generated envelopes always range from 0 to 1.

@@ -99,7 +99,8 @@ class Graph : public bitmap_image {
 			Rect rect = Rect(), 
 			Plane plane = -1, 
 			Color c = Color::White, 
-			WaveformMode mode = WaveformMode::Direct 
+			WaveformMode mode = WaveformMode::Direct, 
+			uint32_t oversample = 4
 			);
 
 		/** Buffer waveform graph.
@@ -107,20 +108,40 @@ class Graph : public bitmap_image {
 		 * \param n The buffer size.
 		 * \param rect The plane space to graph within.
 		 */
-		void draw_waveform( const float * data, int n, Rect rect = Rect(), Plane plane = -1, Color c = Color::White, WaveformMode mode = WaveformMode::Direct );
+		void draw_waveform( 
+			const float * data, 
+			int n, 
+			Rect rect = Rect(), 
+			Plane plane = -1, 
+			Color c = Color::White, 
+			WaveformMode mode = WaveformMode::Direct, 
+			uint32_t oversample = 4 
+			);
 
 		/** Functional waveform graph. Functions will be graphed from bottom to top, splitting the rect evenly, and with maximally distant hues.
 		 * \param fs The functions to sample over [0,1]. Outputs will be clamped to [-1,1].
 		 * \param rect The plane space to graph within.
 		 */
-		void draw_waveforms( const std::vector<Function<float, float>> & fs, Rect rect = Rect(), Plane start_plane = 0, WaveformMode mode = WaveformMode::Direct );
+		void draw_waveforms( 
+			const std::vector<Function<float, float>> & fs, 
+			Rect rect = Rect(), 
+			Plane start_plane = 0, 
+			WaveformMode mode = WaveformMode::Direct, 
+			uint32_t oversample = 4 
+			);
 
 		/** Buffer waveform graph. Buffers will be graphed from bottom to top, splitting the rect evenly, and with maximally distant hues.
 		 * \param datas The buffers to sample. Outputs will be clamped to [-1,1].
 		 * \param n The buffer size.
 		 * \param rect The plane space to graph within.
 		 */
-		void draw_waveforms( const std::vector<const float *> & datas, int n, Rect rect = Rect(), Plane start_plane = 0, WaveformMode mode = WaveformMode::Direct );
+		void draw_waveforms( 
+			const std::vector<const float *> & datas, 
+			int n, Rect rect = Rect(), 
+			Plane start_plane = 0, 
+			WaveformMode mode = WaveformMode::Direct, 
+			uint32_t oversample = 4 
+			);
 
 
 		//======================================================================================================================================================
@@ -132,7 +153,7 @@ class Graph : public bitmap_image {
 		 * \param rect The plane space to graph within.
 		 * \param plane The plane to graph within.
 		 */
-		void draw_spectrogram( const Function<vec2, float> & f, Rect rect = Rect(), Plane plane = Plane::All, float hue = 0 );
+		void draw_spectrogram( const Function<vec2, float> & f, Rect rect = Rect(), Plane plane = Plane::All, float hue = 0, uint32_t oversample = 4 );
 
 		/** Buffer spectrum over time graph.
 		 * \param data The buffer to sample. This should have a time-major ordering. Outputs will be clamped to [-1,1].
@@ -140,13 +161,13 @@ class Graph : public bitmap_image {
 		 * \param num_bins The number of frequency steps in the buffer.
 		 * \param rect The plane space to graph within.
 		 */
-		void draw_spectrogram( const float * data, int num_frames, int num_bins, Rect rect = Rect(), Plane plane = Plane::All, float hue = 0 );
+		void draw_spectrogram( const float * data, int num_frames, int num_bins, Rect rect = Rect(), Plane plane = Plane::All, float hue = 0, uint32_t oversample = 4 );
 
 		/** Functional spectrum over time graph. Functions will be graphed from bottom to top, splitting the rect evenly, and with maximally distant hues.
 		 * \param fs The functions to sample over [0,1]X[0,1]. Outputs will be clamped to [0,1].
 		 * \param rect The plane space to graph within.
 		 */
-		void draw_spectrograms( const std::vector<Function<vec2, float>> & fs, Rect rect = Rect(), Plane start_plane = 0 );
+		void draw_spectrograms( const std::vector<Function<vec2, float>> & fs, Rect rect = Rect(), Plane start_plane = 0, uint32_t oversample = 4 );
 
 		/** Buffer spectrum over time graph. Buffers will be graphed from bottom to top, splitting the rect evenly, and with maximally distant hues.
 		 * \param datas The buffers to sample. These should have a time-major ordering. Outputs will be clamped to [-1,1].
@@ -154,7 +175,14 @@ class Graph : public bitmap_image {
 		 * \param num_bins The number of frequency steps in the buffers.
 		 * \param rect The plane space to graph within.
 		 */
-		void draw_spectrograms( const std::vector<const float *> & datas, int num_frames, int num_bins, Rect rect = Rect(), Plane start_plane = 0 );
+		void draw_spectrograms( 
+			const std::vector<const float *> & datas, 
+			int num_frames, 
+			int num_bins, 
+			Rect rect = Rect(), 
+			Plane start_plane = 0, 
+			uint32_t oversample = 4 
+			);
 
 
 		//======================================================================================================================================================
@@ -247,12 +275,9 @@ class Graph : public bitmap_image {
 		std::vector<std::pair<Plane, View>> views;
 		//float hue = 0;
 
-		static uint32_t oversample;
 		static Pixel default_width, default_height;
 	};
 
-
-inline uint32_t Graph::oversample = 4;
 inline Pixel Graph::default_width = 1920;
 inline Pixel Graph::default_height = 1080;
 

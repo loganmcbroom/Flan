@@ -335,12 +335,12 @@ PV PV::modify_time( const Function<TF, Second> & mod, Interpolator interp ) cons
 
 PV PV::repitch( const Function<TF, float> & factor, Interpolator interp ) const
 	{
-		return modify_frequency( [&]( TF tf ){ return factor( tf ) * tf.f; }, interp );
+	return modify_frequency( Function<TF, Frequency>( [&]( TF tf ){ return factor( tf ) * tf.f; }, factor.get_execution_policy() ), interp );
 	}
 
 PV PV::stretch( const Function<TF, float> & factor, Interpolator interp ) const
 	{
-		return modify_time( [&factor]( TF tf ){ return factor( tf ) * tf.t; }, interp );
+	return modify_time( Function<TF, Second>( [&]( TF tf ){ return factor( tf ) * tf.t; }, factor.get_execution_policy() ), interp );
 	}
 
 PV PV::stretch_spline( const Function<Second, float> & interpolation ) const
