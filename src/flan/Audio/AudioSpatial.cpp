@@ -77,10 +77,71 @@ angles mixing these signals	sinusoidally as a function of angle. The maximal fil
 	// 	};
 	// auto falloff_filtered = filter_1pole_repeat( falloff_cutoff, 16 );
 
-Audio Audio::stereo_spatialize_variable( 
+static Audio stereo_spatialize_constant( 
+	const Audio & me,
+	vec2 position 
+	)
+	{
+	if( me.get_num_channels() != 1 )
+		{
+		std::cout << "Audio::stereo_spatialize only operates on mono inputs." << std::endl;
+		return Audio::create_null();
+		}
+
+	const float sound_mps = 331.29f;
+
+	// Based on a human head being 18cm from ear to ear
+	const vec2 l_ear = { 0.0f,  0.09f };
+	const vec2 r_ear = { 0.0f, -0.09f };
+
+	const Meter l_dist = ( l_ear - position ).mag();
+	const Meter r_dist = ( r_ear - position ).mag();
+	if( l_dist < 0.00001 || r_dist < 0.00001 )
+		return Audio::create_null(); 
+
+	// Frame rounding here can cause around a quarter inch positional descrepency, less than we are concerned with.
+	const Frame l_delay = me.time_to_frame( l_dist / sound_mps );
+	const Frame r_delay = me.time_to_frame( r_dist / sound_mps );
+
+	// ITD
+	Audio::Format buffer_format;
+	buffer_format.sample_rate = me.get_sample_rate();
+	buffer_format.num_channels = 1;
+	buffer_format.num_frames = me.get_num_frames() + std::max( l_delay, r_delay );
+	Audio buffer_l( buffer_format );
+	Audio buffer_r( buffer_format );
+	for( Frame frame = 0; frame < me.get_num_frames(); ++frame ) buffer_l.set_sample( 0, frame + l_delay, me.get_sample( 0, frame ) );
+	for( Frame frame = 0; frame < me.get_num_frames(); ++frame ) buffer_r.set_sample( 0, frame + r_delay, me.get_sample( 0, frame ) );
+	
+	// Level falloff over distance
+	// Signals in a computer have no level unit in terms of the physical world, so I make the arbitrary choice here that a signal
+	// with a level of 1 played 1 meter from an ear will remain at level 1, with an epsilon to avoid infinite gain.
+	buffer_l.modify_volume_in_place( 1.0f / ( l_dist + 0.00001 ) );
+	buffer_r.modify_volume_in_place( 1.0f / ( r_dist + 0.00001 ) );
+
+	// Head ILD
+	auto head_ild_func = [&]( Audio & buffer, Radian direct_angle )
+		{
+		const Radian buffer_angle_away_from_direct = std::arg( static_cast<std::complex<float>>( position - l_ear ) ) - direct_angle;
+		const float mix = 0.5f + 0.5f * std::cos( buffer_angle_away_from_direct );
+		buffer = std::move( buffer
+			.filter_1pole_lowpass( 500, 1 )
+			.modify_volume_in_place( 1.0f - mix )
+			.mix_in_place( buffer, 0, mix ) );
+		};
+	head_ild_func( buffer_l,  75 * pi2 / 360.0f );
+	head_ild_func( buffer_r, -75 * pi2 / 360.0f );
+
+	return Audio::combine_channels( buffer_l, buffer_r );
+	}
+
+Audio Audio::stereo_spatialize( 
 	const Function<Second, vec2> & position 
 	) const
 	{
+	if( position.is_constant() )
+		return stereo_spatialize_constant( *this, position( 0 ) );
+
 	if( get_num_channels() != 1 )
 		{
 		std::cout << "Audio::spacialize only operates on mono inputs." << std::endl;
@@ -239,59 +300,3 @@ Audio Audio::stereo_spatialize_variable(
 	return Audio::combine_channels( buffer_l_repitched, buffer_r_repitched );
 	}
 
-Audio Audio::stereo_spatialize( 
-	vec2 position 
-	) const
-	{
-	if( get_num_channels() != 1 )
-		{
-		std::cout << "Audio::stereo_spatialize only operates on mono inputs." << std::endl;
-		return Audio::create_null();
-		}
-
-	const float sound_mps = 331.29f;
-
-	// Based on a human head being 18cm from ear to ear
-	const vec2 l_ear = { 0.0f,  0.09f };
-	const vec2 r_ear = { 0.0f, -0.09f };
-
-	const Meter l_dist = ( l_ear - position ).mag();
-	const Meter r_dist = ( r_ear - position ).mag();
-	if( l_dist < 0.00001 || r_dist < 0.00001 )
-		return Audio::create_null(); 
-
-	// Frame rounding here can cause around a quarter inch positional descrepency, less than we are concerned with.
-	const Frame l_delay = time_to_frame( l_dist / sound_mps );
-	const Frame r_delay = time_to_frame( r_dist / sound_mps );
-
-	// ITD
-	Audio::Format buffer_format;
-	buffer_format.sample_rate = get_sample_rate();
-	buffer_format.num_channels = 1;
-	buffer_format.num_frames = get_num_frames() + std::max( l_delay, r_delay );
-	Audio buffer_l( buffer_format );
-	Audio buffer_r( buffer_format );
-	for( Frame frame = 0; frame < get_num_frames(); ++frame ) buffer_l.set_sample( 0, frame + l_delay, get_sample( 0, frame ) );
-	for( Frame frame = 0; frame < get_num_frames(); ++frame ) buffer_r.set_sample( 0, frame + r_delay, get_sample( 0, frame ) );
-	
-	// Level falloff over distance
-	// Signals in a computer have no level unit in terms of the physical world, so I make the arbitrary choice here that a signal
-	// with a level of 1 played 1 meter from an ear will remain at level 1, with an epsilon to avoid infinite gain.
-	buffer_l.modify_volume_in_place( 1.0f / ( l_dist + 0.00001 ) );
-	buffer_r.modify_volume_in_place( 1.0f / ( r_dist + 0.00001 ) );
-
-	// Head ILD
-	auto head_ild_func = [&]( Audio & buffer, Radian direct_angle )
-		{
-		const Radian buffer_angle_away_from_direct = std::arg( static_cast<std::complex<float>>( position - l_ear ) ) - direct_angle;
-		const float mix = 0.5f + 0.5f * std::cos( buffer_angle_away_from_direct );
-		buffer = std::move( buffer
-			.filter_1pole_lowpass( 500, 1 )
-			.modify_volume_in_place( 1.0f - mix )
-			.mix_in_place( buffer, 0, mix ) );
-		};
-	head_ild_func( buffer_l,  75 );
-	head_ild_func( buffer_r, -75 );
-
-	return Audio::combine_channels( buffer_l, buffer_r );
-	}
