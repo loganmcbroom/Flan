@@ -14,6 +14,7 @@
 #include "flan/WindowFunctions.h"
 #include "flan/Utility/Timer.h"
 #include "flan/DSPUtility.h"
+#include "flan/FFTHelper.h"
 
 using namespace flan;
 
@@ -31,22 +32,17 @@ const float pi = std::acos( -1.0f );
 
 int main()
 	{
-	auto synth = Audio::synthesize_waveform( waveforms::saw, 1, []( Second t ){ return 111; } ).set_volume( .7 );
-	auto bah = Audio::load_from_file( "cmajor.wav" ).set_volume( .9 );
+	auto synth = Audio::synthesize_waveform( waveforms::saw, 1, []( Second t ){ return 100 + 50*std::sin(2*3.14*2*t); } ).set_volume( .7 );
+	auto bah = Audio::load_from_file( "bah.wav" ).set_volume( .9 );
 
-	Wavetable table = Wavetable( bah.convert_to_mono() );
-	table.remove_dc_in_place();
-	table.remove_jumps_in_place();
-	//table.normalize_in_place();
-	graph( table.graph_waveform_range( 0, 400, 410 ) );
-	//play( synth );
-	play( table
-		.synthesize( 10, []( Second t ){ return 200; }, [&]( Second t ){ return t/10; } )
-		.set_volume( .7 )
-		// .modify_volume( ADSR( 0, 0, 0, 2, 1, 1, 1, 2 ) )
-		// .add_moisture( 0.05, 10, 2 )
-		// .compress( .8 )
-		);
+	Wavetable table = Wavetable( bah, Wavetable::SnapMode::Zero, Wavetable::PitchMode::Local, 4096 );
+	auto x = table
+		.synthesize( bah.get_length(), 111, [&]( Second t ){ return t / bah.get_length(); } )
+		.set_volume( .7 );
+
+	play( x	);
+	//graph( table.graph_waveform_range( 0, 10, 10 ) );
+	//graph( x.convert_to_PV().convert_to_graph()	);
 
 	return 0;
 	}
@@ -68,7 +64,6 @@ void graph( const std::string & f )
 	{
 	system( (std::string("start ") + f).c_str() );
 	}
-
 void graph( const bitmap_image & b )
 	{
 	b.save_image( "Temp.bmp" );
