@@ -267,17 +267,16 @@ Audio Audio::select(
 	const std::vector<Second> & start_times 
 	)
 	{
-	
 	// Generate balances from selection
 	std::vector<Function<Second, Amplitude>> balances;
 	for( Index i = 0; i < ins.size(); ++i )
 		{
-		balances.emplace_back( [&selection, i]( Second t )
+		balances.emplace_back( Function<Second, Amplitude>( [&selection, i]( Second t )
 			{
 			const float distance = std::abs( selection( t ) - i );
 			if( distance >= 1 ) return 0.0f;
 			else return std::sqrt( 1.0f - distance );
-			} );
+			}, selection.get_execution_policy() ) );
 		}
 		
 	return mix_variable_gain( ins, start_times, get_pointers( balances ) );

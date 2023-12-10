@@ -211,7 +211,7 @@ std::vector<fFrame> Audio::get_local_wavelengths(
 		do
 			{
 			const Frame global_hop = hop + sus_length;
-			if( global_hop >= get_num_frames() ) break; // Hit end of file
+			if( global_hop >= out.size() ) break; // Hit end of file
 			if( out[global_hop] == 0 ) continue; // 0 may not indicate sus end
 			const float r = out[global_hop] / out[hop];
 			if( r < .95f || r > 1.05f ) break; // As long as data keeps chilling here
