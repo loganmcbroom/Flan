@@ -188,13 +188,10 @@ Audio Audio::synthesize_grains(
 
 	// Generate trainlets
 	std::vector<Audio> grains( event_times.size() );
-	runtime_execution_policy_handler( grain_source.get_execution_policy(), [&]( auto policy )
+	flan::for_each_i( event_times.size(), grain_source.get_execution_policy(), [&]( Index i )
 		{
-		std::for_each( FLAN_POLICY iota_iter( 0 ), iota_iter( event_times.size() ), [&]( Index i )
-			{
-			const Second t = event_times[i];
-			grains[i] = grain_source( t );
-			} );
+		const Second t = event_times[i];
+		grains[i] = grain_source( t );
 		} );
 	
 	return Audio::mix( grains, event_times );
@@ -221,7 +218,7 @@ Audio Audio::synthesize_grains_repeat(
 	return Audio::mix( std::vector<const Audio *>( event_times.size(), this ), event_times, gains );
 	}
 
-Audio Audio::synthesize_grains_with_feedback_mod( 
+Audio Audio::synthesize_grains_with_mod( 
 	Second length, 
 	const Function<Second, float> & grains_per_second, 
 	const Function<Second, float> & time_scatter, 
@@ -254,14 +251,21 @@ Audio Audio::synthesize_grains_with_feedback_mod(
 	else // Convert this using mod at each event time according to the mod execution policy
 		{ // This could be handled by synthesize_grains, but it would make things a little harder in composition functions
 		modded_audio.resize( event_times.size() );
-		runtime_execution_policy_handler( mod.get_execution_policy(), [&]( auto policy ) {
-			std::transform( FLAN_POLICY event_times.begin(), event_times.end(), modded_audio.begin(), [&]( const Second event_time ) 
-				{
-				Audio this_copy = copy();
-				mod( this_copy, event_time );
-				return std::move( this_copy );
-				} ); 
+		flan::for_each_i( event_times.size(), mod.get_execution_policy(), [&]( Index i )
+			{
+			const Second event_time = event_times[i];
+			Audio this_copy = copy();
+			mod( this_copy, event_time );
+			modded_audio[i] = std::move( this_copy );
 			} );
+		// runtime_execution_policy_handler( mod.get_execution_policy(), [&]( auto policy ) {
+		// 	std::transform( FLAN_POLICY event_times.begin(), event_times.end(), modded_audio.begin(), [&]( const Second event_time ) 
+		// 		{
+		// 		Audio this_copy = copy();
+		// 		mod( this_copy, event_time );
+		// 		return std::move( this_copy );
+		// 		} ); 
+		// 	} );
 		}
 	return Audio::mix( modded_audio, event_times );
 	}
@@ -284,15 +288,7 @@ Audio Audio::synthesize_trainlets(
 	FrameRate sample_rate
 	)
 	{
-	const ExecutionPolicy ex_pol = lowest_execution( 
-			position.get_execution_policy(), 
-			trainlet_gain_envelope.get_execution_policy(),
-			freq.get_execution_policy(),
-			trainlet_length.get_execution_policy(),
-			num_harmonics.get_execution_policy(), 
-			chroma.get_execution_policy(),
-			impulse_harmonic_frequency.get_execution_policy()
-			);
+	const ExecutionPolicy ex_pol = lowest_execution( position, trainlet_gain_envelope, freq, trainlet_length, num_harmonics, chroma, impulse_harmonic_frequency );
 
 	return synthesize_grains( length, grains_per_second, time_scatter, Function<Second, Audio>( [&]( Second t )
 		{ 

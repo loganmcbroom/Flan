@@ -28,7 +28,7 @@ Audio& Audio::pan_in_place( const Function<Second, float> & pan_amount )
 		{
 		flan::for_each_i( get_num_frames(), ExecutionPolicy::Parallel_Unsequenced, [&]( Frame frame )
 			{
-			const float pan = pan_amount_sampled[frame] / 2.0f + 1.0f; // Convert [-1,1] to [0,1]
+			const float pan = pan_amount_sampled[frame] / 2.0f + 0.5f; // Convert [-1,1] to [0,1]
 			const float pan_func_input = channel == 0 ? pan : ( 1.0f - pan );
 			const float scale = Interpolators::sine2( pan_func_input );
 			get_sample( channel, frame ) *= scale;

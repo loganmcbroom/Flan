@@ -222,12 +222,12 @@ Audio base_filter_2pole_selector_from_pole(
 	)
 	{
 	return base_filter_2pole_selector_single_func( me,
-		[&]( Second t )
+		Function<Second, std::pair<Frequency, float>>( [&]( Second t )
 			{
 			const Pole pole_c = pole( t );
 			const Magnitude pole_abs = std::abs( pole_c );
 			return std::make_pair( pole_abs, -pole_c.real() / pole_abs ); 
-			},
+			}, pole.get_execution_policy() ),
 		i );
 	}
 
@@ -238,7 +238,9 @@ Audio base_filter_2pole_selector(
 	size_t i
 	)
 	{
-	return base_filter_2pole_selector_single_func( me, [&]( Second t ){ return std::make_pair( cutoff( t ), damping( t ) ); }, i );
+	return base_filter_2pole_selector_single_func( me, Function<Second, std::pair<Frequency, float>>( 
+			[&]( Second t ){ return std::make_pair( cutoff( t ), damping( t ) ); }, lowest_execution( cutoff, damping )
+		), i );
 	}
 
 Audio base_filter_2pole_lowpass(
@@ -487,7 +489,7 @@ Audio Audio::filter_1pole_lowshelf(
 	{
 	if( is_null() ) return Audio::create_null();
 	Audio tilt = base_filter_1pole_butterworth_tilt( *this, order, cutoff, gain );
-	tilt.modify_volume_in_place( [&]( Second t ){ return decibel_to_amplitude( gain( t ) / 2 ); } );
+	tilt.modify_volume_in_place( Function<float, float>( [&]( Second t ){ return decibel_to_amplitude( gain( t ) / 2 ); }, gain.get_execution_policy() ) );
 	return tilt;
 	}
 
@@ -498,8 +500,8 @@ Audio Audio::filter_1pole_highshelf(
 	) const
 	{
 	if( is_null() ) return Audio::create_null();
-	Audio tilt = base_filter_1pole_butterworth_tilt( *this, order, cutoff, [&]( Second t ){ return -gain( t ); } );
-	tilt.modify_volume_in_place( [&]( Second t ){ return decibel_to_amplitude( gain( t ) / 2 ); } );
+	Audio tilt = base_filter_1pole_butterworth_tilt( *this, order, cutoff, Function<float, float>( [&]( Second t ){ return -gain( t ); }, gain.get_execution_policy() ) );
+	tilt.modify_volume_in_place( Function<float, float>( [&]( Second t ){ return decibel_to_amplitude( gain( t ) / 2 ); }, gain.get_execution_policy() ) );
 	return tilt;
 	}
 
@@ -709,7 +711,7 @@ Audio Audio::filter_2pole_lowshelf(
 	Audio tilt = base_filter_2pole_butterworth_tilt( *this, order, 
 		[&]( Second t, float M ){ return cutoff( t ) * M; }, 
 		[&]( Second t, float ){ return damping( t ); }, 
-		[&]( Second t ){ return gain( t ) / 2.0f; }, 
+		Function<float, float>( [&]( Second t ){ return gain( t ) / 2.0f; }, gain.get_execution_policy() ), 
 		[&]( Mix_2pole f, float M2 ){ return f[0] / (M2*M2) + f[1] / M2 + f[2]; } );
 	//tilt.modify_volume_in_place( [&]( Second t ){ return decibel_to_amplitude( -half_gain( t ) ); } );
 	return tilt;
@@ -726,7 +728,7 @@ Audio Audio::filter_2pole_bandshelf(
 	Audio tilt = base_filter_2pole_butterworth_tilt( *this, order, 
 		[&]( Second t, float ){ return cutoff( t ); }, 
 		[&]( Second t, float M ){ return damping( t ) * M; }, 
-		[&]( Second t ){ return -gain( t ); }, 
+		Function<float, float>( [&]( Second t ){ return -gain( t ); }, gain.get_execution_policy() ), 
 		[&]( Mix_2pole f, float M2 ){ return f[0] + f[1] / M2 + f[2]; } );
 	return tilt;
 	}
@@ -743,7 +745,7 @@ Audio Audio::filter_2pole_highshelf(
 	Audio tilt = base_filter_2pole_butterworth_tilt( *this, order, 
 		[&]( Second t, float M ){ return cutoff( t ) * M; }, 
 		[&]( Second t, float ){ return damping( t ); }, 
-		[&]( Second t ){ return gain( t ) / 2.0f; }, 
+		Function<float, float>( [&]( Second t ){ return gain( t ) / 2.0f; }, gain.get_execution_policy() ), 
 		[&]( Mix_2pole f, float M2 ){ return f[0] + f[1] * M2 + f[2] * M2*M2; } );
 	//tilt.modify_volume_in_place( [&]( Second t ){ return decibel_to_amplitude( half_gain( t ) ); } );
 	return tilt;
@@ -832,7 +834,7 @@ Audio Audio::filter_1pole_multinotch(
 	// See section 11.1
 	Audio allpass = filter_1pole_allpass_n( *this, cutoff, order );
 	if( invert ) allpass.modify_volume_in_place( -1 );
-	Function<Second, Amplitude> wet_dry_inv = [&]( Second t ){ return 1.0f - wet_dry( t ); };
+	Function<Second, Amplitude> wet_dry_inv( [&]( Second t ){ return 1.0f - wet_dry( t ); }, wet_dry.get_execution_policy() );
 	return Audio::mix_variable_gain( { this, &allpass }, {}, { &wet_dry, &wet_dry_inv } );
 	}
 
@@ -881,7 +883,7 @@ Audio Audio::filter_2pole_multinotch(
 	// See section 11.2
 	Audio allpass = filter_2pole_allpass_n( *this, cutoff, damping, order );
 	if( invert ) allpass.modify_volume_in_place( -1 );
-	Function<Second, Amplitude> wet_dry_inv = [&]( Second t ){ return 1.0f - wet_dry( t ); };
+	Function<Second, Amplitude> wet_dry_inv( [&]( Second t ){ return 1.0f - wet_dry( t ); }, wet_dry.get_execution_policy() );
 	return Audio::mix_variable_gain( { this, &allpass }, {}, { &wet_dry, &wet_dry_inv } );
 	}
 

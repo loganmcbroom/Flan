@@ -451,6 +451,7 @@ public:
 	 */
 	Audio iterate( 
 		int32_t num_iterations, 
+		Second crossfade_time = 0,
 		const AudioMod & mod = AudioMod(), 
 		bool feedback = false 
 		) const;
@@ -945,12 +946,12 @@ public:
 		const Function<Second, Amplitude> & gain
 		) const;
 
-	Audio synthesize_grains_with_feedback_mod( 
+	Audio synthesize_grains_with_mod( 
 		Second length, 
 		const Function<Second, float> & grains_per_second, 
 		const Function<Second, float> & time_scatter, 
 		const AudioMod & mod,
-		bool mod_feedback // This should be removed if possible
+		bool mod_feedback
 		) const;
 
 	// Grain Compositions ===================================================================================================================

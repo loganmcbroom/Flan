@@ -61,6 +61,16 @@ ExecutionPolicy lowest_execution(
 	return lowest_execution( policies );
 	}
 
+template<typename ... Fs >
+ExecutionPolicy lowest_execution( 
+	const Fs & ... ins 
+	)
+	{
+	std::vector<ExecutionPolicy> policies;
+	( policies.push_back( ins.get_execution_policy() ), ... ); // Fold expression
+	return lowest_execution( policies );
+	}
+
 template<typename F>
 void for_each_i( int end, ExecutionPolicy p, F f )
 	{

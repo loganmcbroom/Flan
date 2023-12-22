@@ -281,7 +281,7 @@ Audio Wavetable::synthesize(
 
 	const Frame granularity = out.time_to_frame( granularity_time );
 
-	const ExecutionPolicy lowest_policy = lowest_execution( freq.get_execution_policy(), ratio.get_execution_policy() );
+	const ExecutionPolicy lowest_policy = lowest_execution( freq, ratio );
 
 	//for( Channel channel = 0; channel < table.get_num_channels(); ++channel )
 	flan::for_each_i( table.get_num_channels(), ExecutionPolicy::Linear_Sequenced, [&]( Channel channel )

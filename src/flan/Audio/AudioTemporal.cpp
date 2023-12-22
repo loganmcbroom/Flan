@@ -250,6 +250,7 @@ Audio Audio::repitch( const Function<Second, float> & factor, Second granularity
 
 Audio Audio::iterate( 
 	int32_t n, 
+	Second crossfade_time,
 	const AudioMod & mod, 
 	bool feedback 
 	) const
@@ -259,7 +260,10 @@ Audio Audio::iterate(
 
 	// Without a mod, we are just repeating the input, which join can do already
 	if( mod.is_null() )
-		return join( std::vector<const Audio *>( n, this ) );
+		{
+		const Audio this_faded = fade( crossfade_time, crossfade_time );
+		return join( std::vector<const Audio *>( n, &this_faded ), -crossfade_time );
+		}
 
 	// It may be surprising that this has to be linear_sequenced executed. Because a mod could alter the length of
 	// an iteration, we can't know the time that should be passed to each mod call until all the previous mod outputs
@@ -271,10 +275,11 @@ Audio Audio::iterate(
 		{
 		this_modifieds[i] = i > 0 && feedback ? this_modifieds[i-1].copy() : copy();
 		mod( this_modifieds[i], iteration_start );
-		iteration_start += this_modifieds.back().get_length();
+		this_modifieds[i].fade_in_place( crossfade_time, crossfade_time );
+		iteration_start += this_modifieds[i].get_length();
 		} );
 
-	return join( this_modifieds );
+	return join( this_modifieds, -crossfade_time );
 	}
 
 Audio Audio::delay( 
@@ -310,7 +315,7 @@ Audio Audio::delay(
 		std::for_each( in.get_buffer().begin(), in.get_buffer().end(), [decay_t]( Sample & s ){ s *= decay_t; } );
 		};
 
-	return synthesize_grains_with_feedback_mod( length, events_per_second, 0, delay_mod, true );
+	return synthesize_grains_with_mod( length, events_per_second, 0, delay_mod, true );
 	}
 
 // Audio Audio::stereo_delay(
@@ -381,10 +386,10 @@ std::vector<Audio> Audio::split_at_times(
 		}
 	split_frames.push_back( get_num_frames() );
 
-	std::vector<Audio> outs;
+	std::vector<Audio> outs( split_frames.size() - 1 );
 	flan::for_each_i( split_frames.size() - 1, ExecutionPolicy::Parallel_Unsequenced, [&]( int i )
 		{
-		outs.push_back( cut_frames( split_frames[i], split_frames[i+1], fade_frames, fade_frames ) );
+		outs[i] = cut_frames( split_frames[i], split_frames[i+1], fade_frames, fade_frames );
 		} );
 
 	return outs;
@@ -397,7 +402,7 @@ std::vector<Audio> Audio::split_with_lengths(
 	{
 	for( Second & t : split_lengths ) if( t < 0 ) t = 0; 
 
-	// Create split times form split lengths
+	// Create split times from split lengths
 	std::vector<Second> split_times;
 	std::partial_sum( split_lengths.begin(), split_lengths.end(), std::back_inserter( split_times ) );
 	return split_at_times( split_times, fade );

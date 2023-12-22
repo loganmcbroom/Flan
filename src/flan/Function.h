@@ -130,7 +130,8 @@ struct Function
 		{
 		std::vector<O> out( end - start );
 		runtime_execution_policy_handler( get_execution_policy(), [&]( auto policy ){
-			std::for_each( FLAN_POLICY iota_iter( start ), iota_iter( end ), [&]( int x ){ 
+			std::for_each( FLAN_POLICY iota_iter( start ), iota_iter( end ), [&]( int x )
+				{ 
 				out[x-start] = operator()( x * scale ); 
 				} ); 
 			} );
