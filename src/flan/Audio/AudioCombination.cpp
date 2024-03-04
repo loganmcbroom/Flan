@@ -219,7 +219,7 @@ Audio& Audio::mix_in_place(
 
 	const Channel num_channels = std::min( get_num_channels(), sr_correct_source->get_num_channels() );
 
-	auto other_amplitude_sampled = sample_function_over_domain( other_amplitude );
+	auto other_amplitude_sampled = sr_correct_source->sample_function_over_domain( other_amplitude );
 
 	for( Channel channel = 0; channel < num_channels; ++channel )
 		for( Frame other_frame = 0; other_frame < sr_correct_source->get_num_frames(); ++other_frame )
