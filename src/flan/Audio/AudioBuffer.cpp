@@ -54,7 +54,18 @@ bool AudioBuffer::is_null() const
 
 #include <sndfile.h>
 
-bool AudioBuffer::load( const std::string & filepath ) 
+bool AudioBuffer::load( 
+	const std::string & filepath
+	)
+	{
+	SndfileStrings s;
+	return load( filepath, s );
+	}
+
+bool AudioBuffer::load( 
+	const std::string & filepath,
+	SndfileStrings & smuggle_strings
+	) 
 	{
 	//Open file and check validity, save the sample rate
 	SF_INFO info;
@@ -70,6 +81,18 @@ bool AudioBuffer::load( const std::string & filepath )
 	format.num_channels = info.channels;
 	format.num_frames = info.frames;
 	*this = AudioBuffer( format );
+
+	// Smuggle strings out of file
+	smuggle_strings.title = sf_get_string( file, SF_STR_TITLE );
+	smuggle_strings.copyright = sf_get_string( file, SF_STR_COPYRIGHT );
+	smuggle_strings.software = sf_get_string( file, SF_STR_SOFTWARE );
+	smuggle_strings.artist = sf_get_string( file, SF_STR_ARTIST );
+	smuggle_strings.comment = sf_get_string( file, SF_STR_COMMENT );
+	smuggle_strings.date = sf_get_string( file, SF_STR_DATE );
+	smuggle_strings.album = sf_get_string( file, SF_STR_ALBUM );
+	smuggle_strings.license = sf_get_string( file, SF_STR_LICENSE );
+	smuggle_strings.tracknumber = sf_get_string( file, SF_STR_TRACKNUMBER );
+	smuggle_strings.genre = sf_get_string( file, SF_STR_GENRE );
 
 	//Create temporary buffer for interleaved data in file, read data in, close the file
 	std::vector<float> interleaved_buffer( info.frames * info.channels );
@@ -89,7 +112,10 @@ bool AudioBuffer::load( const std::string & filepath )
 	return true;
 	}
 
-bool AudioBuffer::save( const std::string & filepath, int format ) const
+bool AudioBuffer::save( 
+	const std::string & filepath, 
+	int format, 
+	SndfileStrings smuggle_strings ) const
 	{
 	if( format == -1 ) format = SF_FORMAT_WAV | SF_FORMAT_PCM_24;
 
@@ -131,6 +157,19 @@ bool AudioBuffer::save( const std::string & filepath, int format ) const
 		std::cout << std::string( "Error writing data into " ) + filepath + ".\n";
 		return false;
 		}
+
+	// Smuggle strings into file
+	sf_set_string( file, SF_STR_TITLE, 			smuggle_strings.title.c_str() );
+	sf_set_string( file, SF_STR_COPYRIGHT, 		smuggle_strings.copyright.c_str() );
+	sf_set_string( file, SF_STR_SOFTWARE, 		smuggle_strings.software.c_str() );
+	sf_set_string( file, SF_STR_ARTIST, 		smuggle_strings.artist.c_str() );
+	sf_set_string( file, SF_STR_COMMENT, 		smuggle_strings.comment.c_str() );
+	sf_set_string( file, SF_STR_DATE, 			smuggle_strings.date.c_str() );
+	sf_set_string( file, SF_STR_ALBUM, 			smuggle_strings.album.c_str() );
+	sf_set_string( file, SF_STR_LICENSE, 		smuggle_strings.license.c_str() );
+	sf_set_string( file, SF_STR_TRACKNUMBER, 	smuggle_strings.tracknumber.c_str() );
+	sf_set_string( file, SF_STR_GENRE, 			smuggle_strings.genre.c_str() );
+
 	sf_close( file );
 	
 	return true;

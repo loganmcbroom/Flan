@@ -38,6 +38,20 @@ public:
 		FrameRate sample_rate = 48000;
 		};
 
+	struct SndfileStrings 
+		{
+		std::string title = "";
+		std::string copyright = "";
+		std::string software = "";
+		std::string artist = "";
+		std::string comment = "";
+		std::string date = "";
+		std::string album = "";
+		std::string license = "";
+		std::string tracknumber = "";
+		std::string genre = "";
+		};
+
 	struct ChannelSlice
 		{
 		using Iter = std::vector<Sample>::iterator;
@@ -84,14 +98,25 @@ public:
 	 *	\param filepath File to load. If libsndfile is enabled this can be any format accepted by libsndfile, notably not mp3.
 	 *		If libsndfile is disabled this can only be a wave file.
 	 */
-	bool load( const std::string & filepath );
+	bool load( 
+		const std::string & filepath
+		);
+
+	bool load( 
+		const std::string & filepath, 
+		SndfileStrings &
+		);
 
 	/** File saving.
 	 *	\param filepath File path to save at.
 	 *	\param format The libsndfile format to save to. The default of -1 will save as 24bit PCM WAVE.
 	 *		If libsndfile is disabled this does nothing, and 24bit PCM WAVE will always be used.
 	 */
-	bool save( const std::string & filepath, int format = -1 ) const;
+	bool save( 
+		const std::string & filepath, 
+		int format = -1, 
+		SndfileStrings = SndfileStrings() // Used for string smuggling
+		) const;
 
 	/** Prints buffer dimensions and sample rate to cout.
 	 */
