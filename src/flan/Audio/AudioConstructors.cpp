@@ -36,6 +36,14 @@ Audio Audio::load_from_file( const std::string & filename )
 	return AudioBuffer( filename );
 	}
 
+Audio Audio::load_from_file( 
+	const std::string & filename,
+	SndfileStrings & strings
+	)
+	{
+	return AudioBuffer( filename, strings );
+	}
+
 Audio Audio::create_empty_with_length( 
 	Second length, 
 	Channel num_channels, 

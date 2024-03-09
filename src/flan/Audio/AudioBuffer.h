@@ -80,6 +80,7 @@ public:
 	 *	\param filepath File to load. Accepts any format accepted by libsndfile. Notably cannot load mp3.
 	 */
 	AudioBuffer( const std::string & filepath );
+	AudioBuffer( const std::string & filepath, SndfileStrings & );
 
 	/** Returns a deep copy of the AudioBuffer.
 	 */

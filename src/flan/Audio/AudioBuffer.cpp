@@ -35,6 +35,13 @@ AudioBuffer::AudioBuffer( const std::string & filename )
 	load( filename );
 	}
 
+AudioBuffer::AudioBuffer( const std::string & filename, SndfileStrings & s )
+	: format()
+	, buffer()
+	{
+	load( filename, s );
+	}
+
 AudioBuffer AudioBuffer::copy() const
 	{
 	AudioBuffer out;
@@ -83,16 +90,17 @@ bool AudioBuffer::load(
 	*this = AudioBuffer( format );
 
 	// Smuggle strings out of file
-	smuggle_strings.title = sf_get_string( file, SF_STR_TITLE );
-	smuggle_strings.copyright = sf_get_string( file, SF_STR_COPYRIGHT );
-	smuggle_strings.software = sf_get_string( file, SF_STR_SOFTWARE );
-	smuggle_strings.artist = sf_get_string( file, SF_STR_ARTIST );
-	smuggle_strings.comment = sf_get_string( file, SF_STR_COMMENT );
-	smuggle_strings.date = sf_get_string( file, SF_STR_DATE );
-	smuggle_strings.album = sf_get_string( file, SF_STR_ALBUM );
-	smuggle_strings.license = sf_get_string( file, SF_STR_LICENSE );
-	smuggle_strings.tracknumber = sf_get_string( file, SF_STR_TRACKNUMBER );
-	smuggle_strings.genre = sf_get_string( file, SF_STR_GENRE );
+	auto get_string_or_dont = []( const char * s ){ return s? s : ""; };
+	smuggle_strings.title = get_string_or_dont( sf_get_string( file, SF_STR_TITLE ) );
+	smuggle_strings.copyright = get_string_or_dont( sf_get_string( file, SF_STR_COPYRIGHT ) );
+	smuggle_strings.software = get_string_or_dont( sf_get_string( file, SF_STR_SOFTWARE ) );
+	smuggle_strings.artist = get_string_or_dont( sf_get_string( file, SF_STR_ARTIST ) );
+	smuggle_strings.comment = get_string_or_dont( sf_get_string( file, SF_STR_COMMENT ) );
+	smuggle_strings.date = get_string_or_dont( sf_get_string( file, SF_STR_DATE ) );
+	smuggle_strings.album = get_string_or_dont( sf_get_string( file, SF_STR_ALBUM ) );
+	smuggle_strings.license = get_string_or_dont( sf_get_string( file, SF_STR_LICENSE ) );
+	smuggle_strings.tracknumber = get_string_or_dont( sf_get_string( file, SF_STR_TRACKNUMBER ) );
+	smuggle_strings.genre = get_string_or_dont( sf_get_string( file, SF_STR_GENRE ) );
 
 	//Create temporary buffer for interleaved data in file, read data in, close the file
 	std::vector<float> interleaved_buffer( info.frames * info.channels );

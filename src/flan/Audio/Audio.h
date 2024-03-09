@@ -86,6 +86,10 @@ public:
 	static Audio load_from_file( 
 		const std::string & filename 
 		);
+	static Audio load_from_file( 
+		const std::string & filename,
+		SndfileStrings &
+		);
 
 	static Audio create_empty_with_length( 
 		Second length, 
