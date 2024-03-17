@@ -603,7 +603,7 @@ PV PV::resonate( Second length, const Function<TF, float> & decay ) const
 	PV out( format );
 
 	auto decay_sampled = out.sample_function_over_domain( decay );
-	std::ranges::for_each( decay_sampled, []( float & x ){ x = std::max( x, 0.0f ); } );
+	std::ranges::for_each( decay_sampled, []( float & x ){ x = std::clamp( x, 0.0f, 1.0f ); } );
 
 	// Copy first frame into out
 	for( Channel channel = 0; channel < out.get_num_channels(); ++channel )
@@ -620,11 +620,11 @@ PV PV::resonate( Second length, const Function<TF, float> & decay ) const
 			for( Frame frame = 1; frame < out.get_num_frames(); ++frame )
 				{
 				const float decay_t = std::pow( decay_sampled[buffer_access( bin, frame, get_num_bins() )], secondsPerFrame_c );
-				const float decayedAmp = out.get_MF( channel, frame - 1, bin ).m * decay_t;
-				if( frame < get_num_frames() && get_MF( channel, frame, bin ).m > decayedAmp )
+				const float decayed_amp = out.get_MF( channel, frame - 1, bin ).m * decay_t;
+				if( frame < get_num_frames() && get_MF( channel, frame, bin ).m > decayed_amp )
 					out.set_MF( channel, frame, bin, get_MF( channel, frame, bin ) );
 				else
-					out.set_MF( channel, frame, bin, { decayedAmp, out.get_MF( channel, frame - 1, bin ).f } );
+					out.set_MF( channel, frame, bin, { decayed_amp, out.get_MF( channel, frame - 1, bin ).f } );
 				}
 			} );
 
