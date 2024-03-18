@@ -523,6 +523,10 @@ public:
 		const Function<Second, float> & gain 
 		) const;
 
+	Audio ring_modulate( 
+		const Audio & other 
+		) const;
+
 	Audio& modify_volume_in_place( 
 		const Function<Second, float> & gain
 		);		

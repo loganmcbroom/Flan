@@ -12,6 +12,23 @@ Audio Audio::modify_volume(
 	return out;
 	}
 
+Audio Audio::ring_modulate( 
+	const Audio & other 
+	) const
+	{
+	if( is_null() || other.is_null() ) return Audio::create_null(); 
+	
+	Audio out = copy();
+
+	for( Channel channel = 0; channel < get_num_channels(); ++channel )
+		flan::for_each_i( get_num_frames(), ExecutionPolicy::Parallel_Unsequenced, [&]( Frame frame )
+			{
+			out.get_sample( channel, frame ) *= other.get_sample( channel % other.get_num_channels(), frame % other.get_num_frames() );
+			} );
+
+	return out;
+	}
+
 Audio& Audio::modify_volume_in_place( 
 	const Function<Second, Amplitude> & gain 
 	)
