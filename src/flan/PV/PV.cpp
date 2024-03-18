@@ -175,6 +175,7 @@ PV PV::freeze(
 						out.set_MF( channel, out_frame, bin, get_MF( channel, in_frame, bin ) );
 					++out_frame;
 					}
+				++timing_index;
 				}
 			else // It's not time to freeze
 				{
