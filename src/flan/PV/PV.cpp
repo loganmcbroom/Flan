@@ -167,7 +167,7 @@ PV PV::freeze(
 		for( Frame in_frame = 0, out_frame = 0; in_frame < get_num_frames(); ++in_frame )
 			{
 			// If it's time to freeze, freeze
-			if( in_frame == timing_frames[timing_index][0] )
+			if( timing_index < timing_frames.size() && in_frame == timing_frames[timing_index][0] )
 				{
 				for( Frame freeze_frame = 0; freeze_frame < timing_frames[timing_index][1]; ++freeze_frame )
 					{
