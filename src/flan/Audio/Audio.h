@@ -505,12 +505,16 @@ public:
 	 *  \param slice_length The length of each output.
 	 *  \param fade The start and end fade time of each slice.
 	 */
-	Audio rearrange( 
-		Second slice_length, 
-		Second fade = 0
+	// Audio rearrange( 
+	// 	Second slice_length, 
+	// 	Second fade = 0
+	// 	) const;
+
+	Audio random_chunks(
+		Second length,
+		const Function<Second, Second> & chunk_length,
+		const Function<Second, Second> & fade = 0
 		) const;
-
-
 
 	//============================================================================================================================================================
 	// Volume
@@ -614,7 +618,25 @@ public:
 		const Audio * sidechain_source = nullptr 
 		) const;
 
+	Audio apply_adsr_envelope(
+		Second attack_time,
+		Second decay_time,
+		Second sustain_time,
+		Second release_time,
+		Amplitude sustain_level,
+		float attack_exponent = 1,
+		float decay_exponent = 1,
+		float release_exponent = 1
+		) const;
 
+
+	// Helper for common adsr usage
+	Audio apply_ar_envelope(
+		Second attack_time,
+		Second release_time,
+		float attack_exponent,
+		float release_exponent
+		) const;
 
 	//============================================================================================================================================================
 	// Spatial
@@ -843,6 +865,11 @@ public:
 		const Function<Second, Amplitude> & other_amplitude = 1.0f 
 		);
 
+	static Audio join( 
+		const std::vector<const Audio *> & ins, 
+		const std::vector<Second> & offsets
+		);
+
 	/** This joins all input Audio tip to tail in the order they were passed.
 	 *	\param ins The Audio to join.
 	 *	\param offset The amount of time away from the natural join position each input should be. For example, using a negative offset
@@ -944,22 +971,14 @@ public:
 		FrameRate sample_rate = 48000
 		);
 
-	/* Same as synthesize_grains, but reuses the same sound source.
-	 * This could be achieved with synthesize_grains, but this version is optimized.
+	/* Granular synthesis using a single input Audio as the grain source, optionally passed through a mod function.
 	 */
-	Audio synthesize_grains_repeat(
-		Second length,
-		const Function<Second, float> & grains_per_second,
-		const Function<Second, float> & time_scatter,
-		const Function<Second, Amplitude> & gain
-		) const;
-
-	Audio synthesize_grains_with_mod( 
+	Audio texture(
 		Second length, 
 		const Function<Second, float> & grains_per_second, 
 		const Function<Second, float> & time_scatter, 
-		const AudioMod & mod,
-		bool mod_feedback
+		const AudioMod & mod = AudioMod(),
+		bool mod_feedback = false
 		) const;
 
 	// Grain Compositions ===================================================================================================================
@@ -990,7 +1009,7 @@ public:
 		FrameRate sample_rate = 48000
 		);
 
-	/** 
+	/** Granular synthesis using sections of a single input as the grain source.
 	 *  \param length Grains will generate until this time.
 	 *  \param grains_per_second The mean number of grains per second.
 	 *  \param scatter The standard deviation in grains. Due to being in grains, a higher 
@@ -1000,17 +1019,17 @@ public:
 	 *  \param fade_time The start and end fade time for each grain. Fades use a sqrt curve.
 	 *  \param mod Each grain is fed into this along with the event time.
 	 */
-	Audio synthesize_granulation( 
+	Audio granulate( 
 		Second length, 
 		const Function<Second, float> & grains_per_second, 
 		const Function<Second, float> & time_scatter, 
 		const Function<Second, Second> & time_selection, 
 		const Function<Second, Second> & grain_length,
-		Second fade_time = 0,
+		const Function<Second, Second> & fade_time = 0,
 		const AudioMod & mod = AudioMod()
 		) const;
 
-	Audio synthesize_psola(
+	Audio psola(
 		Second length, 
 		const Function<Second, Second> & time_selection,
 		const AudioMod & mod = AudioMod()

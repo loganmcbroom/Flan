@@ -4,6 +4,14 @@
 
 using namespace flan;
 
+template<typename T>
+static std::vector<const T *> get_pointers( const std::vector<T> & ts )
+	{
+	std::vector<const T *> ptrs( ts.size() );
+	std::transform( ts.begin(), ts.end(), ptrs.begin(), []( const T & t ){ return &t; } );
+	return std::move( ptrs );
+	}
+
 Audio Audio::modify_boundaries( 
 	Second start, 
 	Second end 
@@ -315,7 +323,7 @@ Audio Audio::delay(
 		std::for_each( in.get_buffer().begin(), in.get_buffer().end(), [decay_t]( Sample & s ){ s *= decay_t; } );
 		};
 
-	return synthesize_grains_with_mod( length, events_per_second, 0, delay_mod, true );
+	return texture( length, events_per_second, 0, delay_mod, true );
 	}
 
 // Audio Audio::stereo_delay(
@@ -418,23 +426,82 @@ std::vector<Audio> Audio::split_with_equal_lengths(
 	return split_with_lengths( slice_lengths, fade );
 	}
 
-Audio Audio::rearrange( 
-	Second slice_length, 
-	Second fade 
+// Audio Audio::rearrange( 
+// 	Second slice_length, 
+// 	Second fade 
+// 	) const
+// 	{
+// 	if( is_null() ) return Audio::create_null();
+
+// 	// + fade here accounts for + fade / 2 at both ends
+// 	std::vector<Audio> chops = split_with_equal_lengths( slice_length + fade, fade );
+// 	if( chops.size() < 2 )
+// 		return Audio::create_null();
+
+// 	chops.pop_back(); // Final slice usually isn't the correct length
+
+// 	std::random_device rd;
+// 	std::mt19937 g( rd() );
+// 	std::shuffle( chops.begin(), chops.end(), g );
+
+// 	return Audio::join( std::move( chops ), -fade );
+// 	}
+
+Audio Audio::random_chunks(
+	Second length,
+	const Function<Second, Second> & chunk_length, // Seconds per chunk
+	const Function<Second, Second> & fade
 	) const
 	{
-	if( is_null() ) return Audio::create_null();
+	if( is_null() || length <= 0 ) return Audio::create_null();
 
-	// + fade here accounts for + fade / 2 at both ends
-	std::vector<Audio> chops = split_with_equal_lengths( slice_length + fade, fade );
-	if( chops.size() < 2 )
-		return Audio::create_null();
+	Audio out = Audio::create_empty_with_length( length, get_num_channels(), get_sample_rate() );
 
-	chops.pop_back(); // Final slice usually isn't the correct length
+	// Integrate chunk length to find chunk frames
+	std::vector<Frame> chunk_frames;
+	double chunk_accumulator = 1;
+	for( Frame out_frame = 0; out_frame < out.get_num_frames(); ++out_frame )
+		{
+		if( chunk_accumulator >= 1 )
+			{
+			chunk_frames.push_back( out_frame );
+			chunk_accumulator = std::fmod( chunk_accumulator, 1.0 );
+			}
+		
+		double seconds_per_chunk_c = chunk_length( frame_to_time( out_frame ) );
+		if( seconds_per_chunk_c <= 0 ) 
+			seconds_per_chunk_c = frame_to_time( 1 ); // Minimum chunk size is one frame.
+		const double chunks_per_frame_c = 1.0 / seconds_per_chunk_c / get_sample_rate();
+		chunk_accumulator += chunks_per_frame_c; // Integrate over frames to get chunks
+		}
+	chunk_frames.push_back( out.get_num_frames() );
 
+	// Convert from frame positions to frame lengths
+	std::vector<Frame> chunk_lengths( chunk_frames.size() - 1 );
+	for( int i = 0; i < chunk_lengths.size(); ++i ) 
+		chunk_lengths[i] = chunk_frames[i+1] - chunk_frames[i];
+
+	// Get fade times for each chunk frame
+	std::vector<Second> fade_times_negative = {0};
+	for( int i = 1; i < chunk_frames.size() - 1; ++i ) 
+		{
+		// Crossfading is limited artificially to halfway through each chunk. Allowing larger fades would significantly increase complexity.
+		const Second fade_time_c = std::clamp( fade( frame_to_time( chunk_frames[i] ) ), 0.0f, frame_to_time( chunk_lengths[i] ) / 2.0f );
+		fade_times_negative.push_back( -fade_time_c );
+		}
+	fade_times_negative.push_back( 0 );
+
+	// Get random chunks
 	std::random_device rd;
-	std::mt19937 g( rd() );
-	std::shuffle( chops.begin(), chops.end(), g );
+	std::mt19937 rng( rd() );
+	std::vector<Audio> chunks;
+	for( int i = 0; i < chunk_lengths.size(); ++i ) 
+		{
+		const Frame start_frame = chunk_lengths[i] >= get_num_frames() ? 0 : rng() % std::max( get_num_frames() - chunk_lengths[i], 0 );
+		const Frame fade_frame_left  = time_to_frame( -fade_times_negative[i] );
+		const Frame fade_frame_right = time_to_frame( -fade_times_negative[i+1] );
+		chunks.push_back( cut_frames( start_frame, start_frame + chunk_lengths[i], fade_frame_left, fade_frame_right ) );
+		}
 
-	return Audio::join( std::move( chops ), -fade );
+	return Audio::join( get_pointers( std::move( chunks ) ), fade_times_negative );
 	}
