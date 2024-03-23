@@ -275,3 +275,46 @@ Audio Audio::compress(
 
 	return out;
 	}
+
+Audio Audio::apply_adsr_envelope(
+	Second attack_time,
+	Second decay_time,
+	Second sustain_time,
+	Second release_time,
+	Amplitude sustain_level,
+	float attack_exponent,
+	float decay_exponent,
+	float release_exponent
+	) const
+	{
+	auto envelope = flan::ADSR( 
+		attack_time,
+		decay_time,
+		sustain_time,
+		release_time,
+		sustain_level,
+		attack_exponent,
+		decay_exponent,
+		release_exponent );
+    return modify_volume( envelope );
+	}
+
+
+Audio Audio::apply_ar_envelope(
+	Second attack_time,
+	Second release_time,
+	float attack_exponent,
+	float release_exponent
+	) const
+	{
+	auto envelope = flan::ADSR( 
+		attack_time,
+		0,
+		0,
+		release_time,
+		1,
+		attack_exponent,
+		1,
+		release_exponent );
+    return modify_volume( envelope );
+	}
