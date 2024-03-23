@@ -21,10 +21,10 @@ Function<Second, Amplitude> ADSR(
 	return [a, d, s, r, sLvl, aExp, dExp, rExp]( Second t ) -> Amplitude
 		{
 			 if( t < 0 || t > a+d+s+r ) return (float) 0.0;
-		else if( t < a			   ) return std::pow( t / a, aExp );
-		else if( t < a + d		   ) return std::pow( (float) 1.0 - ( t - a ) / d, dExp ) * ( (float) 1.0 - sLvl ) + sLvl;
-		else if( t < a + d + s	   ) return sLvl;
-		else if( t < a + d + s + r ) return std::pow( (float) 1.0 - ( t - a - d - s ) / r, rExp ) * sLvl;
+		else if( t < a			   ) return std::pow( t / a, aExp ); // Attack
+		else if( t < a + d		   ) return std::pow( (float) 1.0 - ( t - a ) / d, dExp ) * ( (float) 1.0 - sLvl ) + sLvl; // Decay
+		else if( t < a + d + s	   ) return sLvl; // Sustain
+		else if( t < a + d + s + r ) return std::pow( (float) 1.0 - ( t - a - d - s ) / r, rExp ) * sLvl; // Release
 		else return 0.0f;
 		};
 	}

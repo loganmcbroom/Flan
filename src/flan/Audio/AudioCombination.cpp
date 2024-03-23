@@ -234,23 +234,28 @@ Audio& Audio::mix_in_place(
 
 Audio Audio::join( 
 	const std::vector<const Audio *> & ins, 
+	const std::vector<Second> & offsets
+	)
+	{
+	if( ins.empty() || offsets.size() < ins.size() ) return Audio::create_null();
+
+	std::vector<Second> input_lengths;
+	transform( ins, std::back_inserter( input_lengths ), []( const Audio * a ){ return a->get_length(); } );
+
+	// Sum jumps to get mix positions
+	std::vector<Second> start_times = { offsets[0] };
+	for( int i = 0; i < input_lengths.size()-1; ++i )
+		start_times.push_back( start_times.back() + input_lengths[i+1] + offsets[i+1] );
+
+	return mix( ins, start_times, {} );
+	}
+
+Audio Audio::join( 
+	const std::vector<const Audio *> & ins, 
 	Second offset 
 	)
 	{
-	
-	if( ins.empty() ) return Audio::create_null();
-
-	// Get input Audio lengths
-	std::vector<Second> jumps( { 0 } );
-	transform( ins, std::back_inserter( jumps ), []( const Audio * a ){ return a->get_length(); } );
-
-	// Sum jumps to get mix positions
-	std::vector<Second> start_times;
-	std::partial_sum( jumps.begin(), jumps.end() - 1, std::back_inserter( start_times ), [&]( Second a, Second b ){ 
-		return a + b + offset; 
-		} );
-
-	return mix( ins, start_times, {} );
+	return Audio::join( ins, std::vector<Second>( offset, ins.size() ) );
 	}
 
 Audio Audio::join( 
