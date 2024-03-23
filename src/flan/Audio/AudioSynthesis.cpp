@@ -197,28 +197,30 @@ Audio Audio::synthesize_grains(
 	return Audio::mix( grains, event_times );
 	}
 
-Audio Audio::synthesize_grains_repeat(
+// Synth_grains optimized for single input
+Audio synthesize_grains_repeat(
+	const Audio & me,
 	Second length,
 	const Function<Second, float> & grains_per_second,
 	const Function<Second, float> & time_scatter,
 	const Function<Second, Amplitude> & gain
-	) const
+	)
 	{
-	if( is_null() ) return Audio::create_null();
+	if( me.is_null() ) return Audio::create_null();
 
 	// Input validation
 	if( length <= 0 ) return Audio::create_null();
 	
-	const std::vector<Second> event_times = integrate_event_rate( length, grains_per_second, time_scatter, get_sample_rate() );
+	const std::vector<Second> event_times = integrate_event_rate( length, grains_per_second, time_scatter, me.get_sample_rate() );
 
 	std::vector<Amplitude> gains( event_times.size() );
 	for( int i = 0; i < event_times.size(); ++i )
 		gains[i] = gain( event_times[i] );
 
-	return Audio::mix( std::vector<const Audio *>( event_times.size(), this ), event_times, gains );
+	return Audio::mix( std::vector<const Audio *>( event_times.size(), &me ), event_times, gains );
 	}
 
-Audio Audio::synthesize_grains_with_mod( 
+Audio Audio::texture( 
 	Second length, 
 	const Function<Second, float> & grains_per_second, 
 	const Function<Second, float> & time_scatter, 
@@ -229,7 +231,7 @@ Audio Audio::synthesize_grains_with_mod(
 	if( is_null() ) return Audio::create_null();
 
 	if( mod.is_null() )
-		return synthesize_grains_repeat( length, grains_per_second, time_scatter, 1.0f );
+		return synthesize_grains_repeat( *this, length, grains_per_second, time_scatter, 1.0f );
 
 	const std::vector<Second> event_times = integrate_event_rate( length, grains_per_second, time_scatter, get_sample_rate() );
 
@@ -293,7 +295,8 @@ Audio Audio::synthesize_trainlets(
 	return synthesize_grains( length, grains_per_second, time_scatter, Function<Second, Audio>( [&]( Second t )
 		{ 
 		const Audio impulse = synthesize_impulse( impulse_harmonic_frequency( t ), num_harmonics( t ), chroma( t ), sample_rate );
-		return impulse.synthesize_grains_repeat(
+		return synthesize_grains_repeat(
+			impulse,
 			trainlet_length( t ),
 			freq,
 			0,
@@ -302,13 +305,13 @@ Audio Audio::synthesize_trainlets(
 		}, ex_pol ) );
 	}
 
-Audio Audio::synthesize_granulation( 
+Audio Audio::granulate( 
 	Second length, 
 	const Function<Second, float> & grains_per_second, 
 	const Function<Second, float> & time_scatter, 
 	const Function<Second, Second> & time_selection, 
 	const Function<Second, Second> & grain_length,
-	Second fade_time,
+	const Function<Second, Second> & fade_time,
 	const AudioMod & mod
 	) const
 	{
@@ -316,12 +319,14 @@ Audio Audio::synthesize_granulation(
 
 	const auto selection_sampled 	= time_selection.sample( 0, time_to_frame( length ), frame_to_time( 1 ) );
 	const auto grain_length_sampled = grain_length	.sample( 0, time_to_frame( length ), frame_to_time( 1 ) );
+	const auto fade_time_sampled 	= fade_time		.sample( 0, time_to_frame( length ), frame_to_time( 1 ) );
 
 	auto grain_generator = [&]( const Audio & in, float t ) -> Audio
 		{
 		const Second selection_c = selection_sampled[ time_to_frame( t ) ];
 		const Second grain_length_c = grain_length_sampled[ time_to_frame( t ) ];
-		Audio grain = in.cut( selection_c, selection_c + grain_length_c, fade_time, fade_time );
+		const Second fade_time_c = fade_time_sampled[ time_to_frame( t ) ];
+		Audio grain = in.cut( selection_c, selection_c + grain_length_c, fade_time_c, fade_time_c );
 		return std::move( grain );
 		};
 
@@ -339,7 +344,7 @@ Audio Audio::synthesize_granulation(
 		get_sample_rate() );
 	}
 
-Audio Audio::synthesize_psola(
+Audio Audio::psola(
 	Second length, 
 	const Function<Second, Second> & time_selection,
 	const AudioMod & mod
@@ -357,7 +362,7 @@ Audio Audio::synthesize_psola(
 		a.modify_volume_in_place( [&a]( Second t ){ return Windows::hann( t / a.get_length() ); } );
 		};
 
-	return synthesize_granulation( 
+	return granulate( 
 		length,
 		[&]( Second t ){ return freq( time_selection_sampled[time_to_frame(t)] ); },
 		0,
