@@ -245,7 +245,7 @@ Audio Audio::join(
 	// Sum jumps to get mix positions
 	std::vector<Second> start_times = { offsets[0] };
 	for( int i = 0; i < input_lengths.size()-1; ++i )
-		start_times.push_back( start_times.back() + input_lengths[i+1] + offsets[i+1] );
+		start_times.push_back( start_times.back() + input_lengths[i] + offsets[i+1] );
 
 	return mix( ins, start_times, {} );
 	}

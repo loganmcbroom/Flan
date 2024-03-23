@@ -485,9 +485,11 @@ Audio Audio::random_chunks(
 	std::vector<Second> fade_times_negative = {0};
 	for( int i = 1; i < chunk_frames.size() - 1; ++i ) 
 		{
+		const Second fade_time_c = fade( frame_to_time( chunk_frames[i] ) );
 		// Crossfading is limited artificially to halfway through each chunk. Allowing larger fades would significantly increase complexity.
-		const Second fade_time_c = std::clamp( fade( frame_to_time( chunk_frames[i] ) ), 0.0f, frame_to_time( chunk_lengths[i] ) / 2.0f );
-		fade_times_negative.push_back( -fade_time_c );
+		const Second fade_time_clamped_left_c = std::clamp( fade_time_c, 0.0f, frame_to_time( chunk_lengths[i-1] ) / 2.0f );
+		const Second fade_time_clamped_c = std::clamp( fade_time_clamped_left_c, 0.0f, frame_to_time( chunk_lengths[i] ) / 2.0f );
+		fade_times_negative.push_back( -fade_time_clamped_c );
 		}
 	fade_times_negative.push_back( 0 );
 
