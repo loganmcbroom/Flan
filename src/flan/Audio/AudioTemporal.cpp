@@ -450,17 +450,16 @@ std::vector<Audio> Audio::split_with_equal_lengths(
 Audio Audio::random_chunks(
 	Second length,
 	const Function<Second, Second> & chunk_length, // Seconds per chunk
-	const Function<Second, Second> & fade
+	const Function<Second, Second> & fade,
+	const AudioMod & mod
 	) const
 	{
 	if( is_null() || length <= 0 ) return Audio::create_null();
 
-	Audio out = Audio::create_empty_with_length( length, get_num_channels(), get_sample_rate() );
-
 	// Integrate chunk length to find chunk frames
 	std::vector<Frame> chunk_frames;
 	double chunk_accumulator = 1;
-	for( Frame out_frame = 0; out_frame < out.get_num_frames(); ++out_frame )
+	for( Frame out_frame = 0; out_frame < time_to_frame( length ); ++out_frame )
 		{
 		if( chunk_accumulator >= 1 )
 			{
@@ -474,36 +473,45 @@ Audio Audio::random_chunks(
 		const double chunks_per_frame_c = 1.0 / seconds_per_chunk_c / get_sample_rate();
 		chunk_accumulator += chunks_per_frame_c; // Integrate over frames to get chunks
 		}
-	chunk_frames.push_back( out.get_num_frames() );
+	chunk_frames.push_back( time_to_frame( length ) );
 
 	// Convert from frame positions to frame lengths
 	std::vector<Frame> chunk_lengths( chunk_frames.size() - 1 );
 	for( int i = 0; i < chunk_lengths.size(); ++i ) 
 		chunk_lengths[i] = chunk_frames[i+1] - chunk_frames[i];
 
-	// Get fade times for each chunk frame
-	std::vector<Second> fade_times_negative = {0};
-	for( int i = 1; i < chunk_frames.size() - 1; ++i ) 
-		{
-		const Second fade_time_c = fade( frame_to_time( chunk_frames[i] ) );
-		// Crossfading is limited artificially to halfway through each chunk. Allowing larger fades would significantly increase complexity.
-		const Second fade_time_clamped_left_c = std::clamp( fade_time_c, 0.0f, frame_to_time( chunk_lengths[i-1] ) / 2.0f );
-		const Second fade_time_clamped_c = std::clamp( fade_time_clamped_left_c, 0.0f, frame_to_time( chunk_lengths[i] ) / 2.0f );
-		fade_times_negative.push_back( -fade_time_clamped_c );
-		}
-	fade_times_negative.push_back( 0 );
-
-	// Get random chunks
+	// Get random chunks and mod them if needed
 	std::random_device rd;
 	std::mt19937 rng( rd() );
 	std::vector<Audio> chunks;
 	for( int i = 0; i < chunk_lengths.size(); ++i ) 
 		{
 		const Frame start_frame = chunk_lengths[i] >= get_num_frames() ? 0 : rng() % std::max( get_num_frames() - chunk_lengths[i], 0 );
-		const Frame fade_frame_left  = time_to_frame( -fade_times_negative[i] );
-		const Frame fade_frame_right = time_to_frame( -fade_times_negative[i+1] );
-		chunks.push_back( cut_frames( start_frame, start_frame + chunk_lengths[i], fade_frame_left, fade_frame_right ) );
+		Audio chunk = cut_frames( start_frame, start_frame + chunk_lengths[i] );
+		if( !mod.is_null() ) 
+			{
+			const Second chunk_time = frame_to_time( chunk_frames[i] );
+			mod( chunk, chunk_time );
+			}
+		chunks.push_back( std::move( chunk ) );
 		}
+
+	// Apply fades to each chunk for crossfading
+	std::vector<Second> fade_times_negative = {0};
+	for( int i = 1; i < chunk_frames.size() - 1; ++i ) 
+		{
+		const Second fade_time_c = fade( frame_to_time( chunk_frames[i] ) );
+		// Crossfading is limited artificially to halfway through each chunk. Allowing larger fades would significantly increase complexity.
+		const Second fade_time_clamped_left_c = std::clamp( fade_time_c, 0.0f, chunks[i-1].get_length() / 2.0f );
+		const Second fade_time_clamped_c = std::clamp( fade_time_clamped_left_c, 0.0f, chunks[i].get_length() / 2.0f );
+		fade_times_negative.push_back( -fade_time_clamped_c );
+		}
+	fade_times_negative.push_back( 0 );
+
+	// Apply fades
+	for( int i = 0; i < chunks.size(); ++i ) 
+		chunks[i].fade_in_place( -fade_times_negative[i], -fade_times_negative[i+1] );
+	
 
 	return Audio::join( get_pointers( std::move( chunks ) ), fade_times_negative );
 	}

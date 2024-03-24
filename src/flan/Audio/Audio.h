@@ -513,7 +513,8 @@ public:
 	Audio random_chunks(
 		Second length,
 		const Function<Second, Second> & chunk_length,
-		const Function<Second, Second> & fade = 0
+		const Function<Second, Second> & fade = 0,
+		const AudioMod & mod = AudioMod()
 		) const;
 
 	//============================================================================================================================================================
