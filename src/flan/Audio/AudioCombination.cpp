@@ -237,13 +237,13 @@ Audio Audio::join(
 	const std::vector<Second> & offsets
 	)
 	{
-	if( ins.empty() || offsets.size() < ins.size() ) return Audio::create_null();
+	if( ins.empty() || offsets.size() != ins.size() + 1 ) return Audio::create_null();
 
 	std::vector<Second> input_lengths;
 	transform( ins, std::back_inserter( input_lengths ), []( const Audio * a ){ return a->get_length(); } );
 
 	// Sum jumps to get mix positions
-	std::vector<Second> start_times = { offsets[0] };
+	std::vector<Second> start_times = { 0 };
 	for( int i = 0; i < input_lengths.size()-1; ++i )
 		start_times.push_back( start_times.back() + input_lengths[i] + offsets[i+1] );
 
@@ -255,7 +255,7 @@ Audio Audio::join(
 	Second offset 
 	)
 	{
-	return Audio::join( ins, std::vector<Second>( offset, ins.size() ) );
+	return Audio::join( ins, std::vector<Second>( ins.size(), offset ) );
 	}
 
 Audio Audio::join( 

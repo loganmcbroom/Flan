@@ -123,7 +123,7 @@ public:
 		Interval I = Interval( 0, -1 ), 
 		Pixel width = -1, 
 		Pixel height = -1, 
-		Graph::WaveformMode mode = Graph::WaveformMode::Direct,
+		Graph::WaveformMode mode = Graph::WaveformMode::Symmetric,
 		float timeline_scale = 0 
 		) const;
 
@@ -391,12 +391,14 @@ public:
 		) const;
 
 	Audio remove_edge_silence( 
-		Amplitude non_silent_level 
+		Amplitude non_silent_level,
+		Second fade_time = 0
 		) const;
 
 	Audio remove_silence(
 		Amplitude non_silent_level,
-		Second minimum_gap
+		Second minimum_gap,
+		Second fade_in_time = 0
 		) const;
 
 	/** This reverses the Audio.
@@ -635,8 +637,8 @@ public:
 	Audio apply_ar_envelope(
 		Second attack_time,
 		Second release_time,
-		float attack_exponent,
-		float release_exponent
+		float attack_exponent = 1,
+		float release_exponent = 1
 		) const;
 
 	//============================================================================================================================================================
@@ -873,8 +875,7 @@ public:
 
 	/** This joins all input Audio tip to tail in the order they were passed.
 	 *	\param ins The Audio to join.
-	 *	\param offset The amount of time away from the natural join position each input should be. For example, using a negative offset
-	 *		along with fading the inputs can be used to crossfade.
+	 *	\param offset 
 	 */
 	static Audio join( 
 		const std::vector<const Audio *> & ins, 
@@ -893,7 +894,7 @@ public:
 		{
 		std::vector<const Audio *> p_ins;
 		( p_ins.push_back( &ins ), ... ); // Fold expression
-		return join( p_ins );
+		return Audio::join( p_ins );
 		}
 
 	/** At each point in time, selection decides which of the input Audio streams is playing.
