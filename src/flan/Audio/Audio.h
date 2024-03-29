@@ -975,8 +975,8 @@ public:
 			{ 
 			return 1.0f / std::sqrt(pi2) * std::exp( -0.5f * std::pow( x, 2.0f ) );
 			},
-		const int fundamental_power = 8,
-		const int spectrum_size_power = 20,
+		int fundamental_power = 8,
+		int spectrum_size_power = 20,
         Second granularity = 0.001f
 		);
 

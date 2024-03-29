@@ -69,8 +69,8 @@ Audio Audio::synthesize_spectrum(
 	const Function<Harmonic, Frequency> & spread,
 	const Function<Harmonic, Amplitude> & harmonic_scale,
 	const Function<Second, Amplitude> & distribution,
-	const int fundamental_power,
-	const int spectrum_size_power,
+	int fundamental_power,
+	int spectrum_size_power,
 	Second granularity_time
 	)
 	{
