@@ -8,7 +8,7 @@
 namespace flan {
 
 /** Function type exclusive to PV::prism. 
-*  The identity PrismFunc is []( int n, Second t, int h, Frequency f, const std::vector<Magnitude> & hM ){ return MF{ hM[h], f }; }
+*  The identity PrismFunc is []( int n, Second t, Harmonic h, Frequency f, const std::vector<Magnitude> & hM ){ return MF{ hM[h], f }; }
 */
 class PrismFunc {
 public:

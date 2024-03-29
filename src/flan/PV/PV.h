@@ -188,7 +188,7 @@ public:
 		) const;
 
 	/** Prism, in theory, allows complete control over the frequency and magnitude of every harmonic of every note in the input.
-	 *  \param harmonic_function This takes the global or local time (see use_local_contour_time), the harmonic index (starting at 0), the base frequency and the 
+	 *  \param harmonic_function This takes the global or local time (see use_local_contour_time), the harmonic index (starting at 1), the base frequency and the 
 	 *  	magnitudes of all harmonics. It should return the MF that the input harmonic should be modified to. This function type is defined in Function.h.
 	 *  \param use_local_contour_time This decides if the time passed to harmonic_function should be the time elapsed since the start of the PV (false), or the start of the contour (true).
 	 */
@@ -366,7 +366,7 @@ public:
 	static PV synthesize( 
 		Second length, 
 		const Function<Second, Frequency> & freq, 
-		const Function<std::pair<Second, Harmonic>, Magnitude> & harmonic_weights = []( std::pair<Second, Harmonic> sh ){ return 1.0f / ( 1.0f + sh.second ); },
+		const Function<std::pair<Second, Harmonic>, Magnitude> & harmonic_weights = []( std::pair<Second, Harmonic> sh ){ return 1.0f / sh.second; },
 		const Function<Second, Frequency> & harmonic_bandwidth = 60,
 		const Function<TF, Frequency> & harmonic_frequency_std_dev = 0
 		);
@@ -378,14 +378,14 @@ public:
 	//============================================================================================================================================================
 
 	/** For all frequencies, every octave above it is set to a copy of the base, scaled by series_scale
-	 *	\param series_scale The scaling function. The inputs to this are time and harmonic index starting at 0.
+	 *	\param series_scale The scaling function. The inputs to this are time and harmonic index starting at 1.
 	 */
 	PV add_octaves( 
 		const Function<std::pair<Second, Harmonic>, float> & series_scale 
 		) const;
 
 	/** For all frequencies, every harmonic above it is set to a copy of the base, scaled by series_scale
-	 *	\param series_scale The scaling function. The inputs to this are time and harmonic index starting at 0.
+	 *	\param series_scale The scaling function. The inputs to this are time and harmonic index starting at 1.
 	 */
 	PV add_harmonics( 
 		const Function<std::pair<Second, Harmonic>, float> & series_scale 

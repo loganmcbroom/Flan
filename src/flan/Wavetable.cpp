@@ -284,7 +284,7 @@ Audio Wavetable::synthesize(
 	const ExecutionPolicy lowest_policy = lowest_execution( freq, ratio );
 
 	//for( Channel channel = 0; channel < table.get_num_channels(); ++channel )
-	flan::for_each_i( table.get_num_channels(), ExecutionPolicy::Linear_Sequenced, [&]( Channel channel )
+	flan::for_each_i( table.get_num_channels(), lowest_policy, [&]( Channel channel )
 		{
 		// Resampler setup
 		WDL_Resampler rs;

@@ -6,6 +6,7 @@
 #include <numeric>
 #include <ranges>
 
+#include "flan/FFTHelper.h"
 #include "flan/Utility/buffer_access.h"
 #include "flan/WindowFunctions.h"
 
@@ -306,7 +307,7 @@ PV PV::synthesize(
 		{
 		const Harmonic num_harmonics_on_frame = num_harmonics_per_frame[frame];
 		for( Harmonic harmonic = 0; harmonic < num_harmonics_on_frame; ++harmonic )
-			harmonic_weight_sampled[harmonic_buffer_position( frame, harmonic )] = harmonic_weights( { out.frame_to_time( frame ), harmonic } );
+			harmonic_weight_sampled[harmonic_buffer_position( frame, harmonic )] = harmonic_weights( { out.frame_to_time( frame ), harmonic+1 } );
 		}
 
 	auto harmonic_bandwidth_sampled = out.sample_function_over_time_domain( harmonic_bandwidth );
@@ -383,7 +384,7 @@ static PV harmonic_scaler(
 				
 				for( Harmonic harmonic = 0; harmonic < num_harmonics; ++harmonic )
 					{
-					const Frequency harmonic_frequency = harmonic_func( source.f, harmonic );
+					const Frequency harmonic_frequency = harmonic_func( source.f, harmonic+1 );
 					const Bin harmonic_bin = me.frequency_to_bin( harmonic_frequency );
 					if( harmonic_bin >= me.get_num_bins() ) break;
 

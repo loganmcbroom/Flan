@@ -73,13 +73,13 @@ public:
     /** Generate Audio.
      * \param length The output length.
      * \param freq The output frequency over time.
-     * \param index The waveform to read from. Values from zero to one will read from the start to the end of the table.
+     * \param ratio The waveform to read from. Values from zero to one will read from the start to the end of the table.
      * \param granularity The time between input function evaluations.
      */
     Audio synthesize( 
         Second length, 
         const Function<Second, Frequency> & freq, 
-        const Function<Second, Waveform> & index,
+        const Function<Second, Waveform> & ratio,
         bool smooth = true, 
         Second granularity = 0.001f, 
         flan_CANCEL_ARG 

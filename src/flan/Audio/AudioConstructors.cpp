@@ -18,6 +18,7 @@ Audio Audio::copy() const
 
 Audio Audio::create_null()
 	{
+	std::cout << "Null Audio created\n";
 	return Audio();
 	}
 
