@@ -8,8 +8,10 @@
 #include <algorithm>
 
 #include "r8brain/CDSPResampler.h"
+#include "WDL/resample.h"
 #include "flan/WindowFunctions.h"
 #include "flan/WindowFunctions.h"
+#include "flan/FFTHelper.h"
 
 #undef min
 #undef max
@@ -58,6 +60,120 @@ Audio Audio::synthesize_waveform(
 	r8b::CDSPResampler resampler( in_sample_rate, out.get_sample_rate(), wave_samples.size() );
 	resampler.oneshot<float, float>( &wave_samples[0], wave_samples.size(), &out.get_buffer()[0], out.get_buffer().size() );
 
+	return out;
+	}
+
+Audio Audio::synthesize_spectrum(
+	Second length, 
+	const Function<Second, Frequency> & freq,
+	const Function<Harmonic, Frequency> & spread,
+	const Function<Harmonic, Amplitude> & harmonic_scale,
+	const Function<Second, Amplitude> & distribution,
+	const int fundamental_power,
+	const int spectrum_size_power,
+	Second granularity_time
+	)
+	{
+	if( length <= 0 ||
+		fundamental_power <= 0 || 
+		spectrum_size_power <= 0 ||
+		fundamental_power > spectrum_size_power ||
+		granularity_time <= 0 )
+		return Audio::create_null(); 
+	
+	if( spectrum_size_power >= 32 )
+		{
+		std::cout << "I limited spectrum_size_power to that people wouldn't accidentally generate gigabytes of spectrum.";
+		return Audio::create_null();
+		}
+
+	const Frequency fundamental = std::pow( 2, fundamental_power );
+	const Frame wavelength = std::pow( 2, spectrum_size_power );
+
+	Audio table = Audio::create_empty_with_frames( wavelength );
+
+	FFTHelper fft( wavelength, false, true, false );
+	std::random_device rd;
+	std::mt19937 rng( rd() );
+
+	auto frequency_to_bin = [&]( Frequency f ) -> fBin { return f / table.get_sample_rate() * float( fft.complex_buffer_size() ); };
+	auto bin_to_frequency = [&]( Bin b ) -> Frequency  { return b * table.get_sample_rate() / float( fft.complex_buffer_size() ); };
+
+	const Harmonic num_harmonics = std::ceil( bin_to_frequency( fft.complex_buffer_size() ) / fundamental ) + 1;
+
+	// Sample harmonic_scale
+	std::vector<Amplitude> harmonic_scale_sampled( num_harmonics );
+	flan::for_each_i( num_harmonics, harmonic_scale.get_execution_policy(), [&]( Harmonic h ){ harmonic_scale_sampled[h] = harmonic_scale(h+1); } );
+
+	// Sample spread
+	std::vector<Amplitude> spread_sampled( num_harmonics );
+	flan::for_each_i( num_harmonics, spread.get_execution_policy(), [&]( Harmonic h ){ spread_sampled[h] = spread(h+1); } );
+
+	flan::for_each_i( fft.complex_buffer_size(), distribution.get_execution_policy(), [&]( Bin bin )
+		{
+		const Frequency freq_c = bin_to_frequency( bin );
+		const int harmonic = std::round( freq_c/fundamental );
+		if( harmonic == 0 ) return;
+
+		const Frequency harmonic_frequency = fundamental*harmonic;
+
+		const float epsilon = 0.001;
+		const float mean = harmonic_frequency;
+		const float sd = spread_sampled[ harmonic-1 ];
+		const float x = bin_to_frequency( bin );
+		const Magnitude r = ( sd <= epsilon? x : distribution( (x - mean)/sd ) / sd ) * harmonic_scale_sampled[harmonic-1];
+
+		const Radian theta = std::uniform_real_distribution( 0.0f, pi2 )( rng );
+
+		fft.get_complex_buffer()[bin] = std::polar( r, theta );
+		} );
+
+	fft.c2r_execute();
+
+	std::copy( fft.real_begin(), fft.real_begin() + table.get_num_frames(), table.get_buffer().begin() );
+
+	//==============================================================================================================================================
+	
+	// Ouput setup
+	Audio::Format format = table.get_format();
+    format.num_frames = table.time_to_frame( length );
+    Audio out( format );
+
+	const Frame granularity = out.time_to_frame( granularity_time );
+
+	flan::for_each_i( table.get_num_channels(), freq.get_execution_policy(), [&]( Channel channel )
+		{
+		// Resampler setup
+		WDL_Resampler rs;
+		rs.SetMode( true, 1, true );
+
+		Frame out_frames_generated = 0;
+		Frame phase_frame = 0;
+		while( out_frames_generated < out.get_num_frames() )
+			{
+			const double in_freq_c = fundamental;
+			const double out_freq_c = freq( out.frame_to_time( out_frames_generated ) );
+			const double freq_scale = out_freq_c / in_freq_c;
+
+			// Current resample setup
+			rs.SetRates( out_freq_c, in_freq_c );
+			WDL_ResampleSample * rsinbuf = nullptr;
+			const Frame wdl_wanted = rs.ResamplePrepare( granularity, 1, &rsinbuf );
+
+			// Copy waveform to wdl
+			for( Frame j = 0; j < wdl_wanted; ++j )
+				{
+				const Sample left_sample  = table.get_sample( channel, ( phase_frame + j ) % wavelength  );
+				rsinbuf[j] = left_sample;
+				}
+					
+			// Resample directly into output buffer and update frame indices.
+			out_frames_generated += rs.ResampleOut( out.get_sample_pointer( channel, out_frames_generated ), 
+				wdl_wanted, out.get_num_frames() - out_frames_generated, 1 );
+			phase_frame = ( phase_frame + wdl_wanted ) % wavelength;
+			}
+		} );
+	
 	return out;
 	}
 

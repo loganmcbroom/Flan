@@ -956,6 +956,30 @@ public:
 		size_t oversample = 16 
 		);
 
+	/** This process generates an Audio given information about the spectral dispersion and amplitude of each harmonic.
+	*  \param length The length of the output.
+	*  \param freq The frequency of the output.
+	*  \param spread The standard deviation of each harmonic peak if using a normal distribution. Scales as a standard deviation would for exotic distributions.
+	*  \param harmonic_scale A scaling factor on each harmonic.
+	*  \param peak_distribution The spectral energy distribution within each harmonic.
+	*  \param fundamental_power Raising two to this power gives the spectral space between harmonics.
+	*  \param spectrum_size_power Raising two to this power gives the total spectrum size. Maximum of 25.
+	*  \param granularity The frequency at which input functions are sampled.
+	*/
+	static Audio synthesize_spectrum(
+		Second length, 
+        const Function<Second, Frequency> & freq,
+		const Function<Harmonic, Frequency> & spread = []( Harmonic h ){ return h; },
+		const Function<Harmonic, Amplitude> & harmonic_scale = []( Harmonic h ){ return 1.0f/std::sqrt(h); },
+		const Function<Second, Amplitude> & peak_distribution = []( float x )
+			{ 
+			return 1.0f / std::sqrt(pi2) * std::exp( -0.5f * std::pow( x, 2.0f ) );
+			},
+		const int fundamental_power = 8,
+		const int spectrum_size_power = 20,
+        Second granularity = 0.001f
+		);
+
 	static Audio synthesize_impulse(
 		Frequency base_freq,
 		Harmonic num_harmonics = std::numeric_limits<Harmonic>::max(),
