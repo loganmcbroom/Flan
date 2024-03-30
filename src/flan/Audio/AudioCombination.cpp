@@ -88,8 +88,10 @@ Audio Audio::mix(
 	std::vector<const Audio *> ins = ins_resampled_container.empty() ? ins_unmatched : get_pointers( ins_resampled_container );
 
 	// If start_times or amplitudes ore too small, fill with 0 and 1
+	if( start_times.size() < ins.size() ) start_times.resize( ins.size() );
+	if( amplitudes.size() < ins.size() ) amplitudes.resize( ins.size() );
 	for( auto _ : iota_view( start_times.size(), ins.size() ) ) start_times.push_back( 0 );
-	for( auto _ : iota_view( amplitudes.size(),  ins.size() ) ) amplitudes .push_back( 1 );
+	for( auto _ : iota_view( amplitudes.size(),  ins.size() ) ) amplitudes.push_back( 1 );
 
 	// Convert start times to frames
 	std::vector<Frame> start_frames;

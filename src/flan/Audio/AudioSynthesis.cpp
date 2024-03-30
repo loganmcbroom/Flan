@@ -68,9 +68,10 @@ Audio Audio::synthesize_spectrum(
 	const Function<Second, Frequency> & freq,
 	const Function<Harmonic, Frequency> & spread,
 	const Function<Harmonic, Amplitude> & harmonic_scale,
-	const Function<Second, Amplitude> & distribution,
+	const Function<Frequency, Amplitude> & distribution,
 	int fundamental_power,
 	int spectrum_size_power,
+	Channel num_channels,
 	Second granularity_time
 	)
 	{
@@ -90,7 +91,7 @@ Audio Audio::synthesize_spectrum(
 	const Frequency fundamental = std::pow( 2, fundamental_power );
 	const Frame wavelength = std::pow( 2, spectrum_size_power );
 
-	Audio table = Audio::create_empty_with_frames( wavelength );
+	Audio table = Audio::create_empty_with_frames( wavelength, num_channels );
 
 	FFTHelper fft( wavelength, false, true, false );
 	std::random_device rd;
@@ -117,10 +118,10 @@ Audio Audio::synthesize_spectrum(
 
 		const Frequency harmonic_frequency = fundamental*harmonic;
 
-		const float epsilon = 0.001;
-		const float mean = harmonic_frequency;
-		const float sd = spread_sampled[ harmonic-1 ];
-		const float x = bin_to_frequency( bin );
+		const Frequency epsilon = 0.001;
+		const Frequency mean = harmonic_frequency;
+		const Frequency sd = spread_sampled[ harmonic-1 ];
+		const Frequency x = bin_to_frequency( bin );
 		const Magnitude r = ( sd <= epsilon? x : distribution( (x - mean)/sd ) / sd ) * harmonic_scale_sampled[harmonic-1];
 
 		const Radian theta = std::uniform_real_distribution( 0.0f, pi2 )( rng );
@@ -141,11 +142,13 @@ Audio Audio::synthesize_spectrum(
 
 	const Frame granularity = out.time_to_frame( granularity_time );
 
-	flan::for_each_i( table.get_num_channels(), freq.get_execution_policy(), [&]( Channel channel )
+	flan::for_each_i( num_channels, freq.get_execution_policy(), [&]( Channel channel )
 		{
 		// Resampler setup
 		WDL_Resampler rs;
 		rs.SetMode( true, 1, true );
+
+		const Frame channel_frame_jump = (float(channel)/num_channels) * wavelength;
 
 		Frame out_frames_generated = 0;
 		Frame phase_frame = 0;
@@ -163,8 +166,8 @@ Audio Audio::synthesize_spectrum(
 			// Copy waveform to wdl
 			for( Frame j = 0; j < wdl_wanted; ++j )
 				{
-				const Sample left_sample  = table.get_sample( channel, ( phase_frame + j ) % wavelength  );
-				rsinbuf[j] = left_sample;
+				const Sample sample = table.get_sample( 0, ( phase_frame + j + channel_frame_jump ) % wavelength );
+				rsinbuf[j] = sample;
 				}
 					
 			// Resample directly into output buffer and update frame indices.
@@ -173,6 +176,8 @@ Audio Audio::synthesize_spectrum(
 			phase_frame = ( phase_frame + wdl_wanted ) % wavelength;
 			}
 		} );
+
+	out.set_volume_in_place( 1 );
 	
 	return out;
 	}
