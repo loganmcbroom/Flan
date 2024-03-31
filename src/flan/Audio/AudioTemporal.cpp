@@ -281,17 +281,12 @@ Audio Audio::iterate(
 	if( mod.is_null() )
 		return Audio::join( std::vector<const Audio *>( n, this ), -crossfade_time );
 
-	// It may be surprising that this has to be linear_sequenced executed. Because a mod could alter the length of
-	// an iteration, we can't know the time that should be passed to each mod call until all the previous mod outputs
-	// are computed. I've considered setting this process up to align the modded outputs to a time grid regardless
-	// of the mod changing iteration lengths, but that's a lot less useful.
+	// If mod changes input lengths, the time passed to mod will be wrong. The alternative is always executing in linear_sequence.
 	std::vector<Audio> this_modifieds( n );
-	Second iteration_start = 0;
-	flan::for_each_i( n, ExecutionPolicy::Linear_Sequenced, [&]( int i )
+	flan::for_each_i( n, feedback? ExecutionPolicy::Linear_Sequenced : mod.get_execution_policy(), [&]( int i )
 		{
 		this_modifieds[i] = i > 0 && feedback ? this_modifieds[i-1].copy() : copy();
-		mod( this_modifieds[i], iteration_start );
-		iteration_start += this_modifieds[i].get_length();
+		mod( this_modifieds[i], i*get_length() );
 		} );
 
 	return Audio::join( this_modifieds, -crossfade_time );

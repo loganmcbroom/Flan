@@ -91,6 +91,10 @@ public:
 	 */
 	bool is_null() const;
 
+	/// @brief Scans all samples for nan or inf.
+	/// @return Returns true if any sample is nan or inf.
+	bool is_nan_or_inf() const;
+
 	//======================================================
 	//	I/O
 	//======================================================

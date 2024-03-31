@@ -41,6 +41,14 @@ bool PVBuffer::is_null() const
 	return buffer.empty() || get_sample_rate() == 0;
 	}
 
+bool PVBuffer::is_nan_or_inf() const
+	{
+	for( auto i = get_buffer().begin(); i != get_buffer().end(); ++i )
+		if( std::isnan( i->m ) || std::isnan( i->f ) || std::isinf( i->m ) || std::isinf( i->f ) )
+			return true;
+	return false;
+	}
+
 // PV-EX structure
 //struct WAVEFORMATPVEX					// 80 bytes
 //	{

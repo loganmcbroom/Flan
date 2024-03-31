@@ -61,8 +61,9 @@ Audio& Audio::set_volume_in_place(
 
 	// Divide by get_max_sample_magnitude to normalize, multiply by level to set
 	const Sample max_mag = get_max_sample_magnitude();
+
 	if( max_mag == 0 ) return *this;
-	else modify_volume_in_place( [&]( float t ){ return level(t) / max_mag; } );
+	else return modify_volume_in_place( [&]( float t ){ return level(t) / max_mag; } );
 	}
 
 Audio Audio::fade( 

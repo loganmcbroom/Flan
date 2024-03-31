@@ -85,15 +85,9 @@ PV Audio::convert_to_ms_PV( Frame window_size, Frame hop, Frame dft_size, flan_C
 
 Audio PV::convert_to_audio( flan_CANCEL_ARG_CPP ) const
 	{
-	for( auto i = get_buffer().begin(); i != get_buffer().end(); ++i )
-		{ 
-		if( std::isnan( i->m ) || std::isnan( i->f ) )
-			{
-			std::cout << "flan::convert_to_audio recieved a nan value. This often happens when dividing by zero in an earlier algorithm.";
-			return Audio::create_null();
-			}
-		}
-	
+	if( is_nan_or_inf() )
+		std::cout << "flan::convert_to_audio recieved a nan or infinite value. This often happens when dividing by zero in an earlier algorithm.";
+
 	AudioBuffer::Format audio_format;
 	audio_format.num_channels = get_num_channels();
 	audio_format.num_frames = get_num_frames() * get_hop_size();

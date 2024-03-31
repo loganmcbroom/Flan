@@ -55,6 +55,14 @@ bool AudioBuffer::is_null() const
 	return buffer.empty() || get_sample_rate() == 0;
 	}
 
+bool AudioBuffer::is_nan_or_inf() const
+	{
+	for( auto i = get_buffer().begin(); i != get_buffer().end(); ++i )
+		if( std::isnan( *i ) || std::isinf( *i ) )
+			return true;
+	return false;
+	}
+
 //======================================================
 //	I/O
 //======================================================
