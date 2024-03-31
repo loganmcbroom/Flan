@@ -88,10 +88,8 @@ Audio Audio::mix(
 	std::vector<const Audio *> ins = ins_resampled_container.empty() ? ins_unmatched : get_pointers( ins_resampled_container );
 
 	// If start_times or amplitudes ore too small, fill with 0 and 1
-	if( start_times.size() < ins.size() ) start_times.resize( ins.size() );
-	if( amplitudes.size() < ins.size() ) amplitudes.resize( ins.size() );
-	for( auto _ : iota_view( start_times.size(), ins.size() ) ) start_times.push_back( 0 );
-	for( auto _ : iota_view( amplitudes.size(),  ins.size() ) ) amplitudes.push_back( 1 );
+	if( start_times.size() < ins.size() ) start_times.resize( ins.size(), 0 );
+	if( amplitudes.size() < ins.size() ) amplitudes.resize( ins.size(), 1 );
 
 	// Convert start times to frames
 	std::vector<Frame> start_frames;
@@ -216,7 +214,7 @@ Audio& Audio::mix_in_place(
 	const Function<Second, Amplitude> & other_amplitude 
 	)
 	{
-	const Audio resampled =	get_sample_rate() == other.get_sample_rate() ? Audio::create_null() : other.resample( get_sample_rate() );
+	const Audio resampled =	get_sample_rate() == other.get_sample_rate() ? Audio() : other.resample( get_sample_rate() );
 	const Audio * sr_correct_source = get_sample_rate() == other.get_sample_rate() ? &other : &resampled;
 
 	const Channel num_channels = std::min( get_num_channels(), sr_correct_source->get_num_channels() );
@@ -257,7 +255,7 @@ Audio Audio::join(
 	Second offset 
 	)
 	{
-	return Audio::join( ins, std::vector<Second>( ins.size(), offset ) );
+	return Audio::join( ins, std::vector<Second>( ins.size() + 1, offset ) );
 	}
 
 Audio Audio::join( 

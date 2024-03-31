@@ -971,12 +971,13 @@ public:
         const Function<Second, Frequency> & freq,
 		const Function<Harmonic, Frequency> & spread = []( Harmonic h ){ return h; },
 		const Function<Harmonic, Amplitude> & harmonic_scale = []( Harmonic h ){ return 1.0f/std::sqrt(h); },
-		const Function<Second, Amplitude> & peak_distribution = []( float x )
+		const Function<Frequency, Amplitude> & peak_distribution = []( Frequency x )
 			{ 
 			return 1.0f / std::sqrt(pi2) * std::exp( -0.5f * std::pow( x, 2.0f ) );
 			},
 		int fundamental_power = 8,
 		int spectrum_size_power = 20,
+		Channel num_channels = 2,
         Second granularity = 0.001f
 		);
 
