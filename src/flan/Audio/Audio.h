@@ -4,6 +4,7 @@
 #include "flan/Audio/AudioMod.h"
 #include "flan/Utility/Interpolator.h"
 #include "flan/Utility/Interval.h"
+#include "flan/Utility/vec3.h"
 #include "flan/Function.h"
 
 namespace flan {
@@ -656,7 +657,8 @@ public:
 	// Audio pan( Function<Second,vec2> pan_position, Function<Second, vec2> listenerPosition, std::vector<vec2> speakerPositions, bool haasEffect = false ) const;
 
 	Audio stereo_spatialize( 
-		const Function<Second, vec2> & position 
+		const Function<Second, vec2> & position,
+		bool apply_atmospheric_dispersion = false
 		) const;
 
 	/** This spatially repositions the input for mono and stereo inputs. Stereo speakers are assumed form an equilateral trangle with side
@@ -954,6 +956,17 @@ public:
 		const Function<Second, Frequency> & freq, 
 		FrameRate sample_rate = 48000, 
 		size_t oversample = 16 
+		);
+
+	static Audio synthesize_white_noise(
+		Second length,
+		FrameRate sample_rate = 48000, 
+		size_t oversample = 16 
+		);
+
+	static Audio synthesize_pink_noise(
+		Second length,
+		FrameRate sample_rate = 48000
 		);
 
 	/** This process generates an Audio given information about the spectral dispersion and amplitude of each harmonic.

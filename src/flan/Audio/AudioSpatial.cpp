@@ -77,6 +77,27 @@ angles mixing these signals	sinusoidally as a function of angle. The maximal fil
 	// 	};
 	// auto falloff_filtered = filter_1pole_repeat( falloff_cutoff, 16 );
 
+/* 	More comments? Yes, thanks. I'm back again to update this method into three dimensions, primarily referencing this video
+		https://www.youtube.com/watch?v=iLZBxa3jQe8
+	My previous techniques did not account for ear shape, ground reflections, chest filtering, etc., so I'm doing a rewrite primarily
+	just copying the techniques in that video.
+*/
+
+static Audio apply_pinna_filter( const Audio & me, const Function<Second, Radian> & elevation_angle )
+	{
+	auto main_gain  = [&]( Second t ){ return -5.0f + elevation_angle(t)/pi * 12.0f; };
+	auto thin_gain  = [&]( Second t ){ return main_gain(t) * 0.8f; };
+	auto broad_gain = [&]( Second t ){ return main_gain(t) * 0.1f; };
+
+	// Damping factors are from qr=1/2
+	return me
+		.filter_2pole_bandshelf( 8000, 0.25f, main_gain )  // Main shelf
+		.filter_2pole_bandshelf( 10000, 0.03f, thin_gain )  // Thin shelf
+		.filter_2pole_bandshelf( 3500, 0.7f, broad_gain ); // Broad shelf
+	}
+
+//static Audio floor_bounce
+
 static Audio stereo_spatialize_constant( 
 	const Audio & me,
 	vec2 position 
@@ -136,7 +157,8 @@ static Audio stereo_spatialize_constant(
 	}
 
 Audio Audio::stereo_spatialize( 
-	const Function<Second, vec2> & position 
+	const Function<Second, vec2> & position,
+	bool apply_atmospheric_dispersion
 	) const
 	{
 	if( position.is_constant() )

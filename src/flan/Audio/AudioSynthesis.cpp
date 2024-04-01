@@ -63,6 +63,73 @@ Audio Audio::synthesize_waveform(
 	return out;
 	}
 
+Audio Audio::synthesize_white_noise(
+	Second length,
+	FrameRate sample_rate,
+	size_t oversample 
+	)
+	{
+	std::random_device rd;
+	std::mt19937 rng( rd() );
+	std::uniform_real_distribution<> dis( -1.0f, 1.0f );
+
+	Audio out = Audio::create_empty_with_length( length, 1, sample_rate * oversample );
+	for( Frame frame = 0; frame < out.get_num_frames(); ++frame )
+		out.get_sample( 0, frame ) = dis( rng );
+
+	return out.resample( sample_rate );
+	}
+
+// This is based on the work of Phil Burk, as seen here: https://www.firstpr.com.au/dsp/pink-noise/phil_burk_19990905_patest_pink.c
+Audio Audio::synthesize_pink_noise( 
+	Second length,
+	FrameRate sample_rate )
+	{
+	const int num_rows = 30;
+	const int random_bits = 24;
+	const int random_shift = sizeof(long)*8 - random_bits; // The compliment of random_bits
+	const float scalar = ( num_rows + 1 ) * ( 1 << (random_bits-1) );
+
+	auto is_even = []( int n ){ return ( n & 1 ) == 0; };
+	auto generate_random_long = [=]()
+		{
+		static unsigned long randSeed = 22222; 
+		randSeed = (randSeed * 196314165) + 907633515;
+		return ( (long)randSeed ) >> random_shift; // Only the 24 low bits are random
+		};
+
+	Audio out = Audio::create_empty_with_length( length );
+
+	long running_sum = 0;
+	std::vector<long> rows( num_rows, 0 );
+	for( Frame frame = 0; frame < out.get_num_frames(); ++frame )
+		{
+		const int index = frame % rows.size();
+
+		if( index != 0 )
+			{
+			int num_zeros = 0;
+			int n = index;
+			while( is_even( n ) )
+				{
+				n = n >> 1;
+				num_zeros++;
+				}
+
+			running_sum -= rows[num_zeros];
+			const long new_random = generate_random_long();
+			running_sum += new_random;
+			rows[num_zeros] = new_random;
+			}
+		
+		const long sum = running_sum + generate_random_long();
+
+		out.get_sample( 0, frame ) = sum / scalar;
+		}
+
+	return out;
+	}
+
 Audio Audio::synthesize_spectrum(
 	Second length, 
 	const Function<Second, Frequency> & freq,
