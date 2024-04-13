@@ -45,16 +45,13 @@ Audio Audio::synthesize_waveform(
 	auto frequency_sampled = freq.sample( 0, num_in_frames, 1.0f / in_sample_rate );
 
 	// Get the phases that wave_samples needs to be evaluated at
-	std::vector<float> phases( frequency_sampled.size() );
-	std::exclusive_scan( FLAN_PAR_UNSEQ frequency_sampled.begin(), frequency_sampled.end(), phases.begin(), 0.0f, [&]( float a, float b ) -> float { 
-		return std::fmod( a + b, in_sample_rate ); } ); // Modular sum is associative, prefer exclusive_scan over partial_sum
-	std::for_each( FLAN_PAR_UNSEQ phases.begin(), phases.end(), [&]( float & phase ){ phase /= in_sample_rate; } ); // freq sum -> phase
+	// Modular sum is associative, prefer exclusive_scan over partial_sum
+	FunctionSample<float> phases = frequency_sampled.exclusive_scan( 0.0f );
+	phases.for_each( [&]( float & phase ){ phase = std::fmod( phase / in_sample_rate, 1.0f ); } ); // freq sum -> phase
 
-	// Evaluate wave at phases using wave execution policy
+	// Evaluate wave at phases
 	std::vector<float> wave_samples( phases.size() );
-	runtime_execution_policy_handler( wave.get_execution_policy(), [&]( auto policy ){
-		std::transform( FLAN_POLICY phases.begin(), phases.end(), wave_samples.begin(), [&]( const float phase ){ return wave( phase ); } );
-		} );
+	flan::for_each_i( wave_samples.size(), wave.get_execution_policy(), [&]( Frame i ){ wave_samples[i] = wave( phases[i] ); } );
 
 	// Downsample to requested sample rate
 	r8b::CDSPResampler resampler( in_sample_rate, out.get_sample_rate(), wave_samples.size() );
@@ -83,49 +80,58 @@ Audio Audio::synthesize_white_noise(
 // This is based on the work of Phil Burk, as seen here: https://www.firstpr.com.au/dsp/pink-noise/phil_burk_19990905_patest_pink.c
 Audio Audio::synthesize_pink_noise( 
 	Second length,
-	FrameRate sample_rate )
+	FrameRate sample_rate,
+	int num_rows )
 	{
-	const int num_rows = 30;
-	const int random_bits = 24;
-	const int random_shift = sizeof(long)*8 - random_bits; // The compliment of random_bits
-	const float scalar = ( num_rows + 1 ) * ( 1 << (random_bits-1) );
+	num_rows = std::max( num_rows, 1 ); 
 
-	auto is_even = []( int n ){ return ( n & 1 ) == 0; };
-	auto generate_random_long = [=]()
+	/* This converts a frame to a row in this pattern, with frame/row axes:
+                     x  	
+             x               x               
+         x       x       x       x       
+       x   x   x   x   x   x   x   x   
+      x x x x x x x x x x x x x x x x 
+	*/
+	auto get_row = []( Frame index )
 		{
-		static unsigned long randSeed = 22222; 
-		randSeed = (randSeed * 196314165) + 907633515;
-		return ( (long)randSeed ) >> random_shift; // Only the 24 low bits are random
+		int num_zeros = 0;
+		int n = index;
+		while( (n & 1) == 0 )
+			{
+			n = n >> 1;
+			num_zeros++;
+			}
+		return num_zeros;
 		};
+
+	std::random_device rd;
+	std::mt19937 rng( rd() );
+	std::uniform_real_distribution<> dis( -1.0f, 1.0f );
 
 	Audio out = Audio::create_empty_with_length( length );
 
-	long running_sum = 0;
-	std::vector<long> rows( num_rows, 0 );
+	float running_sum = 0;
+	std::vector<float> rows( num_rows, 0 );
 	for( Frame frame = 0; frame < out.get_num_frames(); ++frame )
 		{
 		const int index = frame % rows.size();
 
 		if( index != 0 )
 			{
-			int num_zeros = 0;
-			int n = index;
-			while( is_even( n ) )
-				{
-				n = n >> 1;
-				num_zeros++;
-				}
-
-			running_sum -= rows[num_zeros];
-			const long new_random = generate_random_long();
+			const int row = get_row( index );
+			
+			const float new_random = dis( rng );
+			running_sum -= rows[row];
 			running_sum += new_random;
-			rows[num_zeros] = new_random;
+			rows[row] = new_random;
 			}
 		
-		const long sum = running_sum + generate_random_long();
+		const float sum = running_sum + dis( rng );
 
-		out.get_sample( 0, frame ) = sum / scalar;
+		out.get_sample( 0, frame ) = sum;
 		}
+
+	out.set_volume_in_place( 1 );
 
 	return out;
 	}
@@ -299,16 +305,10 @@ std::vector<Second> integrate_event_rate(
 	const Frame length_frames = length * sample_rate;
 
 	auto events_per_second_sampled = events_per_second.sample( 0, length_frames, 1.0f / sample_rate );
-	std::for_each( events_per_second_sampled.begin(), events_per_second_sampled.end(), []( float & eps )
-		{ 
-		eps = std::max( 0.0f, eps );
-		} );
+	events_per_second_sampled.for_each( []( float & eps ) { eps = std::max( 0.0f, eps ); } );
 
 	auto scatter_sampled = scatter.sample( 0, length_frames, 1.0f / sample_rate );
-	std::for_each( scatter_sampled.begin(), scatter_sampled.end(), []( float & scatter )
-		{ 
-		scatter = std::max( 0.0f, scatter );
-		} );
+	scatter_sampled.for_each( []( float & scatter ) { scatter = std::max( 0.0f, scatter ); } );
 
 	// Generate unscattered events by integrating eventsPerFrame
 	// When the integral passes an integer, an event occurs
