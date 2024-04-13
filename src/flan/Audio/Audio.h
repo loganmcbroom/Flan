@@ -4,7 +4,7 @@
 #include "flan/Audio/AudioMod.h"
 #include "flan/Utility/Interpolator.h"
 #include "flan/Utility/Interval.h"
-#include "flan/Utility/vec3.h"
+#include "flan/Utility/vec2.h"
 #include "flan/Function.h"
 
 namespace flan {
@@ -31,18 +31,10 @@ public:
 	template<typename... Ts>
 	using AllAudios = typename std::enable_if_t<std::conjunction_v< std::is_convertible<Ts, const Audio &>... >>;
 
-	template<typename T>
-	std::vector<T> sample_function_over_domain( const Function<Second, T> & f ) const	
+	template<typename O>
+	FunctionSample<O> sample_function_over_domain( const Function<Second, O> & f ) const	
 		{
-		std::vector<T> out( get_num_frames() );
-		runtime_execution_policy_handler( f.get_execution_policy(), [&]( auto policy )
-			{
-			std::for_each( FLAN_POLICY iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
-				{
-				out[frame] = f( frame_to_time( frame ) );
-				} );
-			} );
-		return out;
+		return f.sample( 0, get_num_frames(), 1.0f / get_sample_rate() );
 		}
 
 	//============================================================================================================================================================
@@ -656,9 +648,12 @@ public:
 	//  */
 	// Audio pan( Function<Second,vec2> pan_position, Function<Second, vec2> listenerPosition, std::vector<vec2> speakerPositions, bool haasEffect = false ) const;
 
+	/// @brief This uses a bunch of psychoacoustic techniques to give a 3d spatial postion to a mono input.
+	/// @param position Where the sound lives over time.
+	/// @return 
 	Audio stereo_spatialize( 
 		const Function<Second, vec2> & position,
-		bool apply_atmospheric_dispersion = false
+		Meter head_width = 0.18f
 		) const;
 
 	/** This spatially repositions the input for mono and stereo inputs. Stereo speakers are assumed form an equilateral trangle with side
@@ -966,7 +961,8 @@ public:
 
 	static Audio synthesize_pink_noise(
 		Second length,
-		FrameRate sample_rate = 48000
+		FrameRate sample_rate = 48000,
+		int num_rows = 128
 		);
 
 	/** This process generates an Audio given information about the spectral dispersion and amplitude of each harmonic.

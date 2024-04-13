@@ -116,7 +116,8 @@ Audio base_filter_1pole_selector(
 	size_t i
 	)
 	{
-	const auto cutoff_sampled = me.sample_function_over_domain( cutoff );
+	auto cutoff_sampled = me.sample_function_over_domain( cutoff );
+	cutoff_sampled.for_each( [&]( auto & c ){ c = std::clamp( c, 1.0f, me.get_sample_rate()/2.0f ); } );
 
 	Audio out( me.get_format() );
 	for( Channel channel = 0; channel < me.get_num_channels(); ++channel )
@@ -288,6 +289,7 @@ Audio filter_1pole_repeat_base(
 	Audio out( me.get_format() );
 
 	auto cutoff_sampled = me.sample_function_over_domain( cutoff );
+	cutoff_sampled.for_each( [&]( auto & c ){ c = std::clamp( c, 1.0f, me.get_sample_rate()/2.0f ); } );
 
 	for( Channel channel = 0; channel < me.get_num_channels(); ++channel )
 		{
@@ -337,7 +339,8 @@ Audio base_filter_1pole_butterworth_selector(
 
 	const std::vector<Pole> poles = generate_butterworth_type1_poles( order );
 
-	const auto cutoff_sampled = me.sample_function_over_domain( cutoff );
+	auto cutoff_sampled = me.sample_function_over_domain( cutoff );
+	cutoff_sampled.for_each( [&]( auto & c ){ c = std::clamp( c, 1.0f, me.get_sample_rate()/2.0f ); } );
 
 	Audio out( me.get_format() );
 
@@ -395,7 +398,9 @@ std::vector<Audio> Audio::filter_1pole_split(
 	*/
 
 	// Classic janky forced single call for functional input
-	const auto cutoff_sampled = sample_function_over_domain( cutoff );
+	auto cutoff_sampled = sample_function_over_domain( cutoff );
+	cutoff_sampled.for_each( [&]( auto & c ){ c = std::clamp( c, 1.0f, get_sample_rate()/2.0f ); } );
+	
 	auto cutoff_no_resample_func = [&]( Second t ){ return cutoff_sampled[time_to_frame( t )]; };
 
 	if( order <= 1 )
@@ -444,7 +449,8 @@ Audio base_filter_1pole_butterworth_tilt(
 
 	const std::vector<Pole> poles = generate_butterworth_type1_poles( order );
 
-	const auto cutoff_sampled = me.sample_function_over_domain( cutoff );
+	auto cutoff_sampled = me.sample_function_over_domain( cutoff );
+	cutoff_sampled.for_each( [&]( auto & c ){ c = std::clamp( c, 1.0f, me.get_sample_rate()/2.0f ); } );
 	const auto gain_sampled = me.sample_function_over_domain( gain );
 
 	Audio out( me.get_format() );
@@ -524,7 +530,8 @@ Audio base_filter_2pole_butterworth_selector(
 
 	const std::vector<Pole> poles = generate_butterworth_type1_poles( order );
 
-	const auto cutoff_sampled = me.sample_function_over_domain( cutoff );
+	auto cutoff_sampled = me.sample_function_over_domain( cutoff );
+	cutoff_sampled.for_each( [&]( auto & c ){ c = std::clamp( c, 1.0f, me.get_sample_rate()/2.0f ); } );
 	const auto damping_sampled = me.sample_function_over_domain( damping );
 
 	Audio out( me.get_format() );
@@ -636,9 +643,8 @@ Audio base_filter_2pole_butterworth_tilt(
 	const std::vector<Pole> poles = generate_butterworth_type1_poles( order );
 
 	// Sampling inputs, some requiring manual sampling due to the unusual function signature
-	const std::vector<Decibel> gain_sampled = me.sample_function_over_domain( gain );
-	std::vector<Amplitude> Ms( gain_sampled.size() );
-	std::transform( gain_sampled.begin(), gain_sampled.end(), Ms.begin(), [&]( Decibel dB ){ return decibel_to_amplitude( dB / ( 2 * order ) ); } );
+	const FunctionSample<Decibel> gain_sampled = me.sample_function_over_domain( gain );
+	const FunctionSample<Amplitude> Ms = gain_sampled.transform( [&]( Decibel dB ){ return decibel_to_amplitude( dB / ( 2 * order ) ); } );
 	std::vector<Frequency> cutoff_sampled( me.get_num_frames() );
 	std::vector<float> damping_sampled( me.get_num_frames() );
 	for( Frame frame = 0; frame < me.get_num_frames(); ++frame )
@@ -799,7 +805,8 @@ Audio filter_1pole_allpass_n(
 	uint16_t order
 	)
 	{
-	const auto cutoff_sampled = me.sample_function_over_domain( cutoff );
+	auto cutoff_sampled = me.sample_function_over_domain( cutoff );
+	cutoff_sampled.for_each( [&]( auto & c ){ c = std::clamp( c, 1.0f, me.get_sample_rate()/2.0f ); } );
 
 	Audio allpass = Audio::create_from_format( me.get_format() );
 
@@ -845,7 +852,8 @@ Audio filter_2pole_allpass_n(
 	uint16_t order
 	)
 	{
-	const auto cutoff_sampled = me.sample_function_over_domain( cutoff );
+	auto cutoff_sampled = me.sample_function_over_domain( cutoff );
+	cutoff_sampled.for_each( [&]( auto & c ){ c = std::clamp( c, 1.0f, me.get_sample_rate()/2.0f ); } );
 	const auto damping_sampled = me.sample_function_over_domain( damping );
 
 	Audio allpass = Audio::create_from_format( me.get_format() );
@@ -907,7 +915,8 @@ Audio Audio::filter_comb(
 
 	const int f = invert? -1 : 1;
 
-	const auto cutoff_sampled = sample_function_over_domain( cutoff );
+	auto cutoff_sampled = sample_function_over_domain( cutoff );
+	cutoff_sampled.for_each( [&]( auto & c ){ c = std::clamp( c, 1.0f, get_sample_rate()/2.0f ); } );
 	const auto wet_dry_sampled = sample_function_over_domain( wet_dry );
 	const auto feedback_sampled = sample_function_over_domain( feedback );
 

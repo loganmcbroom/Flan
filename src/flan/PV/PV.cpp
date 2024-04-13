@@ -284,7 +284,7 @@ PV PV::synthesize(
 
 	// Sample frequency and only allow frequencies above min_frequency
 	auto frequency_sampled = freq.sample( 0, out.time_to_frame( length ), out.frame_to_time( 1 ) );
-	std::for_each( frequency_sampled.begin(), frequency_sampled.end(), [&]( Frequency & f ){ f = std::max( f, min_frequency ); } );
+	frequency_sampled.for_each( [&]( Frequency & f ){ f = std::max( f, min_frequency ); } );
 
 	// Get number of harmonics per frame
 	std::vector<Harmonic> num_harmonics_per_frame( out.get_num_frames() );
@@ -545,8 +545,8 @@ PV PV::shape( const Function<MF,MF> & shaper, bool use_shift_alignment ) const
 PV predicateNLoudestPartials( const PV & me, const Function<Second, Bin> & num_bins, std::function< bool (Bin, Bin) > predicate )
 	{
 	// Input validation
-	auto num_binsSamples = num_bins.sample( 0, me.get_num_frames(), me.frame_to_time( 1 ) );
-	std::ranges::for_each( num_binsSamples, [&]( Bin & b ){ b = std::clamp( b, 0, me.get_num_frames() ); } );
+	auto num_bins_sampled = num_bins.sample( 0, me.get_num_frames(), me.frame_to_time( 1 ) );
+	num_bins_sampled.for_each( [&]( Bin & b ){ b = std::clamp( b, 0, me.get_num_frames() ); } );
 
 	PV out( me.get_format() );
 	out.clear_buffer();
@@ -570,7 +570,7 @@ PV predicateNLoudestPartials( const PV & me, const Function<Second, Bin> & num_b
 				{
 				const Bin actualBin = indexAndVolumes[bin].first;
 				const MF currentMF = me.get_MF( channel, frame, actualBin );
-				if( predicate( bin, num_binsSamples[frame] ) )
+				if( predicate( bin, num_bins_sampled[frame] ) )
 					out.set_MF( channel, frame, actualBin, currentMF );
 				else
 					out.set_MF( channel, frame, actualBin, { 0.0, currentMF.f } );

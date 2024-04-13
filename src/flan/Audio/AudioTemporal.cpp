@@ -212,13 +212,13 @@ Audio Audio::repitch( const Function<Second, float> & factor, Second granularity
 
 	// This will be inverted momentarily, hence the name
 	auto factor_sampled_inverted = factor.sample( 0, std::ceil( get_num_frames() / float( granularity_in_frames ) ), granularity_in_seconds );
-	std::for_each( FLAN_PAR_UNSEQ factor_sampled_inverted.begin(), factor_sampled_inverted.end(), []( float & sample ){
+	factor_sampled_inverted.for_each( []( float & sample ){
 		constexpr float bound = 1000.0f; // Arbitrary
 		sample = std::clamp( 1.0f / sample, 1.0f / bound, bound ); 
 		} );
 
 	// Estimate output length
-	const Frame num_out_frames = std::ceil( std::accumulate( factor_sampled_inverted.begin(), factor_sampled_inverted.end(), 0.0f ) * granularity_in_frames );
+	const Frame num_out_frames = std::ceil( factor_sampled_inverted.accumulate() * granularity_in_frames );
 
 	auto format = get_format();
 	format.num_frames = num_out_frames;

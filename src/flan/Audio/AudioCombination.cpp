@@ -161,7 +161,7 @@ Audio Audio::mix_variable_gain(
 	// Sample each function, if there aren't enough use constant 1
 	// We only sample the gains when they are needed, but because these functions are relative to global time 0, we need to be 
 	// careful later when accessing them
-	std::vector<std::vector<Amplitude>> amplitude_samples;
+	std::vector<FunctionSample<Amplitude>> amplitude_samples;
 	const Function<Second, Amplitude> level_func = 1;
 	std::transform( iota_iter( 0 ), iota_iter( ins.size() ), std::back_inserter( amplitude_samples ), [&]( Index i ) {
 		const Function<Second, Amplitude> * f = i < amplitudes.size() ? amplitudes[i] : &level_func;

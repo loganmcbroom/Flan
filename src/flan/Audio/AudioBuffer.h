@@ -217,6 +217,10 @@ public:
 
 	inline size_t get_buffer_pos( Channel, Frame ) const;
 
+#if defined(_WIN32) || defined(WIN32)
+	void play() const;
+#endif
+
 private://=================================================================================================
 
 	Format format;

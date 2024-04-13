@@ -4,6 +4,8 @@
 
 using namespace flan; 
 
+static const float sound_mps = 331.29f;
+
 Audio Audio::pan( const Function<Second, float> & pan_amount ) const
 	{
 	if( is_null() ) return Audio::create_null();
@@ -22,7 +24,7 @@ Audio& Audio::pan_in_place( const Function<Second, float> & pan_amount )
 
 	if( get_num_channels() != 2 ) return *this; 
 
-	auto pan_amount_sampled = sample_function_over_domain( pan_amount );
+	const auto pan_amount_sampled = sample_function_over_domain( pan_amount );
 
 	for( Channel channel = 0; channel < 2; ++channel )
 		{
@@ -64,261 +66,215 @@ angles mixing these signals	sinusoidally as a function of angle. The maximal fil
 (3) https://en.wikibooks.org/wiki/Engineering_Acoustics/Outdoor_Sound_Propagation#Attenuation_by_atmospheric_absorption.5B5.5D_.5B6.5D_.5B7.5D
 */
 
-// I'm leaving this comment block here as a reminder that I am out of my mind and need to check my priorities sometimes
-// There will be no atmospheric dispersion filters, why would we need that?
-	// Frequency dependent level falloff over distance is approximated with a cascade of 16 lowpass filters
-	// See https://en.wikibooks.org/wiki/Engineering_Acoustics/Outdoor_Sound_Propagation#Attenuation_by_atmospheric_absorption.5B5.5D_.5B6.5D_.5B7.5D
-	// Through a great deal of experimentation I've found the following IIR filter and cutoff function approximate the correct falloff to an acceptable degree.
-	// This has nearly no effect on close sounds, and for far sounds ear distance is negligable, so we only compute on head center.
-	// auto falloff_cutoff = [&]( Second t )
-	// 	{ 
-	// 	const vec2 position_t = position_sampled[time_to_frame(t)];
-	// 	return std::min( get_sample_rate(), 207365 / std::sqrt( position_t.mag() ) ); 
-	// 	};
-	// auto falloff_filtered = filter_1pole_repeat( falloff_cutoff, 16 );
-
 /* 	More comments? Yes, thanks. I'm back again to update this method into three dimensions, primarily referencing this video
 		https://www.youtube.com/watch?v=iLZBxa3jQe8
 	My previous techniques did not account for ear shape, ground reflections, chest filtering, etc., so I'm doing a rewrite primarily
 	just copying the techniques in that video.
 */
 
-static Audio apply_pinna_filter( const Audio & me, const Function<Second, Radian> & elevation_angle )
+// ITD
+// Note, this process will break if ps moves at or above the speed of sound
+static Audio head_itd( const Audio & me, const FunctionSample<vec2> & positions_sampled )
 	{
-	auto main_gain  = [&]( Second t ){ return -5.0f + elevation_angle(t)/pi * 12.0f; };
-	auto thin_gain  = [&]( Second t ){ return main_gain(t) * 0.8f; };
-	auto broad_gain = [&]( Second t ){ return main_gain(t) * 0.1f; };
-
-	// Damping factors are from qr=1/2
-	return me
-		.filter_2pole_bandshelf( 8000, 0.25f, main_gain )  // Main shelf
-		.filter_2pole_bandshelf( 10000, 0.03f, thin_gain )  // Thin shelf
-		.filter_2pole_bandshelf( 3500, 0.7f, broad_gain ); // Broad shelf
-	}
-
-//static Audio floor_bounce
-
-static Audio stereo_spatialize_constant( 
-	const Audio & me,
-	vec2 position 
-	)
-	{
-	if( me.get_num_channels() != 1 )
+	if( positions_sampled.is_constant() )
 		{
-		std::cout << "Audio::stereo_spatialize only operates on mono inputs." << std::endl;
-		return Audio::create_null();
+		auto p = positions_sampled.get_constant();
+		const Meter dist = p.mag();
+		const Second delay = me.time_to_frame( dist / sound_mps );
+		
+		Audio::Format format;
+		format.sample_rate = me.get_sample_rate();
+		format.num_channels = 1;
+		format.num_frames = me.get_num_frames() + delay;
+		Audio out( format );
+		for( Frame frame = 0; frame < me.get_num_frames(); ++frame ) 
+			out.set_sample( 0, frame + delay, me.get_sample( 0, frame ) );
+		return out;
 		}
 
-	const float sound_mps = 331.29f;
+	auto & ps = positions_sampled.get_vector();
 
-	// Based on a human head being 18cm from ear to ear
-	const vec2 l_ear = { 0.0f,  0.09f };
-	const vec2 r_ear = { 0.0f, -0.09f };
-
-	const Meter l_dist = ( l_ear - position ).mag();
-	const Meter r_dist = ( r_ear - position ).mag();
-	if( l_dist < 0.00001 || r_dist < 0.00001 )
-		return Audio::create_null(); 
-
-	// Frame rounding here can cause around a quarter inch positional descrepency, less than we are concerned with.
-	const Frame l_delay = me.time_to_frame( l_dist / sound_mps );
-	const Frame r_delay = me.time_to_frame( r_dist / sound_mps );
-
-	// ITD
-	Audio::Format buffer_format;
-	buffer_format.sample_rate = me.get_sample_rate();
-	buffer_format.num_channels = 1;
-	buffer_format.num_frames = me.get_num_frames() + std::max( l_delay, r_delay );
-	Audio buffer_l( buffer_format );
-	Audio buffer_r( buffer_format );
-	for( Frame frame = 0; frame < me.get_num_frames(); ++frame ) buffer_l.set_sample( 0, frame + l_delay, me.get_sample( 0, frame ) );
-	for( Frame frame = 0; frame < me.get_num_frames(); ++frame ) buffer_r.set_sample( 0, frame + r_delay, me.get_sample( 0, frame ) );
-	
-	// Level falloff over distance
-	// Signals in a computer have no level unit in terms of the physical world, so I make the arbitrary choice here that a signal
-	// with a level of 1 played 1 meter from an ear will remain at level 1, with an epsilon to avoid infinite gain.
-	buffer_l.modify_volume_in_place( 1.0f / ( l_dist + 0.00001 ) );
-	buffer_r.modify_volume_in_place( 1.0f / ( r_dist + 0.00001 ) );
-
-	// Head ILD
-	auto head_ild_func = [&]( Audio & buffer, Radian direct_angle )
+	// Get the change in distance between the source and reciever on each frame
+	// While we're at it, find out how long the output buffer will need to be
+	Second max_needed_length = 0;
+	std::vector<Meter> relative_distance_change( me.get_num_frames() );
+	Meter previous_distance = ps[0].mag(); // Assume no movement is happening on frame 0
+	for( Frame frame = 0; frame < me.get_num_frames(); ++frame )
 		{
-		const Radian buffer_angle_away_from_direct = std::arg( static_cast<std::complex<float>>( position - l_ear ) ) - direct_angle;
-		const float mix = 0.5f + 0.5f * std::cos( buffer_angle_away_from_direct );
-		buffer = std::move( buffer
-			.filter_1pole_lowpass( 500, 1 )
-			.modify_volume_in_place( 1.0f - mix )
-			.mix_in_place( buffer, 0, mix ) );
-		};
-	head_ild_func( buffer_l,  75 * pi2 / 360.0f );
-	head_ild_func( buffer_r, -75 * pi2 / 360.0f );
+		const Meter current_distance = ps[frame].mag();
+		relative_distance_change[frame] = current_distance - previous_distance;
+		previous_distance = current_distance;
+		
+		const Second frame_recieve_time = me.frame_to_time(frame) + current_distance / sound_mps;
+		if( max_needed_length < frame_recieve_time ) max_needed_length = frame_recieve_time;
+		}
 
-	return Audio::combine_channels( buffer_l, buffer_r );
+	Audio::Format format;
+	format.num_channels = 1;
+	format.num_frames = std::ceil( me.time_to_frame( max_needed_length ) );
+	format.sample_rate = me.get_sample_rate();
+	Audio out( format );
+	out.clear_buffer();
+
+	const Second initial_delay = ps[0].mag() / sound_mps;
+	const Frame initial_delay_frames = me.time_to_frame( initial_delay );
+
+	// Get the time stretch required at each frame
+	std::vector<double> stretches( me.get_num_frames() );
+	for( Frame frame = 0; frame < stretches.size(); ++frame )
+		stretches[frame] = 1.0 - relative_distance_change[frame] / double( sound_mps ) * me.get_sample_rate();
+
+	// The normal repitch would require repeated buffer copies for each section, so we will have to roll our own for this algorithm
+
+	// Estimate output length
+	const Frame num_out_frames = std::ceil( std::accumulate( stretches.begin(), stretches.end(), 0.0f ) );
+	
+	WDL_Resampler rs;
+	rs.SetMode( true,  0, true, 32 ); // Reasonable sinc resampling
+
+	const Frame in_frames = me.get_num_frames();
+	WDL_ResampleSample rs_out_buffer;
+
+	Frame in_frame = 0;
+	Frame out_frame = initial_delay_frames;
+	while( in_frame < me.get_num_frames() )
+		{
+		const double stretch_t = 1.0f / stretches[in_frame];
+		rs.SetRates( me.get_sample_rate(), me.get_sample_rate() * stretch_t );
+		WDL_ResampleSample * rs_in_buffer = nullptr;
+		const Frame wanted = rs.ResamplePrepare( 1, 1, &rs_in_buffer );
+
+		for( Frame frame = 0; frame < wanted; ++frame )
+			{
+			if( in_frame + frame < in_frames )
+				rs_in_buffer[frame] = me.get_sample( 0, in_frame + frame );
+			else
+				rs_in_buffer[frame] = 0.0;
+			}
+
+		// Process
+		rs.ResampleOut( &rs_out_buffer, wanted, 1, 1 );
+
+		// Copy resampled data to output buffer
+		if( out_frame < out.get_num_frames() )
+			out.set_sample( 0, out_frame, rs_out_buffer );
+
+		out_frame += 1;
+		in_frame += wanted;
+		}
+
+	return out;
 	}
 
-Audio Audio::stereo_spatialize( 
+// static Audio pinna_filter( const Audio & me, const std::vector<Radian> & elevation_angles )
+// 	{
+// 	auto main_gain  = [&]( Second t ){ return -5.0f + elevation_angles[me.time_to_frame(t)]/(pi/2) * 10.0f; };
+// 	auto thin_gain  = [&]( Second t ){ return main_gain(t) * 0.8f; };
+// 	auto broad_gain = [&]( Second t ){ return main_gain(t) * 0.1f; };
+
+// 	// Damping factors are from qr=1/2
+// 	return me
+// 		.filter_2pole_bandshelf( 8000, 0.25f, main_gain )  // Main shelf
+// 		.filter_2pole_bandshelf( 10000, 0.03f, thin_gain )  // Thin shelf
+// 		.filter_2pole_bandshelf( 3500, 0.7f, broad_gain ); // Broad shelf
+// 	}
+
+// Frequency dependent level falloff over distance is approximated with a cascade of 16 lowpass filters
+// See https://en.wikibooks.org/wiki/Engineering_Acoustics/Outdoor_Sound_Propagation#Attenuation_by_atmospheric_absorption.5B5.5D_.5B6.5D_.5B7.5D
+// Through a great deal of experimentation I've found the following filter and cutoff function approximate the correct falloff to an acceptable degree.
+static Audio atmospheric_dispersion( const Audio & me, const FunctionSample<vec2> & position_samples )
+	{
+	auto distance_sqrts_sampled = position_samples.transform(
+		[]( vec2 v ) -> Meter { return std::sqrt( v.mag() ); } );
+
+	auto falloff_cutoff = [&]( Second t )
+		{ 
+		const Meter dr = distance_sqrts_sampled[me.time_to_frame( t )];
+		return 207365 / dr; 
+		};
+	return me.filter_1pole_repeat_low( falloff_cutoff, 16 );
+	}
+
+// Level falloff over distance
+// Signals in a computer have no level unit in terms of the physical world, so I make the arbitrary choice here that a signal
+// with a level of 1 played 1 meter from an ear will remain at level 1, with an epsilon to avoid infinite gain.
+// static void falloff( Audio & me, const FunctionSample<vec2> & ps )
+// 	{
+// 	const float epsilon = 0.00001f;
+// 	me.modify_volume_in_place( [&]( Second t )
+// 		{ 
+// 		const Frame frame_t = me.time_to_frame(t);
+// 		const vec2 position_t = ps[frame_t];
+// 		const Meter dist = position_t.mag();
+// 		return 1.0f / ( dist + epsilon ); 
+// 		} );
+// 	}
+
+static Audio head_ild( Audio & me, const FunctionSample<vec2> & ps, Radian direct_angle )
+	{
+	auto mix_sample = ps.transform( [&]( vec2 p )
+		{
+		const vec2 planar_pos = vec2( p.x(), p.y() );
+		const Radian angle_away_from_direct = std::arg( static_cast<std::complex<float>>( planar_pos ) ) - direct_angle;
+		return 0.5f + 0.5f * std::cos( angle_away_from_direct );
+		} );
+
+	auto mix = mix_sample.to_time_function( me.get_sample_rate() );
+
+	return std::move( me
+		.filter_1pole_lowpass( 500, 1 )
+		.modify_volume_in_place( [&]( Second t ){ return 1.0f - mix(t); } )
+		.mix_in_place( me, 0, mix ) );
+	};
+
+Audio Audio::stereo_spatialize(
 	const Function<Second, vec2> & position,
-	bool apply_atmospheric_dispersion
+	Meter head_width
 	) const
 	{
-	if( position.is_constant() )
-		return stereo_spatialize_constant( *this, position( 0 ) );
-
 	if( get_num_channels() != 1 )
 		{
 		std::cout << "Audio::spacialize only operates on mono inputs." << std::endl;
 		return Audio::create_null();
 		}
 
-	const float sound_mps = 331.29f;
-
-	// Based on a human head being 18cm from ear to ear
-	const vec2 l_ear = { 0.0f,  0.09f };
-	const vec2 r_ear = { 0.0f, -0.09f };
-
 	auto position_sampled = sample_function_over_domain( position );
 
-	Audio l_buffer = copy();
-	Audio r_buffer = copy();
-
-	// Level falloff over distance
-	// Signals in a computer have no level unit in terms of the physical world, so I make the arbitrary choice here that a signal
-	// with a level of 1 played 1 meter from an ear will remain at level 1, with an epsilon to avoid infinite gain.
-	l_buffer.modify_volume_in_place( [&]( Second t )
-		{ 
-		const vec2 position_t = position_sampled[time_to_frame(t)];
-		const Meter l_dist = ( l_ear - position_t ).mag();
-		return 1.0f / ( l_dist + 0.00001 ); 
-		} );
-	r_buffer.modify_volume_in_place( [&]( Second t )
-		{ 
-		const vec2 position_t = position_sampled[time_to_frame(t)];
-		const Meter r_dist = ( r_ear - position_t ).mag();
-		return 1.0f / ( r_dist + 0.00001 ); 
-		} );
-
-
-	// Head ILD
-	auto head_ild_func = [&]( Audio & buffer, Radian direct_angle, vec2 ear )
+	// Position needs to be speed limited to just under the speed of sound
+	if( !position.is_constant() )
 		{
-		auto mix = [&]( Second t )
-			{ 
-			const vec2 position_t = position_sampled[time_to_frame(t)];
-			const Radian buffer_angle_away_from_direct = std::arg( static_cast<std::complex<float>>( position_t - ear ) ) - direct_angle;
-			return 0.5f + 0.5f * std::cos( buffer_angle_away_from_direct );
-			};
-		buffer = std::move( buffer
-			.filter_1pole_lowpass( 500, 1 )
-			.modify_volume_in_place( [&]( Second t ){ return 1.0f - mix(t); } )
-			.mix_in_place( buffer, 0, mix ) );
-		};
-	head_ild_func( l_buffer,  75.0f * pi2 / 360.0f, l_ear );
-	head_ild_func( r_buffer, -75.0f * pi2 / 360.0f, r_ear );
-
-
-	// ITD
-	// Assuming sound sources stay under the speed of sound, this process could be handled entirely with one repitch call per channel.
-	// The trouble is that a source moving faster than sound towards a reciever will cause sound to arrive backwards, potentially overlapping
-	// later audio. Repitch is just a resampler call and isn't set up to handle overlapping outputs in that way. Additionally, if a "position
-	// flickering" effect is desired, the source may be moving discontinuously around space, in which case the doppler effect shouldn't be 
-	// applied. Some speed, then, must be chosen as the limit between continous movement and a "teleport", and we can conveniently choose the
-	// speed of sound as the boundary to handle both issues. Note, the actual limit used is an epsilon below the speed of sound, as moving exactly the
-	// speed of sound towards a reciever would require an infinite repitch input.
-	// Because moving faster than sound is considered teleportation, a source moving towards a reciever supersonically over multiple frames
-	// will cause distortion due to frame rounding.
-
-	// Find any frames on which that source moves faster than sound
-	std::vector<Frame> teleport_frames;
-	teleport_frames.push_back( 0 ); // The source initially is "teleported" to its starting location
-	for( Frame frame = 1; frame < get_num_frames(); ++frame )
-		{
-		const Meter position_movement_distance = ( position_sampled[frame] - position_sampled[frame-1] ).mag();
-		if( position_movement_distance > ( sound_mps - 0.01 ) * frame_to_time( 1 )  ) // If the movement over one frame was faster than sound - epsilon
-			teleport_frames.push_back( frame );
+		const float epsilon = 0.0001f;
+		auto & ps = position_sampled.get_vector();
+		for( Frame frame = 1; frame < get_num_frames(); ++frame )
+			{
+			const vec2 movement = ps[frame] - ps[frame-1];
+			const Meter mag = movement.mag();
+			if( mag > sound_mps - epsilon )
+				ps[frame] = ps[frame-1] + movement / ( mag * ( sound_mps - epsilon ) );
+			}
 		}
 
-	auto head_itd_func = [&]( const Audio & buffer, vec2 ear ) -> Audio
+	auto do_the_whole_thing_for_one_ear = [&]( bool is_left_ear, Radian ear_direction )
 		{
-		// Get the change in distance between the source and reciever on each frame
-		// While we're at it, find out how long the output buffer will need to be
-		Second max_needed_length = 0;
-		std::vector<Meter> relative_distance_change( buffer.get_num_frames() );
-		Meter previous_distance = ( position_sampled[0] - ear ).mag(); // Assume no movement is happening on frame 0
-		for( Frame frame = 0; frame < buffer.get_num_frames(); ++frame )
-			{
-			const Meter current_distance = ( position_sampled[frame] - ear ).mag();
-			relative_distance_change[frame] = current_distance - previous_distance;
-			previous_distance = current_distance;
-			
-			const Second frame_recieve_time = buffer.frame_to_time(frame) + current_distance / sound_mps;
-			if( max_needed_length < frame_recieve_time ) max_needed_length = frame_recieve_time;
-			}
+		const vec2 ear_position = vec2( 0, ( is_left_ear? 1 : -1 ) * head_width/2.0f );
+	
+		const auto relative_positions = position_sampled.transform( [&]( vec2 v ){ return v - ear_position; } );
 
-		Audio::Format format;
-		format.num_channels = 1;
-		format.num_frames = std::ceil( buffer.time_to_frame( max_needed_length ) );
-		format.sample_rate = buffer.get_sample_rate();
-		Audio out( format );
-		out.clear_buffer();
+		Audio buffer = atmospheric_dispersion( *this, relative_positions );
+		buffer = head_ild( buffer, relative_positions, ear_direction );
+		buffer = head_itd( buffer, relative_positions ); // This handles doppler
+		//falloff( buffer, relative_positions );
 
-		// For each teleport
-		for( Index teleport_index = 0; teleport_index < teleport_frames.size(); ++teleport_index )
-			{
-			const Frame teleport_start_frame = teleport_frames[teleport_index];
-			const Frame teleport_end_frame = teleport_index == teleport_frames.size() - 1 ? buffer.get_num_frames() : teleport_frames[teleport_index + 1];
-			const Second initial_delay = ( position_sampled[teleport_start_frame] - ear ).mag() / sound_mps;
-			const Frame initial_delay_frames = buffer.time_to_frame( initial_delay );
-
-			// Get the time stretch required at each frame
-			std::vector<double> stretches( teleport_end_frame - teleport_start_frame );
-			for( Frame frame = 0; frame < stretches.size(); ++frame )
-				stretches[frame] = 1.0 - relative_distance_change[frame] / double( sound_mps ) * buffer.get_sample_rate();
-
-			// The normal repitch would require repeated buffer copies for each section, so we will have to roll our own for this algorithm
-
-			// Estimate output length
-			const Frame num_out_frames = std::ceil( std::accumulate( stretches.begin(), stretches.end(), 0.0f ) );
-			
-			WDL_Resampler rs;
-			rs.SetMode( true,  0, true, 32 ); // reasonable sinc resampling
-
-			const Frame in_frames = teleport_end_frame - teleport_start_frame;
-			WDL_ResampleSample rs_out_buffer;
-
-			Frame in_frame = teleport_start_frame;
-			Frame out_frame = teleport_start_frame + initial_delay_frames;
-			while( in_frame < teleport_end_frame )
-				{
-				const double stretch_t = 1.0f / stretches[in_frame - teleport_start_frame];
-				rs.SetRates( get_sample_rate(), get_sample_rate() * stretch_t );
-				WDL_ResampleSample* rs_in_buffer = nullptr;
-				const Frame wanted = rs.ResamplePrepare( 1, 1, &rs_in_buffer );
-
-				for( Frame frame = 0; frame < wanted; ++frame )
-					{
-					if( in_frame + frame < in_frames )
-						rs_in_buffer[frame] = buffer.get_sample( 0, in_frame + frame );
-					else
-						rs_in_buffer[frame] = 0.0;
-					}
-
-				// Process
-				rs.ResampleOut( &rs_out_buffer, wanted, 1, 1 );
-
-				// Copy resampled data to output buffer
-				if( out_frame < out.get_num_frames() )
-					out.set_sample( 0, out_frame, rs_out_buffer );
-
-				out_frame += 1;
-				in_frame += wanted;
-				}
-			}
-
-		return out;
+		return buffer;
 		};
-	const Audio buffer_l_repitched = head_itd_func( l_buffer, l_ear );
-	const Audio buffer_r_repitched = head_itd_func( r_buffer, r_ear );
 
-	return Audio::combine_channels( buffer_l_repitched, buffer_r_repitched );
+	Audio l, r;
+	flan::for_each_i( 2, ExecutionPolicy::Linear_Sequenced, [&]( int i )
+		{
+		if( i == 0 ) l = do_the_whole_thing_for_one_ear( true,   75.0f * pi2 / 360.0f );
+		else 		 r = do_the_whole_thing_for_one_ear( false, -75.0f * pi2 / 360.0f );
+		});
+
+	return Audio::combine_channels( l, r );
 	}
 

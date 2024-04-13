@@ -66,6 +66,8 @@ struct vec2
 	vec2 operator*( const float s ) const  { return vec2{ x() * s, y() * s }; }
 	/** Component-wise multiplication */
 	vec2 operator*( const vec2 & r ) const  { return vec2{ x() * r.x(), y() * r.y() }; }
+	/** Scalar division */
+	vec2 operator/( const float s ) const  { return vec2{ x() / s, y() / s }; }
 	/** Component-wise division */
 	vec2 operator/( const vec2 & r ) const  { return vec2{ x() / r.x(), y() / r.y() }; }
 	/** Component-wise modulus */
