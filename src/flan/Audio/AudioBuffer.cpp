@@ -481,6 +481,19 @@ size_t AudioBuffer::get_buffer_pos( Channel channel, Frame sample ) const
 	return channel * get_num_frames() + sample;
 	}
 
+#if defined(_WIN32) || defined(WIN32)
+#include <Windows.h>
+#include <Mmsystem.h>
+void AudioBuffer::play() const
+	{
+	if( !save( "temp_file_save.wav" ) )
+        return;
+	std::cout << "Playing sound ... " << std::endl;
+	if( ! PlaySound("temp_file_save.wav", nullptr, SND_FILENAME) )
+		std::cout << "Error playing sound\n";
+	}
+#endif
+
 //======================================================
 //	Global
 //======================================================
