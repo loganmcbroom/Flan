@@ -16,8 +16,10 @@
 #include "flan/Utility/iota_iter.h"
 #include "flan/Utility/execution.h"
 #include "flan/Utility/buffer_access.h"
+#include "flan/Utility/function_traits.h"
 #include "bmp/bitmap_image.hpp"
 #include "flan/Graph.h"
+#include "flan/FunctionSample.h"
 
 #undef min
 #undef max
@@ -53,28 +55,31 @@ struct Function
 		return std::holds_alternative<O>( f );
 		}
 
+	ExecutionPolicy get_execution_policy() const 
+		{ 
+		return execution_policy; 
+		}
+
 	template<typename T>
 #ifndef __APPLE__
 	// Christ apple clang, get your shit together
 	requires std::convertible_to<T, StdFuncType>
 #endif
-	Function( T && f_, ExecutionPolicy policy = ExecutionPolicy::Parallel_Unsequenced ) 
-		: f( std::move( f_ ) ) 
+	Function( T && f_, ExecutionPolicy policy = ExecutionPolicy::Parallel_Unsequenced) 
+		: f( std::move( f_ ) )
 		, execution_policy( policy )
 		{}
 
 	template<typename T>
 	requires std::convertible_to<T, O>
 	Function( T t0 ) 
-		: f( static_cast<O>( t0 ) ) 
+		: f( static_cast<O>( t0 ) )
 		, execution_policy( ExecutionPolicy::Parallel_Unsequenced )
 		{}
 	// Function() 
 	// 	: f( []( I ){ return O( 0 ); } ) 
 	// 	, execution_policy( ExecutionPolicy::Parallel_Unsequenced )
 	// 	{}
-
-	ExecutionPolicy get_execution_policy() const { return execution_policy; }
 
 	/** Function application */
 	O operator()( I t ) const 
@@ -126,8 +131,10 @@ struct Function
 
 	template<typename Input = I>
 	requires std::convertible_to<Input, float>
-	std::vector<O> sample( int start, int end, float scale ) const
+	FunctionSample<O> sample( int start, int end, float scale ) const
 		{
+		if( is_constant() )
+			return FunctionSample<O>( operator()(0), end - start );
 		std::vector<O> out( end - start );
 		runtime_execution_policy_handler( get_execution_policy(), [&]( auto policy ){
 			std::for_each( FLAN_POLICY iota_iter( start ), iota_iter( end ), [&]( int x )
@@ -135,7 +142,7 @@ struct Function
 				out[x-start] = operator()( x * scale ); 
 				} ); 
 			} );
-		return out;
+		return FunctionSample<O>( std::move( out ) );
 		}
 
 	template<typename Input = I>
