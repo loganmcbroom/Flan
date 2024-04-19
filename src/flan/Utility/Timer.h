@@ -32,7 +32,7 @@ public:
         return std::chrono::duration_cast<std::chrono::milliseconds>( end_time - m_StartTime ).count();
      }
     
-    float elapsedSeconds()
+    float elapsed_seconds()
     {
         return elapsed_ms() / 1000.0f;
     }

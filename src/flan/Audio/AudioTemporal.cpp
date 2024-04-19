@@ -7,6 +7,84 @@
 using namespace flan;
 using namespace std::ranges;
 
+static std::pair<std::vector<Audio>, std::vector<Second>> get_loud_chunks_base(
+	const Audio & me,
+	Amplitude non_silent_level,
+	Second minimum_gap,
+	Second fade_in_time
+	)
+	{
+	const Frame gap_frames = me.time_to_frame( minimum_gap );
+	const Frame crossfade_frames_2 = me.time_to_frame( fade_in_time/2 );
+
+	Frame noisy_start = std::numeric_limits<Frame>::min();
+	Frame last_noisy_frame = 0;
+	bool in_quiet_sector = true;
+	std::vector<std::array<Frame, 2>> noisy_chunk_frames;
+	for( Frame frame = 0; frame < me.get_num_frames(); ++frame )
+		{
+		// Check for noisy frame
+		for( Channel channel = 0; channel < me.get_num_channels(); ++channel )
+			{
+			if( me.get_sample( channel, frame ) > non_silent_level )
+				{
+				last_noisy_frame = frame;
+				if( in_quiet_sector )
+					{
+					noisy_start = frame;
+					in_quiet_sector = false;
+					}
+				break;
+				}
+			}
+
+		if( !in_quiet_sector && frame - last_noisy_frame > gap_frames ) // If we hit a gap
+			{
+			in_quiet_sector = true;
+			noisy_chunk_frames.push_back( { noisy_start, last_noisy_frame } );
+			}
+		}
+	if( !in_quiet_sector )
+		noisy_chunk_frames.push_back( { noisy_start, me.get_num_frames() } );
+
+	if( noisy_chunk_frames.empty() ) return std::make_pair( std::vector<Audio>(), std::vector<Second>() );
+
+	std::vector<Second> fade_ins( noisy_chunk_frames.size() + 1, fade_in_time );
+
+	// When asking for fade-ins on chunks, we need to make sure none of them are trying to reach beyond the barrier
+	for( int i = 0; i < noisy_chunk_frames.size(); ++i )
+		{
+		const Frame fade_frames_i = me.time_to_frame( fade_ins[i] );
+		fade_ins[i] = me.frame_to_time( noisy_chunk_frames[i][0] - fade_frames_i < 0? 
+			noisy_chunk_frames[i][0]: 
+			fade_frames_i );
+		fade_ins[i+1] = me.frame_to_time( noisy_chunk_frames[i][1] + fade_frames_i >= me.get_num_frames()? 
+			me.get_num_frames() - noisy_chunk_frames[i][1]: 
+			fade_frames_i );
+		}
+
+	auto out = std::make_pair( std::vector<Audio>(), std::vector<Second>( fade_ins.size() ) );
+
+	// Do the actual cutting
+	std::vector<Audio> & noisy_chunks = out.first;
+	for( int i = 0; i < noisy_chunk_frames.size(); ++i )
+		{
+		const Frame left_fade_frames  = me.time_to_frame( fade_ins[i  ] );
+		const Frame right_fade_frames = me.time_to_frame( fade_ins[i+1] );
+		noisy_chunks.push_back( me.cut_frames( 
+			noisy_chunk_frames[i][0] - left_fade_frames, 
+			noisy_chunk_frames[i][1] + right_fade_frames,
+			left_fade_frames,
+			right_fade_frames ) );
+		}
+
+	std::vector<Second> & offsets = out.second;
+	for( int i = 0; i < fade_ins.size(); ++i )
+		offsets[i] = -2*fade_ins[i];
+
+	return out;
+	}
+
 template<typename T>
 static std::vector<const T *> get_pointers( const std::vector<T> & ts )
 	{
@@ -66,78 +144,23 @@ Audio Audio::remove_edge_silence(
 	return cut_frames( start_frame - fade_frames, end_frame + fade_frames, start_fade_frames, end_fade_frames );
 	}
 
+std::vector<Audio> Audio::get_loud_chunks(
+	Amplitude non_silent_level,
+	Second minimum_gap,
+	Second fade_in_time
+	) const
+	{
+	return get_loud_chunks_base( *this, non_silent_level, minimum_gap, fade_in_time ).first;
+	}
+
 Audio Audio::remove_silence(
 	Amplitude non_silent_level,
 	Second minimum_gap,
 	Second fade_in_time
 	) const
 	{
-	const Frame gap_frames = time_to_frame( minimum_gap );
-	const Frame crossfade_frames_2 = time_to_frame( fade_in_time/2 );
-
-	Frame noisy_start = std::numeric_limits<Frame>::min();
-	Frame last_noisy_frame = 0;
-	bool in_quiet_sector = true;
-	std::vector<std::array<Frame, 2>> noisy_chunk_frames;
-	for( Frame frame = 0; frame < get_num_frames(); ++frame )
-		{
-		// Check for noisy frame
-		for( Channel channel = 0; channel < get_num_channels(); ++channel )
-			{
-			if( get_sample( channel, frame ) > non_silent_level )
-				{
-				last_noisy_frame = frame;
-				if( in_quiet_sector )
-					{
-					noisy_start = frame;
-					in_quiet_sector = false;
-					}
-				break;
-				}
-			}
-
-		if( !in_quiet_sector && frame - last_noisy_frame > gap_frames ) // If we hit a gap
-			{
-			in_quiet_sector = true;
-			noisy_chunk_frames.push_back( { noisy_start, last_noisy_frame } );
-			}
-		}
-	if( !in_quiet_sector )
-		noisy_chunk_frames.push_back( { noisy_start, get_num_frames() } );
-
-	if( noisy_chunk_frames.empty() ) return Audio::create_null();
-
-	std::vector<Second> fade_ins( noisy_chunk_frames.size() + 1, fade_in_time );
-
-	// When asking for fade-ins on chunks, we need to make sure none of them are trying to reach beyond the barrier
-	for( int i = 0; i < noisy_chunk_frames.size(); ++i )
-		{
-		const Frame fade_frames_i = time_to_frame( fade_ins[i] );
-		fade_ins[i] = frame_to_time( noisy_chunk_frames[i][0] - fade_frames_i < 0? 
-			noisy_chunk_frames[i][0]: 
-			fade_frames_i );
-		fade_ins[i+1] = frame_to_time( noisy_chunk_frames[i][1] + fade_frames_i >= get_num_frames()? 
-			get_num_frames() - noisy_chunk_frames[i][1]: 
-			fade_frames_i );
-		}
-
-	// Do the actual cutting
-	std::vector<Audio> noisy_chunks;
-	for( int i = 0; i < noisy_chunk_frames.size(); ++i )
-		{
-		const Frame left_fade_frames  = time_to_frame( fade_ins[i  ] );
-		const Frame right_fade_frames = time_to_frame( fade_ins[i+1] );
-		noisy_chunks.push_back( cut_frames( 
-			noisy_chunk_frames[i][0] - left_fade_frames, 
-			noisy_chunk_frames[i][1] + right_fade_frames,
-			left_fade_frames,
-			right_fade_frames ) );
-		}
-
-	std::vector<Second> offsets( fade_ins.size() );
-	for( int i = 0; i < fade_ins.size(); ++i )
-		offsets[i] = -2*fade_ins[i];
-	return Audio::join( get_pointers( noisy_chunks ), offsets );
+	auto v = get_loud_chunks_base( *this, non_silent_level, minimum_gap, fade_in_time );
+	return Audio::join( get_pointers( v.first ), v.second );
 	}
 
 Audio Audio::reverse(

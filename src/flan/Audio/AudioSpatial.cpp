@@ -4,7 +4,7 @@
 
 using namespace flan; 
 
-static const float sound_mps = 331.29f;
+static const float sound_mps = 343; // Sound speed in air at 68 degrees F
 
 Audio Audio::pan( const Function<Second, float> & pan_amount ) const
 	{
@@ -66,16 +66,76 @@ angles mixing these signals	sinusoidally as a function of angle. The maximal fil
 (3) https://en.wikibooks.org/wiki/Engineering_Acoustics/Outdoor_Sound_Propagation#Attenuation_by_atmospheric_absorption.5B5.5D_.5B6.5D_.5B7.5D
 */
 
-/* 	More comments? Yes, thanks. I'm back again to update this method into three dimensions, primarily referencing this video
-		https://www.youtube.com/watch?v=iLZBxa3jQe8
-	My previous techniques did not account for ear shape, ground reflections, chest filtering, etc., so I'm doing a rewrite primarily
-	just copying the techniques in that video.
-*/
+// Audio Audio::filter_pinna( const Function<Second, Meter> & height ) const
+// 	{
+// 	auto elevation_angles = sample_function_over_domain( height )
+// 		.transform( []( Meter m ){ return std::atan( m ); } );
+
+// 	auto main_gain  = [&]( Second t ){ return -5.0f + elevation_angles[time_to_frame(t)]/(pi/2) * 10.0f; };
+// 	auto thin_gain  = [&]( Second t ){ return main_gain(t) * 0.8f; };
+// 	auto broad_gain = [&]( Second t ){ return main_gain(t) * 0.1f; };
+
+// 	// Damping factors are from qr=1/2
+// 	return
+// 		 filter_2pole_bandshelf( 8000, 0.25f, main_gain )  // Main shelf
+// 		.filter_2pole_bandshelf( 10000, 0.03f, thin_gain )  // Thin shelf
+// 		.filter_2pole_bandshelf( 3500, 0.7f, broad_gain ); // Broad shelf
+// 	}
+
+// Frequency dependent level falloff over distance is approximated with a cascade of 16 lowpass filters
+// See https://en.wikibooks.org/wiki/Engineering_Acoustics/Outdoor_Sound_Propagation#Attenuation_by_atmospheric_absorption.5B5.5D_.5B6.5D_.5B7.5D
+// Through a great deal of experimentation I've found the following filter and cutoff function approximate the correct falloff to an acceptable degree.
+static Audio atmospheric_dispersion( const Audio & me, const FunctionSample<vec2d> & position_samples )
+	{
+	auto distance_sqrts_sampled = position_samples.transform(
+		[]( vec2d v ) -> Meter { return std::sqrt( v.mag() ); } );
+
+	auto falloff_cutoff = [&]( Second t )
+		{ 
+		const Meter dr = distance_sqrts_sampled[me.time_to_frame( t )];
+		return 207365 / dr; 
+		};
+	return me.filter_1pole_repeat_low( falloff_cutoff, 16 );
+	}
+
+// Level falloff over distance
+// Signals in a computer have no level unit in terms of the physical world, so I make the arbitrary choice here that a signal
+// with a level of 1 played 1 meter from an ear will remain at level 1, with an epsilon to avoid infinite gain.
+static void falloff( Audio & me, const FunctionSample<vec2d> & ps )
+	{
+	const float epsilon = 0.00001f;
+	me.modify_volume_in_place( [&]( Second t )
+		{ 
+		const Frame frame_t = std::floor( me.time_to_frame(t) );
+		const vec2d position_t = ps[frame_t];
+		const Meter dist = position_t.mag();
+		return 1.0f / ( dist + epsilon ); 
+		} );
+	}
+
+static Audio head_ild( const Audio & me, const FunctionSample<vec2d> & ps, Radian direct_angle )
+	{
+	auto mix_sample = ps.transform( [&]( vec2d p )
+		{
+		const vec2 planar_pos = vec2( p.x(), p.y() );
+		const Radian angle_away_from_direct = std::arg( static_cast<std::complex<float>>( planar_pos ) ) - direct_angle;
+		return 0.5f + 0.5f * std::cos( angle_away_from_direct );
+		} );
+
+	auto mix = mix_sample.to_time_function( me.get_sample_rate() );
+
+	return std::move( me
+		.filter_1pole_lowpass( 500, 1 )
+		.modify_volume_in_place( [&]( Second t ){ return 1.0f - mix(t); } )
+		.mix_in_place( me, 0, mix ) );
+	};
 
 // ITD
 // Note, this process will break if ps moves at or above the speed of sound
-static Audio head_itd( const Audio & me, const FunctionSample<vec2> & positions_sampled )
+static Audio head_itd( const Audio & me, const FunctionSample<vec2d> & positions_sampled )
 	{
+	const Frame granularity_frames = 32;
+
 	if( positions_sampled.is_constant() )
 		{
 		auto p = positions_sampled.get_constant();
@@ -94,19 +154,19 @@ static Audio head_itd( const Audio & me, const FunctionSample<vec2> & positions_
 
 	auto & ps = positions_sampled.get_vector();
 
-	// Get the change in distance between the source and reciever on each frame
+	// Get the change in distance between the source and reciever for each granularity_frames jump
 	// While we're at it, find out how long the output buffer will need to be
 	Second max_needed_length = 0;
-	std::vector<Meter> relative_distance_change( me.get_num_frames() );
-	Meter previous_distance = ps[0].mag(); // Assume no movement is happening on frame 0
-	for( Frame frame = 0; frame < me.get_num_frames(); ++frame )
+	std::vector<double> relative_distance_change_per_chunk( 1, 0.0 );
+	double previous_distance = ps[0].mag(); // Assume no movement is happening on frame 0
+	for( Frame frame = granularity_frames; frame < me.get_num_frames(); frame += granularity_frames )
 		{
-		const Meter current_distance = ps[frame].mag();
-		relative_distance_change[frame] = current_distance - previous_distance;
+		const double current_distance = ps[frame].mag();
+		relative_distance_change_per_chunk.push_back( current_distance - previous_distance );
 		previous_distance = current_distance;
 		
-		const Second frame_recieve_time = me.frame_to_time(frame) + current_distance / sound_mps;
-		if( max_needed_length < frame_recieve_time ) max_needed_length = frame_recieve_time;
+		const Second max_frame_recieve_time = me.frame_to_time(frame + granularity_frames) + current_distance / sound_mps;
+		if( max_needed_length < max_frame_recieve_time ) max_needed_length = max_frame_recieve_time;
 		}
 
 	Audio::Format format;
@@ -120,116 +180,50 @@ static Audio head_itd( const Audio & me, const FunctionSample<vec2> & positions_
 	const Frame initial_delay_frames = me.time_to_frame( initial_delay );
 
 	// Get the time stretch required at each frame
-	std::vector<double> stretches( me.get_num_frames() );
+	std::vector<double> stretches( relative_distance_change_per_chunk.size() );
 	for( Frame frame = 0; frame < stretches.size(); ++frame )
-		stretches[frame] = 1.0 - relative_distance_change[frame] / double( sound_mps ) * me.get_sample_rate();
-
-	// The normal repitch would require repeated buffer copies for each section, so we will have to roll our own for this algorithm
-
-	// Estimate output length
-	const Frame num_out_frames = std::ceil( std::accumulate( stretches.begin(), stretches.end(), 0.0f ) );
+		stretches[frame] = 1.0 / ( 1.0 - relative_distance_change_per_chunk[frame] / granularity_frames / double( sound_mps ) * me.get_sample_rate() );
+	const double max_stretch = *std::max_element( stretches.begin(), stretches.end() );
 	
 	WDL_Resampler rs;
 	rs.SetMode( true,  0, true, 32 ); // Reasonable sinc resampling
+	rs.SetFeedMode( true );
+	std::vector<Sample> rs_out_buffer( std::ceil( granularity_frames * max_stretch ) );
 
-	const Frame in_frames = me.get_num_frames();
-	WDL_ResampleSample rs_out_buffer;
-
-	Frame in_frame = 0;
-	Frame out_frame = initial_delay_frames;
-	while( in_frame < me.get_num_frames() )
+	Frame out_frame = 0;
+	for( Frame in_frame = 0; in_frame < me.get_num_frames(); in_frame += granularity_frames )
 		{
-		const double stretch_t = 1.0f / stretches[in_frame];
-		rs.SetRates( me.get_sample_rate(), me.get_sample_rate() * stretch_t );
-		WDL_ResampleSample * rs_in_buffer = nullptr;
-		const Frame wanted = rs.ResamplePrepare( 1, 1, &rs_in_buffer );
+		const double stretch_c = stretches[in_frame/granularity_frames];
+		rs.SetRates( me.get_sample_rate(), double( me.get_sample_rate() ) * stretch_c );
+		WDL_ResampleSample* rsinbuf = nullptr;
+		rs.ResamplePrepare( granularity_frames, 1, &rsinbuf );
 
-		for( Frame frame = 0; frame < wanted; ++frame )
+		for( Frame frame = 0; frame < granularity_frames; ++frame )
 			{
-			if( in_frame + frame < in_frames )
-				rs_in_buffer[frame] = me.get_sample( 0, in_frame + frame );
+			if( in_frame + frame < me.get_num_frames() )
+				rsinbuf[ frame ] = me.get_sample( 0, in_frame + frame );
 			else
-				rs_in_buffer[frame] = 0.0;
+				rsinbuf[ frame ] = 0.0;
 			}
 
 		// Process
-		rs.ResampleOut( &rs_out_buffer, wanted, 1, 1 );
+		const Frame num_out_samples = rs.ResampleOut( rs_out_buffer.data(), granularity_frames, std::ceil( granularity_frames*stretch_c ), 1 );
 
 		// Copy resampled data to output buffer
-		if( out_frame < out.get_num_frames() )
-			out.set_sample( 0, out_frame, rs_out_buffer );
+		for( Frame frame = 0; frame < num_out_samples; ++frame )
+			if( out_frame + frame < out.get_num_frames() )
+				out.get_sample( 0, out_frame + frame ) = rs_out_buffer[frame];
 
-		out_frame += 1;
-		in_frame += wanted;
+		out_frame += num_out_samples;
 		}
 
 	return out;
 	}
 
-// static Audio pinna_filter( const Audio & me, const std::vector<Radian> & elevation_angles )
-// 	{
-// 	auto main_gain  = [&]( Second t ){ return -5.0f + elevation_angles[me.time_to_frame(t)]/(pi/2) * 10.0f; };
-// 	auto thin_gain  = [&]( Second t ){ return main_gain(t) * 0.8f; };
-// 	auto broad_gain = [&]( Second t ){ return main_gain(t) * 0.1f; };
-
-// 	// Damping factors are from qr=1/2
-// 	return me
-// 		.filter_2pole_bandshelf( 8000, 0.25f, main_gain )  // Main shelf
-// 		.filter_2pole_bandshelf( 10000, 0.03f, thin_gain )  // Thin shelf
-// 		.filter_2pole_bandshelf( 3500, 0.7f, broad_gain ); // Broad shelf
-// 	}
-
-// Frequency dependent level falloff over distance is approximated with a cascade of 16 lowpass filters
-// See https://en.wikibooks.org/wiki/Engineering_Acoustics/Outdoor_Sound_Propagation#Attenuation_by_atmospheric_absorption.5B5.5D_.5B6.5D_.5B7.5D
-// Through a great deal of experimentation I've found the following filter and cutoff function approximate the correct falloff to an acceptable degree.
-static Audio atmospheric_dispersion( const Audio & me, const FunctionSample<vec2> & position_samples )
-	{
-	auto distance_sqrts_sampled = position_samples.transform(
-		[]( vec2 v ) -> Meter { return std::sqrt( v.mag() ); } );
-
-	auto falloff_cutoff = [&]( Second t )
-		{ 
-		const Meter dr = distance_sqrts_sampled[me.time_to_frame( t )];
-		return 207365 / dr; 
-		};
-	return me.filter_1pole_repeat_low( falloff_cutoff, 16 );
-	}
-
-// Level falloff over distance
-// Signals in a computer have no level unit in terms of the physical world, so I make the arbitrary choice here that a signal
-// with a level of 1 played 1 meter from an ear will remain at level 1, with an epsilon to avoid infinite gain.
-// static void falloff( Audio & me, const FunctionSample<vec2> & ps )
-// 	{
-// 	const float epsilon = 0.00001f;
-// 	me.modify_volume_in_place( [&]( Second t )
-// 		{ 
-// 		const Frame frame_t = me.time_to_frame(t);
-// 		const vec2 position_t = ps[frame_t];
-// 		const Meter dist = position_t.mag();
-// 		return 1.0f / ( dist + epsilon ); 
-// 		} );
-// 	}
-
-static Audio head_ild( Audio & me, const FunctionSample<vec2> & ps, Radian direct_angle )
-	{
-	auto mix_sample = ps.transform( [&]( vec2 p )
-		{
-		const vec2 planar_pos = vec2( p.x(), p.y() );
-		const Radian angle_away_from_direct = std::arg( static_cast<std::complex<float>>( planar_pos ) ) - direct_angle;
-		return 0.5f + 0.5f * std::cos( angle_away_from_direct );
-		} );
-
-	auto mix = mix_sample.to_time_function( me.get_sample_rate() );
-
-	return std::move( me
-		.filter_1pole_lowpass( 500, 1 )
-		.modify_volume_in_place( [&]( Second t ){ return 1.0f - mix(t); } )
-		.mix_in_place( me, 0, mix ) );
-	};
-
 Audio Audio::stereo_spatialize(
 	const Function<Second, vec2> & position,
-	Meter head_width
+	Meter head_width,
+	const Function<Second, float> & speed_limit
 	) const
 	{
 	if( get_num_channels() != 1 )
@@ -238,32 +232,40 @@ Audio Audio::stereo_spatialize(
 		return Audio::create_null();
 		}
 
-	auto position_sampled = sample_function_over_domain( position );
+	auto position_sampled = sample_function_over_domain( position ).convert_to<vec2d>();
 
 	// Position needs to be speed limited to just under the speed of sound
 	if( !position.is_constant() )
 		{
-		const float epsilon = 0.0001f;
+		// This is an unusually large epsilon. When a sound moves directly away from an ear, the closer it is to the speed
+		// of sound, the larger the itd resample output buffer needs to be. At the time of writing this the resample chunk size
+		// is 64 frames, around one millisecond. Having too small of an epsilon would allow this output buffer to become overly
+		// large, and pointlessly so. Resampling audio beyond even 100 times makes it essentially inaudible, and even with
+		// an epsilon of 1, stretches with expansions of above 300 are possible.
+		const float epsilon = 1;
+		auto speed_limit_sampled = sample_function_over_domain( speed_limit );
 		auto & ps = position_sampled.get_vector();
 		for( Frame frame = 1; frame < get_num_frames(); ++frame )
 			{
-			const vec2 movement = ps[frame] - ps[frame-1];
+			const auto movement = ps[frame] - ps[frame-1];
 			const Meter mag = movement.mag();
-			if( mag > sound_mps - epsilon )
-				ps[frame] = ps[frame-1] + movement / ( mag * ( sound_mps - epsilon ) );
+			// Division by sr converts from meters per second to meters per frame
+			const float speed_limit_c = std::clamp( speed_limit_sampled[frame], 0.0f, sound_mps - epsilon ) / get_sample_rate();
+			if( mag > speed_limit_c )
+				ps[frame] = ps[frame-1] + movement / mag * speed_limit_c;
 			}
 		}
 
 	auto do_the_whole_thing_for_one_ear = [&]( bool is_left_ear, Radian ear_direction )
 		{
-		const vec2 ear_position = vec2( 0, ( is_left_ear? 1 : -1 ) * head_width/2.0f );
+		const vec2d ear_position = vec2d( 0, ( is_left_ear? 1 : -1 ) * head_width/2.0f );
 	
-		const auto relative_positions = position_sampled.transform( [&]( vec2 v ){ return v - ear_position; } );
+		const auto relative_positions = position_sampled.transform( [&]( vec2d v ){ return v - ear_position; } );
 
-		Audio buffer = atmospheric_dispersion( *this, relative_positions );
-		buffer = head_ild( buffer, relative_positions, ear_direction );
+		//Audio buffer = atmospheric_dispersion( *this, relative_positions );
+		Audio buffer = head_ild( *this, relative_positions, ear_direction );
+		falloff( buffer, relative_positions );
 		buffer = head_itd( buffer, relative_positions ); // This handles doppler
-		//falloff( buffer, relative_positions );
 
 		return buffer;
 		};

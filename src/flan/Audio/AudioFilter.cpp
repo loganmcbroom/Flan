@@ -291,7 +291,7 @@ Audio filter_1pole_repeat_base(
 	auto cutoff_sampled = me.sample_function_over_domain( cutoff );
 	cutoff_sampled.for_each( [&]( auto & c ){ c = std::clamp( c, 1.0f, me.get_sample_rate()/2.0f ); } );
 
-	for( Channel channel = 0; channel < me.get_num_channels(); ++channel )
+	for_each_i( me.get_num_channels(), ExecutionPolicy::Parallel_Unsequenced, [&]( Channel channel )
 		{
 		std::vector<Filter_1Pole> filter_1poles( repeats, me.get_sample_rate() );
 		for( Frame frame = 0; frame < me.get_num_frames(); ++frame )
@@ -302,7 +302,7 @@ Audio filter_1pole_repeat_base(
 				out.get_sample( channel, frame ) = filter_1poles[i].process_sample( source.get_sample( channel, frame ), cutoff_sampled[frame] )[index];
 				}
 			}
-		}
+		} );
 
 	return out;
 	}

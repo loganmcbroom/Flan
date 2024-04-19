@@ -31,8 +31,8 @@ public:
 	template<typename... Ts>
 	using AllAudios = typename std::enable_if_t<std::conjunction_v< std::is_convertible<Ts, const Audio &>... >>;
 
-	template<typename O>
-	FunctionSample<O> sample_function_over_domain( const Function<Second, O> & f ) const	
+	template<typename FunctionOut>
+	FunctionSample<FunctionOut> sample_function_over_domain( const Function<Second, FunctionOut> & f ) const	
 		{
 		return f.sample( 0, get_num_frames(), 1.0f / get_sample_rate() );
 		}
@@ -388,6 +388,12 @@ public:
 		Second fade_time = 0
 		) const;
 
+	std::vector<Audio> get_loud_chunks(
+		Amplitude non_silent_level,
+		Second minimum_gap,
+		Second fade_in_time = 0
+		) const;
+
 	Audio remove_silence(
 		Amplitude non_silent_level,
 		Second minimum_gap,
@@ -648,13 +654,24 @@ public:
 	//  */
 	// Audio pan( Function<Second,vec2> pan_position, Function<Second, vec2> listenerPosition, std::vector<vec2> speakerPositions, bool haasEffect = false ) const;
 
-	/// @brief This uses a bunch of psychoacoustic techniques to give a 3d spatial postion to a mono input.
-	/// @param position Where the sound lives over time.
+	/// @brief This uses a psychoacoustic techniques to give a 2d spatial postion to a mono input.
+	/// @param position Where the sound lives over time. The speed will be limited to just below the speed of sound
+	/// @param head_width How wide the head percieving the sound is.
+	/// @param speed_limit The source speed is always limited to just under the speed of sound, but this allows a lower limit to be applied.
+	///		This is usefull for having a source move between a set of fixed points without the clickyness of moving near the speed of sound.
 	/// @return 
 	Audio stereo_spatialize( 
 		const Function<Second, vec2> & position,
-		Meter head_width = 0.18f
+		Meter head_width = 0.18f,
+		const Function<Second, float> & speed_limit = std::numeric_limits<float>::max()
 		) const;
+
+	/// @brief Approximates the effect of the pinna (upper ear flap) on incoming sound at a given height. Assumes the source to be one meter away.
+	/// @param height The source height over time.
+	/// @return 
+	// Audio filter_pinna( 
+	// 	const Function<Second, Meter> & height
+	// 	) const;
 
 	/** This spatially repositions the input for mono and stereo inputs. Stereo speakers are assumed form an equilateral trangle with side
 	 *	length 1 meter with the listener. The input position is assumed to sit halfway between the speakers.

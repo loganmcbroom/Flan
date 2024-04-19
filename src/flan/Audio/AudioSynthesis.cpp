@@ -46,12 +46,12 @@ Audio Audio::synthesize_waveform(
 
 	// Get the phases that wave_samples needs to be evaluated at
 	// Modular sum is associative, prefer exclusive_scan over partial_sum
-	FunctionSample<float> phases = frequency_sampled.exclusive_scan( 0.0f );
-	phases.for_each( [&]( float & phase ){ phase = std::fmod( phase / in_sample_rate, 1.0f ); } ); // freq sum -> phase
+	FunctionSample<float> phases = frequency_sampled.exclusive_scan( 0.0f, [&]( float a, float b ){ return std::fmod( a + b, in_sample_rate ); } );
+	phases.for_each( [&]( float & phase ){ phase /= in_sample_rate; } ); // freq sum -> phase
 
 	// Evaluate wave at phases
 	std::vector<float> wave_samples( phases.size() );
-	flan::for_each_i( wave_samples.size(), wave.get_execution_policy(), [&]( Frame i ){ wave_samples[i] = wave( phases[i] ); } );
+	flan::for_each_i( wave_samples.size(), wave.get_execution_policy(), [&]( int i ){ wave_samples[i] = wave( phases[i] ); } );
 
 	// Downsample to requested sample rate
 	r8b::CDSPResampler resampler( in_sample_rate, out.get_sample_rate(), wave_samples.size() );

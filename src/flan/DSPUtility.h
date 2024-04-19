@@ -4,11 +4,10 @@
 #include <memory>
 #include <functional>
 
+#include "flan/Utility/vec2.h"
 #include "flan/defines.h"
 
 namespace flan {
-
-struct vec2;
 
 // Returns the (x,y) coordinates of the peak
 std::pair<float,float> parabolic_interpolation( float y0, float y1, float y2, int x1 );

@@ -18,7 +18,6 @@
 
 using namespace flan;
 
-void play( const Audio & toPlay );
 void graph( const std::string & f );
 void graph( const bitmap_image & b );
 template<typename T, typename Callable>
@@ -32,33 +31,19 @@ const float pi = std::acos( -1.0f );
 
 int main()
 	{
-	auto synth = Audio::synthesize_waveform( waveforms::saw, 1, []( Second t ){ return 100 + 50*std::sin(2*3.14*2*t); } ).set_volume( .7 );
-	auto bah = Audio::load_from_file( "bah.wav" ).set_volume( .9 );
+	auto synth1 = Audio::synthesize_waveform( waveforms::saw, 10, []( Second t ){ return 100; } ).set_volume( .7 );
+	// auto synth2 = Audio::synthesize_waveform( waveforms::saw, 2, []( Second t ){ return 200; } ).set_volume( .5 ).modify_boundaries( -1, 1 );
+	// auto synth3 = Audio::synthesize_waveform( waveforms::saw, 2, []( Second t ){ return 300; } ).set_volume( .3 ).modify_boundaries( -1, 1 );
+	auto bah = Audio::load_from_file( "ron.wav" ).set_volume( .9 );
 
-	Wavetable table = Wavetable( bah, Wavetable::SnapMode::Zero, Wavetable::PitchMode::Local, 4096 );
-	auto x = table
-		.synthesize( bah.get_length(), 111, [&]( Second t ){ return t / bah.get_length(); } )
-		.set_volume( .7 );
+	auto x = bah.remove_silence( .2, .2 );
 
-	play( x	);
-	//graph( table.graph_waveform_range( 0, 10, 10 ) );
-	//graph( x.convert_to_PV().convert_to_graph()	);
+	x
+		.set_volume( .9 )
+		.play();
 
 	return 0;
 	}
- 
-#ifdef _WIN32 || WIN32
-#include <Windows.h>
-#include <Mmsystem.h>
-void play( const Audio & toPlay )
-	{
-	if( !toPlay.save( "temp_file_save.wav" ) )
-        return;
-	std::cout << "Playing sound ... " << std::endl;
-	if( ! PlaySound("temp_file_save.wav", nullptr, SND_FILENAME) )
-		std::cout << "Error playing sound\n";
-	}
-#endif
 
 void graph( const std::string & f )
 	{

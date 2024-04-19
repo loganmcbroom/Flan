@@ -92,6 +92,24 @@ struct FunctionSample
 		return std::get<std::vector<O>>( value );
 		}
 
+	template<typename C>
+	//requires std::convertible_to<O, C>
+	FunctionSample<C> convert_to() const
+		{
+		if( is_constant() )
+			{
+			return FunctionSample<C>( C( get_constant() ), size() );
+			}
+		else
+			{
+			std::vector<C> v;
+			v.reserve( size() );
+			for( auto & x : get_vector() )
+				v.push_back( x );
+			return std::move( v );
+			}
+		}
+
 	size_t size() const
 		{
 		return vec_size;
@@ -129,12 +147,12 @@ struct FunctionSample
 			}
 		}
 
-	template<VectorSpace T = O>
-	std::vector<T> exclusive_scan( T start ) const
+	template<VectorSpace T = O, class BinaryOperation>
+	std::vector<T> exclusive_scan( T start, BinaryOperation binary_op ) const
 		{
 		std::vector<O> out( size() );
-		if( is_constant() )	flan::for_each_i( size(), ExecutionPolicy::Parallel_Unsequenced, [&out, val = get_constant()]( size_t i ){ out[i] = i * val; } );
-		else std::exclusive_scan( FLAN_PAR_UNSEQ get_vector().begin(), get_vector().end(), out.begin(), start );
+		const auto & vec = is_constant()? std::vector<O>( size(), get_constant() ) : get_vector();
+		std::exclusive_scan( FLAN_PAR_UNSEQ vec.begin(), vec.end(), out.begin(), start, binary_op );
 		return out;
 		}
 };

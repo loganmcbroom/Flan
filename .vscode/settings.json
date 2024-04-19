@@ -86,5 +86,6 @@
 		"span": "cpp",
 		"__functional_base": "cpp",
 		"variant": "cpp"
-	}
+	},
+	"C_Cpp.errorSquiggles": "enabled"
 }
