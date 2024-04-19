@@ -33,11 +33,6 @@ The FFTW devs seem to really dislike Windows, but the instructions work.
 
 Either way, the official github repo should be avoided, as you need to run a preprocessor on it to generate the actual source code.
 
-#### OpenCL:
-This should exist on most modern computers already. If OpenCL is missing from your system, there are a number of distributions of it from a number of vendors.
-Installing any of them should supply your system with a FindOpenCL.cmake file which can find all the needed files. Flan uses c++ bindings that not all distributions contain.
-If that is the case with your distribution, download the binding repository [here](https://github.com/KhronosGroup/OpenCL-CLHPP), and copy the opencl.hpp and CL2.hpp files to the same folder as opencl.h.
-
 ### Flan:
 ```
 git clone https://github.com/loganmcbroom/flan

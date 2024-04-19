@@ -71,7 +71,7 @@ if( SndFile_FOUND )
 		INTERFACE_INCLUDE_DIRECTORIES "${SndFile_INCLUDE_DIR}"
 	)
 else()
-	if( QWT_FIND_REQUIRED )
+	if( SndFile_FIND_REQUIRED )
 		message( FATAL_ERROR "Couldn't find SndFile" )
 	endif()
 endif()
