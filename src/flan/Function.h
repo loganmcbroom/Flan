@@ -45,9 +45,29 @@ struct Function
 	Function & operator=( Function && ) 		= default;
 	~Function() 								= default;
 
+	template<typename T>
+	requires std::convertible_to<T, O>
+	Function( T t0 ) 
+		: f( static_cast<O>( t0 ) )
+		, execution_policy( ExecutionPolicy::Parallel_Unsequenced )
+		{}
+
+	template<typename T>
+#ifndef __APPLE__
+	// Christ apple clang, get your shit together
+	requires std::convertible_to<T, StdFuncType>
+#endif
+	Function( T && f_, ExecutionPolicy policy = ExecutionPolicy::Parallel_Unsequenced ) 
+		: f( std::move( f_ ) )
+		, execution_policy( policy )
+		{}
+
 	Function copy() const 
 		{
-		return Function( f, execution_policy );
+		if( is_constant() )
+			return Function( std::get<O>( f ) );
+		else
+			return Function( std::get<StdFuncType>( f ), execution_policy );
 		}
 
 	bool is_constant() const 
@@ -60,22 +80,6 @@ struct Function
 		return execution_policy; 
 		}
 
-	template<typename T>
-#ifndef __APPLE__
-	// Christ apple clang, get your shit together
-	requires std::convertible_to<T, StdFuncType>
-#endif
-	Function( T && f_, ExecutionPolicy policy = ExecutionPolicy::Parallel_Unsequenced) 
-		: f( std::move( f_ ) )
-		, execution_policy( policy )
-		{}
-
-	template<typename T>
-	requires std::convertible_to<T, O>
-	Function( T t0 ) 
-		: f( static_cast<O>( t0 ) )
-		, execution_policy( ExecutionPolicy::Parallel_Unsequenced )
-		{}
 	// Function() 
 	// 	: f( []( I ){ return O( 0 ); } ) 
 	// 	, execution_policy( ExecutionPolicy::Parallel_Unsequenced )
@@ -119,15 +123,18 @@ struct Function
 	// 		}, lowest_execution( mean.get_execution_policy(), sigma.get_execution_policy() ) );
 	// 	}
 
-	// template<typename Input = I>
-	// requires std::convertible_to<Input, float>
-	// Function<Input, O> periodize( float period ) 
-	// 	{
-	// 	return [g = f.copy(), p = period]( float t )
-	// 		{
-	// 		return g( std::fmod( t, p ) + ( t < 0.0f ? p : 0.0f ) );
-	// 		};
-	// 	}
+	template<typename Input = I>
+	requires std::convertible_to<Input, float>
+	Function periodize( float period ) const
+		{
+		if( is_constant() ) return copy();
+
+		auto p_f = std::make_shared<Function>( copy() );
+		return Function( [p_f, p = period]( float t )
+			{
+			return (*p_f)( std::fmod( t, p ) + ( t < 0.0f ? p : 0.0f ) );
+			}, get_execution_policy() );
+		}
 
 	template<typename Input = I>
 	requires std::convertible_to<Input, float>

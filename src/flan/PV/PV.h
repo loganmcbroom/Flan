@@ -215,21 +215,21 @@ public:
 		Channel channel, 
 		fFrame frame, 
 		fBin bin, 
-		Interpolator interp = Interpolators::linear 
+		const Interpolator & interp = Interpolator::linear() 
 		) const;
 
 	MF getBinInterpolated( 
 		Channel channel, 
 		fFrame frame, 
 		Bin bin, 
-		Interpolator interp = Interpolators::linear 
+		const Interpolator & interp = Interpolator::linear() 
 		) const;
 
 	MF getBinInterpolated( 
 		Channel channel, 
 		Frame frame, 
 		fBin bin, 
-		Interpolator interp = Interpolators::linear 
+		const Interpolator & interp = Interpolator::linear() 
 		) const;
 
 
@@ -276,7 +276,7 @@ public:
 	 */
 	PV modify( 
 		const Function<TF, TF> & mod, 
-		Interpolator interp = Interpolators::linear 
+		const Interpolator & interp = Interpolator::linear() 
 		) const;
 
 	/** This is functionally equivalent to using PV::modify and only outputting the input time
@@ -285,7 +285,7 @@ public:
 	 */
 	PV modify_frequency( 
 		const Function<TF, Frequency> & mod, 
-		Interpolator = Interpolators::linear 
+		const Interpolator & = Interpolator::linear() 
 		) const;
 
 	/** This is functionally equivalent to using PV::modify and only outputting the input frequency
@@ -294,7 +294,7 @@ public:
 	 */
 	PV modify_time( 
 		const Function<TF, Second> & mod, 
-		Interpolator = Interpolators::linear 
+		const Interpolator & = Interpolator::linear() 
 		) const;
 
 	/** This is functionally equivalent to using PV::modify_frequency with the mod output multiplied by input frequency
@@ -303,7 +303,7 @@ public:
 	 */
 	PV repitch( 
 		const Function<TF, float> & factor, 
-		Interpolator = Interpolators::linear 
+		const Interpolator & = Interpolator::linear() 
 		) const;
 
 	/** This is functionally equivalent to using PV::modifySecond with the mod output multiplied by input time
@@ -312,7 +312,7 @@ public:
 	 */
 	PV stretch( 
 		const Function<TF, float> & factor, 
-		Interpolator = Interpolators::linear 
+		const Interpolator & = Interpolator::linear() 
 		) const;
 
 	/** This is close to PV::stretch, but can only expand the input by integer quantities at any given time.
@@ -332,7 +332,7 @@ public:
 	 */
 	PV desample( 
 		const Function<TF, float> & decimation_ratio, 
-		Interpolator interp = Interpolators::linear 
+		const Interpolator & interp = Interpolator::linear() 
 		) const;
 
 	/** Warning: this process can produce very loud outputs with unscrupulouss parameters.
@@ -349,7 +349,7 @@ public:
 		Second start_time, 
 		Second end_time, 
 		Second extrap_time, 
-		Interpolator interp = Interpolators::linear
+		const Interpolator & interp = Interpolator::linear()
 		) const;
 
 

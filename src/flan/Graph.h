@@ -198,7 +198,7 @@ class Graph : public bitmap_image {
 		/** Point interpolation graphing
 		 * \param points The provided points are linearly interpolated and graphed with a domain exactly fitting the points.
 		 */
-		void draw_function( const std::vector<std::pair<float,float>> & points, Plane plane = Plane::All, Color c = Color::Black );
+		void draw_function( const std::vector<vec2> & points, Plane plane = Plane::All, Color c = Color::Black );
 
 		/** Function graphing. Functions will be graphed with maximally spaced hues.
 		 * \param fs The functions to graph.

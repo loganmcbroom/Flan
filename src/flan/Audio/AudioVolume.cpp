@@ -69,7 +69,7 @@ Audio& Audio::set_volume_in_place(
 Audio Audio::fade( 
 	Second start, 
 	Second end, 
-	Interpolator interp 
+	const Interpolator & interp 
 	) const
 	{
 	if( is_null() ) return Audio::create_null();
@@ -79,7 +79,7 @@ Audio Audio::fade(
 Audio& Audio::fade_in_place( 
 	Second start, 
 	Second end, 
-	Interpolator interp 
+	const Interpolator & interp 
 	)
 	{
 	if( is_null() ) { std::cout << "Null input" << std::endl; return *this; }
@@ -90,7 +90,7 @@ Audio& Audio::fade_in_place(
 Audio Audio::fade_frames( 
 	Frame start, 
 	Frame end, 
-	Interpolator interp 
+	const Interpolator & interp 
 	) const
 	{
 	if( is_null() ) return Audio::create_null();
@@ -102,7 +102,7 @@ Audio Audio::fade_frames(
 Audio& Audio::fade_frames_in_place( 
 	Frame start, 
 	Frame end, 
-	Interpolator interp 
+	const Interpolator & interp 
 	)
 	{
 	if( is_null() ) { std::cout << "Null input" << std::endl; return *this; }

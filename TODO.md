@@ -12,10 +12,12 @@ Process ideas:
 		look-ahead option in compressor would take care of this
 	Audio::split_at_frequencies for multiple splits
 	PV::align_harmonics
+	PV::chorus might work, based on expanding partials
+		Per frame we should be able to detect partials and expand them
+		The main issue I see is partial continuity 
 
 Task:
 	Something's in the Lake at Bagel Woods
 
-	PV::chorus might work, based on expanding partials
-		Per frame we should be able to detect partials
+	
 

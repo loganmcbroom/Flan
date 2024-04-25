@@ -36,11 +36,9 @@ int main()
 	// auto synth3 = Audio::synthesize_waveform( waveforms::saw, 2, []( Second t ){ return 300; } ).set_volume( .3 ).modify_boundaries( -1, 1 );
 	auto bah = Audio::load_from_file( "ron.wav" ).set_volume( .9 );
 
-	auto x = bah.remove_silence( .2, .2 );
+	Function<float,float> f = []( float t ){ return t; };
 
-	x
-		.set_volume( .9 )
-		.play();
+	std::cout << f.periodize( 1 )( 1.5 ) << std::endl;
 
 	return 0;
 	}

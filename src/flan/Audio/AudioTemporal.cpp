@@ -221,7 +221,7 @@ Audio Audio::cut_frames(
 			out.set_sample( channel, frame, get_sample( channel, start + frame ) );
 			} );
 
-	out.fade_frames_in_place( start_fade, end_fade, Interpolators::sqrt );
+	out.fade_frames_in_place( start_fade, end_fade, Interpolator::sqrt() );
 	return out;
 	}
 

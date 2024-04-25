@@ -556,13 +556,13 @@ public:
 	Audio fade( 
 		Second start = 16.0f/48000.0f, 
 		Second end = 16.0f/48000.0f, 
-		Interpolator interp = Interpolators::sqrt 
+		const Interpolator & interp = Interpolator::sqrt()
 		) const;
 
 	Audio& fade_in_place(
 	 	Second start = 16.0f/48000.0f, 
 		Second end = 16.0f/48000.0f, 
-		Interpolator interp = Interpolators::sqrt 
+		const Interpolator & interp = Interpolator::sqrt()
 		);
 
 	/** This adds a fade to the ends of the input Audio.
@@ -573,13 +573,13 @@ public:
 	Audio fade_frames( 
 		Frame start = 16, 
 		Frame end = 16, 
-		Interpolator interp = Interpolators::sqrt 
+		const Interpolator & interp = Interpolator::sqrt()
 		) const;
 
 	Audio& fade_frames_in_place( 
 		Frame start = 16, 
 		Frame end = 16, 
-		Interpolator interp = Interpolators::sqrt 
+		const Interpolator & interp = Interpolator::sqrt()
 		);
 
 	/** This phase inverts the input. Every output sample is assigned the negative of the input sample at that time.
@@ -967,13 +967,13 @@ public:
 		Second length, 
 		const Function<Second, Frequency> & freq, 
 		FrameRate sample_rate = 48000, 
-		size_t oversample = 16 
+		int oversample = 16 
 		);
 
 	static Audio synthesize_white_noise(
 		Second length,
 		FrameRate sample_rate = 48000, 
-		size_t oversample = 16 
+		int oversample = 16 
 		);
 
 	static Audio synthesize_pink_noise(

@@ -27,10 +27,11 @@ Audio Audio::synthesize_waveform(
 	Second length, 
 	const Function<Second, Frequency> & freq, 
 	FrameRate sample_rate, 
-	size_t oversample 
+	int oversample 
 	)
 	{
-	if( length <= 0 ) return Audio::create_null();
+	if( oversample < 1 || length <= 0 || sample_rate <= 0 )
+		return Audio::create_null();
 
 	// Set up output
 	Audio::Format format;
@@ -63,9 +64,12 @@ Audio Audio::synthesize_waveform(
 Audio Audio::synthesize_white_noise(
 	Second length,
 	FrameRate sample_rate,
-	size_t oversample 
+	int oversample 
 	)
 	{
+	if( oversample < 1 || length <= 0 || sample_rate <= 0 )
+		return Audio::create_null();
+		
 	std::random_device rd;
 	std::mt19937 rng( rd() );
 	std::uniform_real_distribution<> dis( -1.0f, 1.0f );
@@ -83,7 +87,8 @@ Audio Audio::synthesize_pink_noise(
 	FrameRate sample_rate,
 	int num_rows )
 	{
-	num_rows = std::max( num_rows, 1 ); 
+	if( length <= 0 || sample_rate <= 0 || num_rows < 1 )
+		return Audio::create_null();
 
 	/* This converts a frame to a row in this pattern, with frame/row axes:
                      x  	

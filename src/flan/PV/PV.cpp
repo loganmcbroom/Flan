@@ -31,7 +31,7 @@ PV PV::get_frame( Second time ) const
 	return out;
 	}
 
-MF PV::getBinInterpolated( Channel channel, float frame, float bin, Interpolator i ) const
+MF PV::getBinInterpolated( Channel channel, float frame, float bin, const Interpolator & i ) const
 	{
 	const std::array< MF, 4 > p = 
 		{
@@ -52,7 +52,7 @@ MF PV::getBinInterpolated( Channel channel, float frame, float bin, Interpolator
 		   };
 	}
 
-MF PV::getBinInterpolated( Channel channel, float frame, Bin bin, Interpolator i ) const
+MF PV::getBinInterpolated( Channel channel, float frame, Bin bin, const Interpolator & i ) const
 	{
 	const MF & l = get_MF( channel, floor( frame ), bin );
 	const MF & h = get_MF( channel, ceil ( frame ), bin );
@@ -65,7 +65,7 @@ MF PV::getBinInterpolated( Channel channel, float frame, Bin bin, Interpolator i
 		   };
 	}
 
-MF PV::getBinInterpolated( Channel channel, Frame frame, float bin, Interpolator i ) const
+MF PV::getBinInterpolated( Channel channel, Frame frame, float bin, const Interpolator & i ) const
 	{
 	const auto l = get_MF( channel, frame, floor( bin ) );
 	const auto h = get_MF( channel, frame, ceil ( bin ) );

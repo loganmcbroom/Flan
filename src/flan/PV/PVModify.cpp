@@ -11,7 +11,7 @@ using namespace std::ranges;
 
 namespace flan {
 
-PV PV::modify( const Function<TF, TF> & mod, Interpolator interp ) const
+PV PV::modify( const Function<TF, TF> & mod, const Interpolator & interp ) const
 	{
 	if( is_null() ) return PV();
 
@@ -192,7 +192,7 @@ PV PV::modify( const Function<TF, TF> & mod, Interpolator interp ) const
 	return out;
 	}
 
-PV PV::modify_frequency( const Function<TF, Frequency> & mod, Interpolator interp ) const
+PV PV::modify_frequency( const Function<TF, Frequency> & mod, const Interpolator & interp ) const
 	{
 	if( is_null() ) return PV();
 
@@ -270,7 +270,7 @@ PV PV::modify_frequency( const Function<TF, Frequency> & mod, Interpolator inter
 	return out;
 	}
 
-PV PV::modify_time( const Function<TF, Second> & mod, Interpolator interp ) const
+PV PV::modify_time( const Function<TF, Second> & mod, const Interpolator & interp ) const
 	{
 	if( is_null() ) return PV();
 
@@ -333,12 +333,12 @@ PV PV::modify_time( const Function<TF, Second> & mod, Interpolator interp ) cons
 	return out;
 	}
 
-PV PV::repitch( const Function<TF, float> & factor, Interpolator interp ) const
+PV PV::repitch( const Function<TF, float> & factor, const Interpolator & interp ) const
 	{
 	return modify_frequency( Function<TF, Frequency>( [&]( TF tf ){ return factor( tf ) * tf.f; }, factor.get_execution_policy() ), interp );
 	}
 
-PV PV::stretch( const Function<TF, float> & factor, Interpolator interp ) const
+PV PV::stretch( const Function<TF, float> & factor, const Interpolator & interp ) const
 	{
 	return modify_time( Function<TF, Second>( [&]( TF tf ){ return factor( tf ) * tf.t; }, factor.get_execution_policy() ), interp );
 	}
@@ -401,7 +401,7 @@ PV PV::stretch_spline( const Function<Second, float> & interpolation ) const
 	return out;
 	}
 
-PV PV::desample( const Function<TF, float> & decimation_ratio, Interpolator interp ) const
+PV PV::desample( const Function<TF, float> & decimation_ratio, const Interpolator & interp ) const
 	{
 	// Sample factor over frames and bins
 	auto decimation_ratio_samples = sample_function_over_domain( decimation_ratio );
@@ -469,7 +469,7 @@ PV PV::desample( const Function<TF, float> & decimation_ratio, Interpolator inte
 	return out;
 	}
 
-PV PV::time_extrapolate( Second start_time, Second end_time, Second extrapolationTime, Interpolator interpolator ) const
+PV PV::time_extrapolate( Second start_time, Second end_time, Second extrapolationTime, const Interpolator & interpolator ) const
 	{
 	if( is_null() ) return PV();
 

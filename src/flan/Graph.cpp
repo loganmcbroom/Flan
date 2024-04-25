@@ -257,13 +257,13 @@ void Graph::draw_function( const Function<float, float> & f, Interval domain, Pl
 		}
 	}
 
-void Graph::draw_function( const std::vector<std::pair<float,float>> & data, Plane plane, Color c )
+void Graph::draw_function( const std::vector<vec2> & data, Plane plane, Color c )
 	{
 	auto f = interpolate_points( data );
 
-	auto xComp = []( const std::pair<float,float> & p,  const std::pair<float,float> & s ){ return p.first < s.first; };
-	const float left	= std::min_element( data.begin(), data.end(), xComp )->first;
-	const float right	= std::max_element( data.begin(), data.end(), xComp )->first;
+	auto xComp = []( const vec2 & p, const vec2 & s ){ return p.x() < s.x(); };
+	const float left	= std::min_element( data.begin(), data.end(), xComp )->x();
+	const float right	= std::max_element( data.begin(), data.end(), xComp )->x();
 	
 	draw_function( f, Interval( left, right ), plane, c );
 	}
