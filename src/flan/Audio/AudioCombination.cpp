@@ -81,49 +81,13 @@ Audio Audio::mix(
 	std::vector<Amplitude> amplitudes 
 	)
 	{
-	// Input validation
-	if( ins_unmatched.empty() ) return Audio::create_null();
+	// Yes this is silly but it's fine
+	std::vector<Function<Second, Amplitude>> amp_funcs;
+	for( Amplitude a : amplitudes ) amp_funcs.push_back( a );
+	std::vector<const Function<Second, Amplitude> *> p_amp_funcs;
+	for( auto & f : amp_funcs ) p_amp_funcs.push_back( &f );
 
-	const std::vector<Audio> ins_resampled_container = match_sample_rates_or_return_null( ins_unmatched );
-	std::vector<const Audio *> ins = ins_resampled_container.empty() ? ins_unmatched : get_pointers( ins_resampled_container );
-
-	// If start_times or amplitudes ore too small, fill with 0 and 1
-	if( start_times.size() < ins.size() ) start_times.resize( ins.size(), 0 );
-	if( amplitudes.size() < ins.size() ) amplitudes.resize( ins.size(), 1 );
-
-	// Convert start times to frames
-	std::vector<Frame> start_frames;
-	transform( start_times, std::back_inserter( start_frames ), [&]( Second t ) -> Frame { 
-		return ins[0]->time_to_frame( t ); 
-		} );	
-
-	// Output setup
-	auto format = ins[0]->get_format();
-	// Get the maximum number of channels among inputs
-	format.num_channels = (*max_element( ins, less(), []( const Audio * p ) { return p->get_num_channels(); } ) )->get_num_channels();
-	// Get the maximum of output sizes required by each input
-	format.num_frames = 0;
-	for( const Index i : iota_view( 0u, ins.size() ) ) {
-		const Frame frames_needed_for_i = ins[i]->get_num_frames() + start_frames[i];
-		format.num_frames = std::max( format.num_frames, frames_needed_for_i );
-		}
-	Audio out( format );
-	out.clear_buffer();
-
-	// For each input, write to output
-	for( Index in = 0; in < ins.size(); ++in )
-		{
-		const Audio & me = *ins[in];
-		for( Channel channel = 0; channel < me.get_num_channels(); ++channel )
-			std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( me.get_num_frames() ), [&]( Frame local_frame )
-				{
-				const Frame global_frame = local_frame + start_frames[in];
-				if( 0 <= global_frame && global_frame < format.num_frames )
-					out.get_sample( channel, global_frame ) += me.get_sample( channel, local_frame ) * amplitudes[in];
-				} );
-		}
-
-	return out;
+	return mix_variable_gain( ins_unmatched, start_times, p_amp_funcs );
 	}
 
 Audio Audio::mix( 
@@ -141,15 +105,21 @@ Audio Audio::mix_variable_gain(
 	const std::vector<const Function<Second, Amplitude> *> & amplitudes 
 	)
 	{
-	
 	// Input validation
 	if( ins_unmatched.empty() ) return Audio::create_null();
+
+	const size_t num_sources = std::max( {ins_unmatched.size(), start_times.size(), amplitudes.size()} );
 
 	std::vector<Audio> ins_resampled_container = match_sample_rates_or_return_null( ins_unmatched );
 	std::vector<const Audio *> ins = ins_resampled_container.empty() ? ins_unmatched : get_pointers( ins_resampled_container );
 
+	// If ins is too small fill with looped inputs
+	const size_t initial_num_ins = ins.size();
+	for( auto i : iota_view( ins.size(), num_sources ) )
+		ins.push_back( ins[i % initial_num_ins] );
+
 	// If start_times is too small fill with 0
-	for( auto _ : iota_view( start_times.size(), ins.size() ) )
+	for( auto _ : iota_view( start_times.size(), num_sources ) )
 		start_times.push_back( 0 );
 
 	// Convert start times to frames
@@ -163,7 +133,7 @@ Audio Audio::mix_variable_gain(
 	// careful later when accessing them
 	std::vector<FunctionSample<Amplitude>> amplitude_samples;
 	const Function<Second, Amplitude> level_func = 1;
-	std::transform( iota_iter( 0 ), iota_iter( ins.size() ), std::back_inserter( amplitude_samples ), [&]( Index i ) {
+	std::transform( iota_iter( 0 ), iota_iter( num_sources ), std::back_inserter( amplitude_samples ), [&]( Index i ) {
 		const Function<Second, Amplitude> * f = i < amplitudes.size() ? amplitudes[i] : &level_func;
 		return f->sample( start_frames[i], start_frames[i] + ins[i]->get_num_frames(), ins[i]->frame_to_time( 1 ) );
 		} );
@@ -182,7 +152,7 @@ Audio Audio::mix_variable_gain(
 	out.clear_buffer();
 
 	// For each input, write to output
-	for( Index in = 0; in < ins.size(); ++in )
+	for( Index in = 0; in < num_sources; ++in )
 		{
 		const Audio & me = *ins[in];
 		for( Channel channel = 0; channel < me.get_num_channels(); ++channel )
