@@ -302,8 +302,7 @@ PV PV::prism( const PrismFunc & prismFunc, bool use_local_contour_time, flan_CAN
 			{
 			const Contour & contour = contours[contourIndex];
 
-			runtime_execution_policy_handler( prismFunc.get_execution_policy(), [&]( auto policy ) { 
-			std::for_each( FLAN_POLICY iota_iter(0), iota_iter( contour.bins.size() ), [&]( Frame contourFrame ) {
+			flan::for_each_i( contour.bins.size(), ExecutionPolicy::Linear_Sequenced, [&]( Frame contourFrame ) {
 				const Frame frame = contourFrame + contour.start_frame;
 				const MF * const sourceFramePtr = get_MFPointer( channel, frame, 0 );
 
@@ -320,7 +319,7 @@ PV PV::prism( const PrismFunc & prismFunc, bool use_local_contour_time, flan_CAN
 				for( auto & v : binsToChangeVec )
 					v.reserve( 20 );
 
-				for( Index harmonic = 0; harmonic < binsToChangeVec.size(); ++harmonic ) // For each harmonic
+				for( Harmonic harmonic = 0; harmonic < binsToChangeVec.size(); ++harmonic ) // For each harmonic
 					{
 					const Frequency freq = baseFreq * ( harmonic + 1 );
 
@@ -347,7 +346,7 @@ PV PV::prism( const PrismFunc & prismFunc, bool use_local_contour_time, flan_CAN
 				// For each harmonic, find the dominant bin
 				std::vector<Bin> harmonicMaxMagBins( maxNumHarmonics );
 				std::vector<Magnitude> harmonicMaxMags( maxNumHarmonics, 0 );
-				for( Index harmonic = 0; harmonic < harmonicMaxMagBins.size(); ++harmonic )
+				for( Harmonic harmonic = 0; harmonic < harmonicMaxMagBins.size(); ++harmonic )
 					{
 					const std::vector<Bin> & binsToChange = binsToChangeVec[harmonic];
 					if( binsToChange.empty() ) continue;
@@ -362,11 +361,17 @@ PV PV::prism( const PrismFunc & prismFunc, bool use_local_contour_time, flan_CAN
 					}
 
 				// Now we go back through everything in the frame that needs writing and write it
-				for( Index harmonic = 0; harmonic < harmonicMaxMagBins.size(); ++harmonic )
+				for( Harmonic harmonic = 0; harmonic < harmonicMaxMagBins.size(); ++harmonic )
 					{
-					Frequency freq = baseFreq * ( harmonic + 1 );                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+					const Frequency freq = baseFreq * ( harmonic + 1 );                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 
-					const MF modifiedHarmonic = prismFunc( contourIndex, frame_to_time( use_local_contour_time ? contourFrame : frame ), harmonic, baseFreq, harmonicMaxMags );
+					const MF modifiedHarmonic = prismFunc( 
+						contourIndex, 
+						frame_to_time( use_local_contour_time ? contourFrame : frame ), 
+						harmonic + 1, 
+						baseFreq, 
+						harmonicMaxMags );
+						
 					if( modifiedHarmonic.f < 0 ) 
 						continue;
 					
@@ -408,8 +413,7 @@ PV PV::prism( const PrismFunc & prismFunc, bool use_local_contour_time, flan_CAN
 							}
 						}
 					}
-				} ); 
-				} );
+				});
 			}
 		}
 
