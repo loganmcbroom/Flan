@@ -259,7 +259,7 @@ public:
 	 *	\param frame
 	 *	\param bin
 	 */
-	MF * get_MFPointer( Channel channel, Frame frame, Bin bin );
+	MF * get_MF_pointer( Channel channel, Frame frame, Bin bin );
 
 	/** Read-only raw buffer access. Inderect access is preferred, but for computationally expensive 
 	 *	transformations, raw access usually provides an optimization.
@@ -267,7 +267,7 @@ public:
 	 *	\param frame
 	 *	\param bin
 	 */
-	const MF * get_MFPointer( Channel channel, Frame frame, Bin bin  ) const;
+	const MF * get_MF_pointer( Channel channel, Frame frame, Bin bin  ) const;
 
 	std::vector<MF> & get_buffer();
 	const std::vector<MF> & get_buffer() const;

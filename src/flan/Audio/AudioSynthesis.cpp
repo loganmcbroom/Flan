@@ -379,7 +379,7 @@ Audio Audio::synthesize_grains(
 	
 	const std::vector<Second> event_times = integrate_event_rate( length, grains_per_second, time_scatter, sample_rate );
 
-	// Generate trainlets
+	// Generate grains
 	std::vector<Audio> grains( event_times.size() );
 	flan::for_each_i( event_times.size(), grain_source.get_execution_policy(), [&]( Index i )
 		{

@@ -131,6 +131,16 @@ struct FunctionSample
 		{
 		return [sr, this]( Second t ){ return operator[]( t * sr ); };
 		}
+	
+	// Function<TF, O> to_time_frequency_function( FrameRate frames_per_second, float bins_per_frequency, Bin num_bins )
+	// 	{
+	// 	return [=, this]( TF tf )
+	// 		{ 
+	// 		const Frame frame = tf.t * frames_per_second;
+	// 		const Bin bin = tf.f * bins_per_frequency;
+	// 		return operator[]( buffer_access( bin, frame, num_bins ) ); 
+	// 		};
+	// 	}
 
 	template<VectorSpace T = O>
 	T accumulate() const
@@ -154,6 +164,19 @@ struct FunctionSample
 		const auto & vec = is_constant()? std::vector<O>( size(), get_constant() ) : get_vector();
 		std::exclusive_scan( FLAN_PAR_UNSEQ vec.begin(), vec.end(), out.begin(), start, binary_op );
 		return out;
+		}
+
+	O maximum() const
+		{
+		if( is_constant() ) return get_constant();
+		return *std::max_element( get_vector().begin(), get_vector().end() );
+		}
+
+	template<class MapOp>
+	float maximum( MapOp op ) const
+		{
+		if( is_constant() ) return op( get_constant() );
+		return op( *std::ranges::max_element( get_vector(), std::ranges::less(), op ) );
 		}
 };
 

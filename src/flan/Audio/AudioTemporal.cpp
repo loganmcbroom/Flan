@@ -316,7 +316,7 @@ Audio Audio::iterate(
 	}
 
 Audio Audio::delay( 
-	Second length, 
+	Second added_length, 
 	const Function<Second, Second> & delay_time, 
 	const Function<Second, float> & decay, 
 	const AudioMod & mod 
@@ -324,7 +324,8 @@ Audio Audio::delay(
 	{
 	if( is_null() ) return Audio::create_null();
 
-	if( length <= 0 ) return Audio::create_null();
+	added_length = std::max( 0.0f, added_length );
+	const Second length = get_length() + added_length;
 
 	auto delay_time_sampled = delay_time.sample( 0, time_to_frame( length ), frame_to_time( 1 ) );
 	auto decay_sampled = decay.sample( 0, time_to_frame( length ), frame_to_time( 1 ) );
@@ -449,6 +450,27 @@ std::vector<Audio> Audio::split_with_equal_lengths(
 	if( slice_length <= 0 ) return std::vector<Audio>();
 	std::vector<Second> slice_lengths( std::ceil( get_length() / slice_length ), slice_length );
 	return split_with_lengths( slice_lengths, fade );
+	}
+
+Audio Audio::rearrange( 
+	Second slice_length, 
+	Second fade 
+	) const
+	{
+	if( is_null() ) return Audio::create_null();
+
+	// + fade here accounts for + fade / 2 at both ends
+	std::vector<Audio> chops = split_with_equal_lengths( slice_length + fade, fade );
+	if( chops.size() < 2 )
+		return Audio::create_null();
+
+	chops.pop_back(); // Final slice usually isn't the correct length
+
+	std::random_device rd;
+	std::mt19937 g( rd() );
+	std::shuffle( chops.begin(), chops.end(), g );
+
+	return Audio::join( std::move( chops ), -fade );
 	}
 
 Audio Audio::random_chunks(

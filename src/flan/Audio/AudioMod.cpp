@@ -4,25 +4,32 @@
 
 using namespace flan;
 
-AudioMod::AudioMod()
+template<typename T>
+SoundMod<T>::SoundMod()
 	: func( nullptr )
 	, policy( ExecutionPolicy::Parallel_Unsequenced )
 	, null( true )
 	{
 	}
 
-void AudioMod::operator()( Audio & in, float t ) const
+template<typename T>
+void SoundMod<T>::operator()( T & in, float t ) const
 	{
 	if( is_null() ) return;
 	func( in, t );
 	}
 
-bool AudioMod::is_null() const 
+template<typename T>
+bool SoundMod<T>::is_null() const 
 	{ 
 	return null; 
 	}
 
-ExecutionPolicy AudioMod::get_execution_policy() const 
+template<typename T>
+ExecutionPolicy SoundMod<T>::get_execution_policy() const 
 	{ 
 	return policy;
 	}
+
+template class SoundMod<Audio>;
+template class SoundMod<PV>;

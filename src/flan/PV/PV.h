@@ -29,19 +29,9 @@ class PV : public PVBuffer
 public:
 
 	template<typename T>
-	std::vector<T> sample_function_over_domain( const Function<TF, T> & f ) const	
+	FunctionSample<T> sample_function_over_domain( const Function<TF, T> & f ) const	
 		{
-		std::vector<T> out( get_num_frames() * get_num_bins() );
-		runtime_execution_policy_handler( f.get_execution_policy(), [&]( auto policy )
-			{
-			std::for_each( FLAN_POLICY iota_iter( 0 ), iota_iter( out.size() ), [&]( Index i )
-				{
-				const Frame frame = i / get_num_bins();
-				const Bin bin = i % get_num_bins();
-				out[i] = f( TF{ frame_to_time( frame ), bin_to_frequency( bin ) } );
-				} );
-			} );
-		return out;
+		return f.sample( 0, get_num_frames(), 1.0f / get_analysis_rate(), 0, get_num_bins(), bin_to_frequency( 1 ) );
 		}
 
 	template<typename T>
@@ -463,6 +453,25 @@ public:
 		Second length, 
 		const Function<TF, float> & decay 
 		) const;
+
+
+	// These procs are here to get time splitting for PV so that falter can do "apply_to_section" on a PV
+	PV cut_frames( 
+		Frame start, 
+		Frame end
+		) const;
+
+	std::vector<PV> split_at_times(
+		std::vector<Second> split_times
+		) const;
+	
+	static PV join( 
+		const std::vector<const PV *> & ins
+		);
+
+	static PV join( 
+		const std::vector<PV> & ins
+		);
 
 };
 

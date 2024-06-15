@@ -31,14 +31,17 @@ const float pi = std::acos( -1.0f );
 
 int main()
 	{
-	auto synth1 = Audio::synthesize_waveform( waveforms::saw, 10, []( Second t ){ return 100; } ).set_volume( .7 );
+	auto synth1 = Audio::synthesize_waveform( waveforms::saw, 10, []( Second t ){ return 100*t; } ).set_volume( .7 );
 	// auto synth2 = Audio::synthesize_waveform( waveforms::saw, 2, []( Second t ){ return 200; } ).set_volume( .5 ).modify_boundaries( -1, 1 );
 	// auto synth3 = Audio::synthesize_waveform( waveforms::saw, 2, []( Second t ){ return 300; } ).set_volume( .3 ).modify_boundaries( -1, 1 );
-	auto bah = Audio::load_from_file( "ron.wav" ).set_volume( .9 );
+	auto bah = Audio::load_from_file( "slaw.wav" ).set_volume( .9 );
 
-	Function<float,float> f = []( float t ){ return t; };
-
-	std::cout << f.periodize( 1 )( 1.5 ) << std::endl;
+	bah
+		.convert_to_PV()
+		//.prism( []( int, Second, Harmonic h, Frequency f, const std::vector<float> & ms ){ return MF( ms[h-1], f*h ); } )
+		.repitch( []( TF tf ){ return tf.t; } )
+		.convert_to_audio()
+		.play();
 
 	return 0;
 	}

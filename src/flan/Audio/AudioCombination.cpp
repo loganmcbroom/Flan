@@ -87,7 +87,7 @@ Audio Audio::mix(
 	std::vector<const Function<Second, Amplitude> *> p_amp_funcs;
 	for( auto & f : amp_funcs ) p_amp_funcs.push_back( &f );
 
-	return mix_variable_gain( ins_unmatched, start_times, p_amp_funcs );
+	return mix( ins_unmatched, start_times, p_amp_funcs );
 	}
 
 Audio Audio::mix( 
@@ -99,7 +99,7 @@ Audio Audio::mix(
 	return mix( get_pointers( ins ), start_times, amplitudes );
 	}
 
-Audio Audio::mix_variable_gain( 
+Audio Audio::mix( 
 	std::vector<const Audio *> ins_unmatched, 
 	std::vector<Second> start_times, 
 	const std::vector<const Function<Second, Amplitude> *> & amplitudes 
@@ -169,13 +169,13 @@ Audio Audio::mix_variable_gain(
 	return out;
 	}
 
-Audio Audio::mix_variable_gain( 
+Audio Audio::mix( 
 	const std::vector<Audio> & ins, 
 	const std::vector<Second> & start_times, 
 	const std::vector<Function<Second, Amplitude>> & amplitudes 
 	)
 	{
-	return mix_variable_gain( get_pointers( ins ), start_times, get_pointers( amplitudes ) );
+	return mix( get_pointers( ins ), start_times, get_pointers( amplitudes ) );
 	}
 
 Audio& Audio::mix_in_place( 
@@ -217,7 +217,7 @@ Audio Audio::join(
 	for( int i = 0; i < input_lengths.size()-1; ++i )
 		start_times.push_back( start_times.back() + input_lengths[i] + offsets[i+1] );
 
-	return mix( ins, start_times, {} );
+	return mix( ins, start_times, std::vector<Second>() );
 	}
 
 Audio Audio::join( 
@@ -254,7 +254,7 @@ Audio Audio::select(
 			}, selection.get_execution_policy() ) );
 		}
 		
-	return mix_variable_gain( ins, start_times, get_pointers( balances ) );
+	return mix( ins, start_times, get_pointers( balances ) );
 	}
 
 Audio Audio::select( 

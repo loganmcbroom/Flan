@@ -19,13 +19,13 @@ PV PV::modify( const Function<TF, TF> & mod, const Interpolator & interp ) const
 
 	//Sample mod function and convert output to frame/bin
 	auto mod_sampled = sample_function_over_domain( mod );
-	std::for_each( FLAN_PAR_UNSEQ mod_sampled.begin(), mod_sampled.end(), [&]( TF & v ){ 
+	mod_sampled.for_each( [&]( TF & v ){ 
 		v.t = time_to_frame( v.t );
 		v.f = frequency_to_bin( v.f ); 
 		} );
 
 	// Get the largest frame value among all mod samples, rounded up
-	const float last_output_frame = std::ceil( std::ranges::max_element( mod_sampled, std::ranges::less(), []( TF v ){ return v.t; } )->t );
+	const float last_output_frame = std::ceil( mod_sampled.maximum( []( TF v ){ return v.t; } ) );
 
 	if( frame_to_time( last_output_frame ) > 60.0f * 10.0f ) // Outfile longer than 10 minutes?
 		{
@@ -43,20 +43,20 @@ PV PV::modify( const Function<TF, TF> & mod, const Interpolator & interp ) const
 	// C++ should probably cover this use case but no std container does
 	auto mutexBuffer = std::unique_ptr<std::mutex[]>( new std::mutex[format.num_frames] );
 
-	std::vector<MF> inModified( in_channel_data_count );
+	std::vector<MF> in_modified( in_channel_data_count );
 
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
 		{
 		// Calculate and copy mapped frequencies and input magnitudes
-		auto inBufferReadHead = get_MFPointer( 0, 0, 0 ) + channel * in_channel_data_count;
-		auto modDataSamplesWriteHead = inModified.begin();
+		auto in_buffer_read_head = get_MF_pointer( 0, 0, 0 ) + channel * in_channel_data_count;
+		auto in_modified_write_head = in_modified.begin();
 		for( Frame frame = 0; frame < get_num_frames(); ++frame )
-			for( Bin bin = 0; bin < get_num_bins(); ++bin, ++modDataSamplesWriteHead, ++inBufferReadHead )
+			for( Bin bin = 0; bin < get_num_bins(); ++bin, ++in_modified_write_head, ++in_buffer_read_head )
 				{
-				*modDataSamplesWriteHead = 
+				*in_modified_write_head = 
 					{
-					inBufferReadHead->m,
-					mod( TF{ frame_to_time( frame ), inBufferReadHead->f } ).f
+					in_buffer_read_head->m,
+					mod( TF{ frame_to_time( frame ), in_buffer_read_head->f } ).f
 					};
 				}
 		
@@ -74,10 +74,10 @@ PV PV::modify( const Function<TF, TF> & mod, const Interpolator & interp ) const
 					to_vec2( mod_sampled[ ( frame - 1 ) * get_num_bins() + bin - 0 ] ) };
 		
 				const std::array<MF, 4> pMF = {
-					inModified[ ( frame - 1 ) * get_num_bins() + bin - 1 ],
-					inModified[ ( frame - 0 ) * get_num_bins() + bin - 1 ],
-					inModified[ ( frame - 0 ) * get_num_bins() + bin - 0 ],
-					inModified[ ( frame - 1 ) * get_num_bins() + bin - 0 ] };
+					in_modified[ ( frame - 1 ) * get_num_bins() + bin - 1 ],
+					in_modified[ ( frame - 0 ) * get_num_bins() + bin - 1 ],
+					in_modified[ ( frame - 0 ) * get_num_bins() + bin - 0 ],
+					in_modified[ ( frame - 1 ) * get_num_bins() + bin - 0 ] };
 		
 				const vec2 D12 = p[1] - p[0];
 				const vec2 D23 = p[2] - p[1];
@@ -192,45 +192,26 @@ PV PV::modify( const Function<TF, TF> & mod, const Interpolator & interp ) const
 	return out;
 	}
 
-PV PV::modify_frequency( const Function<TF, Frequency> & mod, const Interpolator & interp ) const
+PV modify_frequency_base( const PV & me, const FunctionSample<Frequency> & mod, const std::vector<Frequency> input_frequencies_modded, const Interpolator & interp )
 	{
-	if( is_null() ) return PV();
+	if( me.is_null() ) return PV();
 
-	PV out( get_format() );
+	PV out( me.get_format() );
 	out.clear_buffer();
 
-	const size_t in_channel_data_count = get_num_frames() * get_num_bins();
-
-	//Sample mod function and convert output to frame/bin
-	auto mod_sampled = sample_function_over_domain( mod );
-	std::for_each( FLAN_PAR_UNSEQ mod_sampled.begin(), mod_sampled.end(), [&]( Frequency & f ){ 
-		f = frequency_to_bin( f ); 
-		} );
-
-	std::vector<MF> inModified( in_channel_data_count ); // Buffer for sampling mod on input frequencies
-
-	for( Channel channel = 0; channel < get_num_channels(); ++channel )
+	for( Channel channel = 0; channel < me.get_num_channels(); ++channel )
 		{
-		// Sample mod over input frequencies into inModified
-		// This is computed early because the mod function isn't guaranteed to be thread safe
-		auto inBufferReadHead = get_MFPointer( 0, 0, 0 ) + channel * in_channel_data_count;
-		auto modDataSamplesWriteHead = inModified.begin();
-		for( Frame frame = 0; frame < get_num_frames(); ++frame )
-			for( Bin bin = 0; bin < get_num_bins(); ++bin, ++modDataSamplesWriteHead, ++inBufferReadHead )
-				*modDataSamplesWriteHead = {
-					inBufferReadHead->m,
-					mod( TF{ frame_to_time( frame ), inBufferReadHead->f } ) 
-					};
+		const auto in_modified = input_frequencies_modded.begin() + channel * me.get_num_frames() * me.get_num_bins();
 
-		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( get_num_frames() ), [&]( Frame frame )
+		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( me.get_num_frames() ), [&]( Frame frame )
 			{
 			// For each adjacent pair of bins
-			for( Bin bin = 1; bin < get_num_bins(); ++bin )
+			for( Bin bin = 1; bin < me.get_num_bins(); ++bin )
 				{
 				// Get where those bins were mapped to by the mod function
-				const int hiBinIndex = frame * get_num_bins() + bin;
-				const float loBin = mod_sampled[hiBinIndex - 1];
-				const float hiBin = mod_sampled[hiBinIndex    ];
+				const int hiBinIndex = frame * me.get_num_bins() + bin;
+				const float loBin = me.frequency_to_bin( mod[hiBinIndex - 1] );
+				const float hiBin = me.frequency_to_bin( mod[hiBinIndex    ] );
 				const bool forward = hiBin > loBin; // Check if the bins were mapped upside down
 
 				const Bin loBinRound = forward ? std::ceil( loBin ) : std::floor( loBin );
@@ -238,8 +219,8 @@ PV PV::modify_frequency( const Function<TF, Frequency> & mod, const Interpolator
 				const Bin start_bin = std::clamp( loBinRound, 0, out.get_num_bins() - 1 );
 				const Bin end_bin   = std::clamp( hiBinRound, 0, out.get_num_bins() - 1 );
 
-				const MF & loMF = inModified[ buffer_access( bin - 1, frame, get_num_bins() ) ];
-				const MF & hiMF = inModified[ buffer_access( bin    , frame, get_num_bins() ) ];
+				const MF & loMF = MF{ me.get_MF( channel, frame, bin - 1 ).m, in_modified[ buffer_access( bin - 1, frame, me.get_num_bins() ) ] };
+				const MF & hiMF = MF{ me.get_MF( channel, frame, bin     ).m, in_modified[ buffer_access( bin    , frame, me.get_num_bins() ) ] };
 
 				for( Bin y = start_bin; y != end_bin; forward? ++y : --y )
 					{
@@ -270,44 +251,86 @@ PV PV::modify_frequency( const Function<TF, Frequency> & mod, const Interpolator
 	return out;
 	}
 
-PV PV::modify_time( const Function<TF, Second> & mod, const Interpolator & interp ) const
+PV PV::modify_frequency( const Function<TF, Frequency> & mod, const Interpolator & interp ) const
 	{
-	if( is_null() ) return PV();
+	const auto mod_sampled = sample_function_over_domain( mod );
 
-	// Sample mod function and convert output to frame/bin
-	auto mod_sampled = sample_function_over_domain( mod );
-	std::for_each( FLAN_PAR_UNSEQ mod_sampled.begin(), mod_sampled.end(), [&]( Second & t ){ 
-		t = time_to_frame( t );
-		} );
+	std::vector<Frequency> in_modified; // Buffer for sampling mod on input frequencies
+	in_modified.reserve( get_buffer().size() );
+	for( Channel channel = 0; channel < get_num_channels(); ++channel )
+		for( Frame frame = 0; frame < get_num_frames(); ++frame )
+			for( Bin bin = 0; bin < get_num_bins(); ++bin )
+				in_modified.push_back( mod( TF{ frame_to_time( frame ), get_MF( channel, frame, bin ).f } ) );
+
+	return modify_frequency_base( *this, mod_sampled, in_modified, interp );
+	}
+
+PV PV::repitch( const Function<TF, float> & local_expansion_factor, const Interpolator & interp ) const
+	{
+	auto factor_sampled = sample_function_over_domain( local_expansion_factor );
+
+	// Partial integral with respect to time. Factor_sampled becomes TF -> Frame.
+	for( Frame frame = 0; frame < get_num_frames(); ++frame )
+		for( Bin bin = 1; bin < get_num_bins(); ++bin )
+			factor_sampled[buffer_access( bin, frame, get_num_bins() )] += factor_sampled[buffer_access( bin - 1, frame, get_num_bins() )];
+
+	// Bin to frequency conversion. Factor_sampled becomes TF->Frequency.
+	for( int i = 0; i < factor_sampled.size(); ++i )
+		factor_sampled[i] = bin_to_frequency( factor_sampled[i] );
+ 
+	// Lerp the freq integrated function to map the frequency values stored in the MFs
+	std::vector<Frequency> in_modified; // Buffer for sampling mod on input frequencies
+	in_modified.reserve( get_buffer().size() );
+	for( Channel channel = 0; channel < get_num_channels(); ++channel )
+		for( Frame frame = 0; frame < get_num_frames(); ++frame )
+			for( Bin bin = 0; bin < get_num_bins(); ++bin )
+				{
+				const fBin fbin = std::clamp( frequency_to_bin( get_MF( channel, frame, bin ).f ), 0.0f, fBin( get_num_bins() - 1 ) - 0.0001f );
+				const Bin lo = std::floor( fbin );
+				const Bin hi = lo + 1;
+				const Frequency lo_freq = factor_sampled[buffer_access( lo, frame, get_num_bins() )];
+				const Frequency hi_freq = factor_sampled[buffer_access( hi, frame, get_num_bins() )];
+				const float r = fbin - lo;
+				const Frequency lerp = lo_freq * ( 1.0f - r ) + hi_freq * r;
+				
+				in_modified.push_back( lerp );
+				}
+
+	return modify_frequency_base( *this, factor_sampled, in_modified, interp );
+	}
+
+PV modify_time_base( const PV & me, const FunctionSample<Second> & mod, const Interpolator & interp )
+	{
+	if( me.is_null() ) return PV();
 
 	// Get the largest frame value among all mod samples, rounded up
-	const float last_output_frame = std::ceil( *std::ranges::max_element( mod_sampled ) );
+	const float last_output_frame = std::ceil( me.time_to_frame( mod.maximum() ) );
 
-	auto format = get_format();
+	auto format = me.get_format();
 	format.num_frames = last_output_frame;
 	PV out( format );
 	out.clear_buffer();
 
-	std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( get_num_channels() ), [&]( Channel channel )
+	std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( me.get_num_channels() ), [&]( Channel channel )
 		{
 		// Note the bin loop happens first here. There are a lot of considerations involved in the ordering, but
 		//  it comes down to time displacement happening along frames. Paralellizing the frames requires synchronization
 		//  that isn't worth the benifits, and the parallel loop being first is faster. The algorithm isn't cache friendly 
 		//  either way because we store PV data in frame-major order.
-		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( get_num_bins() ), [&]( Bin bin )
+		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( me.get_num_bins() ), [&]( Bin bin )
 			{
 			// For each adjacent pair of frames
-			std::for_each( iota_iter( 1 ), iota_iter( get_num_frames() ), [&]( Frame frame )
+			std::for_each( iota_iter( 1 ), iota_iter( me.get_num_frames() ), [&]( Frame frame )
 				{
-				const float lFrame = mod_sampled[ buffer_access( bin, frame - 1, get_num_bins() ) ];
-				const float rFrame = mod_sampled[ buffer_access( bin, frame    , get_num_bins() ) ];
+				const float lFrame = me.time_to_frame( mod[ buffer_access( bin, frame - 1, me.get_num_bins() ) ] );
+				const float rFrame = me.time_to_frame( mod[ buffer_access( bin, frame    , me.get_num_bins() ) ] );
 				const bool forward = rFrame > lFrame;
 
 				const Frame start_frame = forward ? std::ceil( lFrame ) : std::floor( lFrame );
 				const Frame end_frame   = forward ? std::ceil( rFrame ) : std::floor( rFrame );
 
-				const MF & lMF = get_MF( channel, frame - 1, bin );
-				const MF & rMF = get_MF( channel, frame,     bin );
+				const MF & lMF = me.get_MF( channel, frame - 1, bin );
+				const MF & rMF = me.get_MF( channel, frame,     bin );
 
 				for( Frame x = start_frame; x != end_frame; forward? ++x : --x )
 					{
@@ -333,14 +356,27 @@ PV PV::modify_time( const Function<TF, Second> & mod, const Interpolator & inter
 	return out;
 	}
 
-PV PV::repitch( const Function<TF, float> & factor, const Interpolator & interp ) const
+PV PV::modify_time( const Function<TF, Second> & mod, const Interpolator & interp ) const
 	{
-	return modify_frequency( Function<TF, Frequency>( [&]( TF tf ){ return factor( tf ) * tf.f; }, factor.get_execution_policy() ), interp );
+	// Sample mod function and convert output to frame/bin
+	const auto mod_sampled = sample_function_over_domain( mod );
+	return modify_time_base( *this, mod_sampled, interp );
 	}
 
-PV PV::stretch( const Function<TF, float> & factor, const Interpolator & interp ) const
+PV PV::stretch( const Function<TF, float> & local_expansion_factor, const Interpolator & interp ) const
 	{
-	return modify_time( Function<TF, Second>( [&]( TF tf ){ return factor( tf ) * tf.t; }, factor.get_execution_policy() ), interp );
+	auto factor_sampled = sample_function_over_domain( local_expansion_factor );
+
+	// Partial integral with respect to time. Factor_sampled becomes TF -> Frame.
+	for( Bin bin = 0; bin < get_num_bins(); ++bin )
+		for( Frame frame = 1; frame < get_num_frames(); ++frame )
+			factor_sampled[buffer_access( bin, frame, get_num_bins() )] += factor_sampled[buffer_access( bin, frame - 1, get_num_bins() )];
+
+	// Frame to second conversion. Factor_sampled becomes TF->Second.
+	for( int i = 0; i < factor_sampled.size(); ++i )
+		factor_sampled[i] = frame_to_time( factor_sampled[i] );
+
+	return modify_time_base( *this, factor_sampled, interp );
 	}
 
 PV PV::stretch_spline( const Function<Second, float> & interpolation ) const

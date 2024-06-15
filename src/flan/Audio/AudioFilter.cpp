@@ -842,7 +842,7 @@ Audio Audio::filter_1pole_multinotch(
 	Audio allpass = filter_1pole_allpass_n( *this, cutoff, order );
 	if( invert ) allpass.modify_volume_in_place( -1 );
 	Function<Second, Amplitude> wet_dry_inv( [&]( Second t ){ return 1.0f - wet_dry( t ); }, wet_dry.get_execution_policy() );
-	return Audio::mix_variable_gain( { this, &allpass }, {}, { &wet_dry, &wet_dry_inv } );
+	return Audio::mix( { this, &allpass }, {}, { &wet_dry, &wet_dry_inv } );
 	}
 
 Audio filter_2pole_allpass_n(
@@ -892,7 +892,7 @@ Audio Audio::filter_2pole_multinotch(
 	Audio allpass = filter_2pole_allpass_n( *this, cutoff, damping, order );
 	if( invert ) allpass.modify_volume_in_place( -1 );
 	Function<Second, Amplitude> wet_dry_inv( [&]( Second t ){ return 1.0f - wet_dry( t ); }, wet_dry.get_execution_policy() );
-	return Audio::mix_variable_gain( { this, &allpass }, {}, { &wet_dry, &wet_dry_inv } );
+	return Audio::mix( { this, &allpass }, {}, { &wet_dry, &wet_dry_inv } );
 	}
 
 Audio Audio::filter_comb(

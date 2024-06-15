@@ -7,18 +7,17 @@
 
 namespace flan {
 
-class Audio;
-
-class AudioMod
+template<typename T>
+class SoundMod
 {
 public:
-	using FuncType = std::function<void ( Audio &, Second )>;
+	using FuncType = std::function<void ( T &, Second )>;
 
-	AudioMod( const AudioMod & ) 				= delete;
-	AudioMod & operator=( const AudioMod & ) 	= delete;
-	AudioMod( AudioMod && ) 					= default;
-	AudioMod & operator=( AudioMod && ) 		= default;
-	~AudioMod() 								= default;
+	SoundMod( const SoundMod & ) 				= delete;
+	SoundMod & operator=( const SoundMod & ) 	= delete;
+	SoundMod( SoundMod && ) 					= default;
+	SoundMod & operator=( SoundMod && ) 		= default;
+	~SoundMod() 								= default;
 
 	template<typename C>
 	requires 
@@ -26,15 +25,15 @@ public:
 		std::convertible_to<C, FuncType> && 
 #endif
 		(!std::same_as<C, std::nullptr_t>)
-	AudioMod( C _f, ExecutionPolicy _p = ExecutionPolicy::Parallel_Unsequenced )
+	SoundMod( C _f, ExecutionPolicy _p = ExecutionPolicy::Parallel_Unsequenced )
 		: func( _f )
 		, policy( _p )
 		, null( false )
 		{
 		}	
-	AudioMod();
+	SoundMod();
 
-	void operator()( Audio & in, Second t ) const;
+	void operator()( T & in, Second t ) const;
 	bool is_null() const;
 	ExecutionPolicy get_execution_policy() const;
 
@@ -43,5 +42,10 @@ private:
 	ExecutionPolicy policy;
 	const bool null;
 };
+
+class Audio;
+using AudioMod = SoundMod<Audio>;
+class PV;
+using PVMod = SoundMod<PV>;
 
 }

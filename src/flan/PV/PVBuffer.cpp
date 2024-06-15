@@ -483,12 +483,12 @@ void PVBuffer::clear_buffer()
 	std::fill( buffer.begin(), buffer.end(), MF{ 0,0 } );
 	}
 
-MF * PVBuffer::get_MFPointer( Channel channel, Frame frame, Bin bin )
+MF * PVBuffer::get_MF_pointer( Channel channel, Frame frame, Bin bin )
 	{
 	return buffer.data() + get_buffer_pos( channel, frame, bin );
 	}
 
-const MF * PVBuffer::get_MFPointer( Channel channel, Frame frame, Bin bin  ) const
+const MF * PVBuffer::get_MF_pointer( Channel channel, Frame frame, Bin bin  ) const
 	{
 	return buffer.data() + get_buffer_pos( channel, frame, bin );
 	}

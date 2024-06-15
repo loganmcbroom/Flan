@@ -14,6 +14,14 @@ using namespace std::ranges;
 
 namespace flan {
 
+template<typename T>
+static std::vector<const T *> get_pointers( const std::vector<T> & ts )
+	{
+	std::vector<const T *> ptrs( ts.size() );
+	std::transform( ts.begin(), ts.end(), ptrs.begin(), []( const T & t ){ return &t; } );
+	return std::move( ptrs );
+	}
+
 PV PV::get_frame( Second time ) const
 	{
 	if( is_null() ) return PV();
@@ -202,7 +210,7 @@ PV PV::replace_amplitudes( const PV & amp_source, const Function<TF, float> & am
 	// Input validation
 	if( amp_source.is_null() ) return PV();
 	auto amount_sampled = sample_function_over_domain( amount );
-	std::for_each( amount_sampled.begin(), amount_sampled.end(), []( float & amount ){ amount = std::clamp( amount, 0.0f, 1.0f ); } );
+	amount_sampled.for_each( []( float & amount ){ amount = std::clamp( amount, 0.0f, 1.0f ); } );
 
 	PV out( get_format() );
 	out.clear_buffer();
@@ -605,7 +613,7 @@ PV PV::resonate( Second length, const Function<TF, float> & decay ) const
 	PV out( format );
 
 	auto decay_sampled = out.sample_function_over_domain( decay );
-	std::ranges::for_each( decay_sampled, []( float & x ){ x = std::clamp( x, 0.0f, 1.0f ); } );
+	decay_sampled.for_each( []( float & x ){ x = std::clamp( x, 0.0f, 1.0f ); } );
 
 	// Copy first frame into out
 	for( Channel channel = 0; channel < out.get_num_channels(); ++channel )
@@ -631,6 +639,92 @@ PV PV::resonate( Second length, const Function<TF, float> & decay ) const
 			} );
 
 	return out;
+	}
+
+PV PV::cut_frames( 
+	Frame start, 
+	Frame end
+	) const
+	{
+	if( is_null() ) return PV::create_null();
+
+	// Input validation
+	if( end <= start ) return PV::create_null();
+	start = std::clamp( start, 0, get_num_frames() - 1 );
+	end   = std::clamp( end,   0, get_num_frames() - 1 );
+	// Any fade errors are validated in PV::fades
+	
+	auto format = get_format();
+	format.num_frames = end - start;
+	PV out( format );
+
+	for( Channel channel = 0; channel < get_num_channels(); ++channel )
+		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( out.get_num_frames() ), [&]( Frame frame )
+			{
+			for( Bin bin = 0; bin < get_num_bins(); ++bin )
+				out.set_MF( channel, frame, bin, get_MF( channel, start + frame, bin ) );
+			} );
+
+	return out;
+	}
+
+std::vector<PV> PV::split_at_times(
+	std::vector<Second> split_times
+	) const
+	{
+	if( is_null() ) return std::vector<PV>();
+
+	std::sort( split_times.begin(), split_times.end() );
+
+	std::vector<Frame> split_frames;
+	split_frames.push_back( 0 );
+	for( Second t : split_times )
+		{
+		const Frame f = time_to_frame( t );
+		if( f <= 0 ) continue;
+		if( get_num_frames() <= f ) break;
+		split_frames.push_back( f );
+		}
+	split_frames.push_back( get_num_frames() );
+
+	std::vector<PV> outs( split_frames.size() - 1 );
+	flan::for_each_i( split_frames.size() - 1, ExecutionPolicy::Parallel_Unsequenced, [&]( int i )
+		{
+		outs[i] = cut_frames( split_frames[i], split_frames[i+1] );
+		} );
+
+	return outs;
+	}
+
+PV PV::join( 
+	const std::vector<const PV *> & ins
+	)
+	{
+	if( ins.size() == 0 ) return PV::create_null();
+
+	Format format = ins[0]->get_format();
+	format.num_frames = std::accumulate( ins.begin(), ins.end(), 0, []( Frame f, const PV * x ){ return f + x->get_num_frames(); } );
+	PV out( format );
+	out.clear_buffer();
+
+	Frame current_output_start_frame = 0;
+	for( Index i = 0; i < ins.size(); ++i )
+		{
+		for( Channel channel = 0; channel < ins[i]->get_num_channels() && channel < out.get_num_channels(); ++channel )
+			for( Frame in_frame = 0; in_frame < ins[i]->get_num_frames(); ++in_frame )
+				for( Bin bin = 0; bin < ins[i]->get_num_bins() && bin < out.get_num_bins(); ++bin )
+					out.get_MF( channel, current_output_start_frame + in_frame, bin ) = ins[i]->get_MF( channel, in_frame, bin );
+		current_output_start_frame += ins[i]->get_num_frames();
+		}
+
+	return out;
+	}
+
+PV PV::join( 
+	const std::vector<PV> & ins
+	)
+	{
+	return PV::join( get_pointers( ins ) );
 	}
 
 } //End namespace flan

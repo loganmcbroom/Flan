@@ -71,7 +71,7 @@ PV::Salience PV::get_salience( Channel channel, Frequency min_frequency, Frequen
 		const float aiLimit = a_M / eTestFactor; // Checking a_i > limit is equivalent to checking 10log_20(aM/ai) < gamma
 
 		// Get frame-wise peaks
-		const MF * framePtr = get_MFPointer( channel, frame, 0 );
+		const MF * framePtr = get_MF_pointer( channel, frame, 0 );
 		auto magPeakFunc = [framePtr]( int i ) -> float { return framePtr[i].m; };
 		const std::vector<vec2> peaks = find_peaks( magPeakFunc, get_num_bins(), -1, false, false );
 
@@ -262,7 +262,7 @@ std::vector<PV::Contour> PV::get_contours( Channel channel, Frequency min_freque
 	return contoursFiltered;
 	}
 
-PV PV::prism( const PrismFunc & prismFunc, bool use_local_contour_time, flan_CANCEL_ARG_CPP ) const
+PV PV::prism( const PrismFunc & prism_func, bool use_local_contour_time, flan_CANCEL_ARG_CPP ) const
 	{
 	if( is_null() ) return PV();
 
@@ -271,26 +271,26 @@ PV PV::prism( const PrismFunc & prismFunc, bool use_local_contour_time, flan_CAN
 
 	PV out = copy();
 
-	auto pitchBinToFreq = [min_frequency]( float bin ){ return min_frequency * std::pow( 2.0f, bin / 120.0f ); };
+	auto pitch_bin_to_freq = [min_frequency]( float bin ){ return min_frequency * std::pow( 2.0f, bin / 120.0f ); };
 
 	// The pitch bins from the contour aren't exact enough, so we need to more accurately estimate the base frequency with a weighted mean of nearby bins
-	auto getAccurateFreq = [this]( Channel channel, Frame frame, Frequency approxFreq )
+	auto get_accurate_freq = [this]( Channel channel, Frame frame, Frequency approx_freq )
 		{
-		float totalWeightedFreq = 0;
-		float totalMag = 0;
+		float total_weighted_freq = 0;
+		float total_mag = 0;
 		for( Bin bin = 0; bin < get_num_bins(); ++bin )
 			{
-			const MF & sourceMF = get_MF( channel, frame, bin );
-			if( sourceMF.f <= 0 ) continue;
-			if( notesClose( sourceMF.f, approxFreq ) ) // Assert the bin has a frequency within a half a note of the target harmonic
+			const MF & source_MF = get_MF( channel, frame, bin );
+			if( source_MF.f <= 0 ) continue;
+			if( notesClose( source_MF.f, approx_freq ) ) // Assert the bin has a frequency within a half a note of the target harmonic
 				{
-				const Magnitude absMag = std::abs( sourceMF.m );
-				totalWeightedFreq += sourceMF.f * absMag;
-				totalMag += absMag;
+				const Magnitude abs_mag = std::abs( source_MF.m );
+				total_weighted_freq += source_MF.f * abs_mag;
+				total_mag += abs_mag;
 				}
 			}
-		if( totalMag == 0 ) return 0.0f;
-		return totalWeightedFreq / totalMag;
+		if( total_mag == 0 ) return 0.0f;
+		return total_weighted_freq / total_mag;
 		};
 
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
@@ -298,118 +298,118 @@ PV PV::prism( const PrismFunc & prismFunc, bool use_local_contour_time, flan_CAN
 		std::vector<Contour> contours = get_contours( channel, min_frequency, max_frequency, 60, 20, canceller );
 		if( contours.empty() ) return PV();
 		std::sort( FLAN_PAR_UNSEQ contours.begin(), contours.end(), []( const Contour & a, const Contour & b ){ return a.start_frame < b.start_frame; } );
-		for( int contourIndex = 0; contourIndex < contours.size(); ++contourIndex )
+		for( Index contour_index = 0; contour_index < contours.size(); ++contour_index )
 			{
-			const Contour & contour = contours[contourIndex];
+			const Contour & contour = contours[contour_index];
 
-			flan::for_each_i( contour.bins.size(), ExecutionPolicy::Linear_Sequenced, [&]( Frame contourFrame ) {
-				const Frame frame = contourFrame + contour.start_frame;
-				const MF * const sourceFramePtr = get_MFPointer( channel, frame, 0 );
+			flan::for_each_i( contour.bins.size(), prism_func.get_execution_policy(), [&]( Frame contour_frame ) {
+				const Frame frame = contour_frame + contour.start_frame;
+				const MF * const source_frame_ptr = get_MF_pointer( channel, frame, 0 );
 
 				// The pitch bin from the contour isn't exact enough, so we need to more accurately estimate the base frequency with a weighted mean of nearby bins
-				const Frequency approxBaseFreq = pitchBinToFreq( contour.bins[contourFrame].x() );
-				const Frequency baseFreq = getAccurateFreq( channel, frame, approxBaseFreq );
-				if( baseFreq < 1.0f )
+				const Frequency approx_base_freq = pitch_bin_to_freq( contour.bins[contour_frame].x() );
+				const Frequency base_freq = get_accurate_freq( channel, frame, approx_base_freq );
+				if( base_freq < 1.0f )
 					return;
-				const size_t maxNumHarmonics = std::floor( get_height() / baseFreq );
+				const size_t max_num_harmonics = std::floor( get_height() / base_freq );
 
 				// First we will locate everything that needs to be changed and clear it from out
 				// We need to find all bins before changing them because we don't want to overwrite bins that need to be changed
-				std::vector<std::vector<Bin>> binsToChangeVec( maxNumHarmonics ); // Harmonic -> Bin vector
-				for( auto & v : binsToChangeVec )
+				std::vector<std::vector<Bin>> bins_to_change_vec( max_num_harmonics ); // Harmonic -> Bin vector
+				for( auto & v : bins_to_change_vec )
 					v.reserve( 20 );
 
-				for( Harmonic harmonic = 0; harmonic < binsToChangeVec.size(); ++harmonic ) // For each harmonic
+				for( Harmonic harmonic = 0; harmonic < bins_to_change_vec.size(); ++harmonic ) // For each harmonic
 					{
-					const Frequency freq = baseFreq * ( harmonic + 1 );
+					const Frequency freq = base_freq * ( harmonic + 1 );
 
 					// For bins near the harmonic, we find all bins with a freq close to the harmonic
-					std::vector<Bin> & binsToChange = binsToChangeVec[harmonic];
+					std::vector<Bin> & bins_to_change = bins_to_change_vec[harmonic];
 					const Bin start_bin = bound_bin( frequency_to_bin( freq ) - 10 );
 					const Bin end_bin   = bound_bin( frequency_to_bin( freq ) + 10 );
-					const MF * sourcePtr = get_MFPointer( channel, frame, start_bin );
-					for( Bin bin = start_bin; bin <= end_bin; ++bin, ++sourcePtr )
+					const MF * source_ptr = get_MF_pointer( channel, frame, start_bin );
+					for( Bin bin = start_bin; bin <= end_bin; ++bin, ++source_ptr )
 						{
-						const MF & sourceMF = *sourcePtr;
-						if( sourceMF.f <= 0 ) continue;
+						const MF & source_MF = *source_ptr;
+						if( source_MF.f <= 0 ) continue;
 						// Assert the bin has a frequency within a half a note of the target harmonic
-						if( notesClose( sourceMF.f, freq ) ) 
-							binsToChange.push_back( bin );
+						if( notesClose( source_MF.f, freq ) ) 
+							bins_to_change.push_back( bin );
 						}
 
 					// Clear source bins from out
-					MF * const clearFramePtr = out.get_MFPointer( channel, frame, 0 );
-					for( auto bin : binsToChange )
-						( clearFramePtr + bin )->m = 0;
+					MF * const clear_frame_ptr = out.get_MF_pointer( channel, frame, 0 );
+					for( auto bin : bins_to_change )
+						( clear_frame_ptr + bin )->m = 0;
 					}
 
 				// For each harmonic, find the dominant bin
-				std::vector<Bin> harmonicMaxMagBins( maxNumHarmonics );
-				std::vector<Magnitude> harmonicMaxMags( maxNumHarmonics, 0 );
-				for( Harmonic harmonic = 0; harmonic < harmonicMaxMagBins.size(); ++harmonic )
+				std::vector<Bin> harmonic_max_mag_bins( max_num_harmonics );
+				std::vector<Magnitude> harmonic_max_mags( max_num_harmonics, 0 );
+				for( Harmonic harmonic = 0; harmonic < harmonic_max_mag_bins.size(); ++harmonic )
 					{
-					const std::vector<Bin> & binsToChange = binsToChangeVec[harmonic];
-					if( binsToChange.empty() ) continue;
-					const Bin harmonicMaxMagBin = *std::max_element( binsToChange.begin(), binsToChange.end(), [sourceFramePtr]( Bin a, Bin b )
-						{ return ( sourceFramePtr + a )->m < ( sourceFramePtr + b )->m; } );
-					harmonicMaxMagBins[harmonic] = harmonicMaxMagBin;
-					harmonicMaxMags[harmonic] = ( sourceFramePtr + harmonicMaxMagBin )->m;
-					if( harmonicMaxMags[harmonic] < 0.01 ) // This is an arbitrary delta that needs improvement
+					const std::vector<Bin> & bins_to_change = bins_to_change_vec[harmonic];
+					if( bins_to_change.empty() ) continue;
+					const Bin harmonic_max_mag_bin = *std::max_element( bins_to_change.begin(), bins_to_change.end(), [source_frame_ptr]( Bin a, Bin b )
+						{ return ( source_frame_ptr + a )->m < ( source_frame_ptr + b )->m; } );
+					harmonic_max_mag_bins[harmonic] = harmonic_max_mag_bin;
+					harmonic_max_mags[harmonic] = ( source_frame_ptr + harmonic_max_mag_bin )->m;
+					if( harmonic_max_mags[harmonic] < 0.01 ) // This is an arbitrary delta that needs improvement
 						{
-						harmonicMaxMags[harmonic] = 0;
+						harmonic_max_mags[harmonic] = 0;
 						}
 					}
 
 				// Now we go back through everything in the frame that needs writing and write it
-				for( Harmonic harmonic = 0; harmonic < harmonicMaxMagBins.size(); ++harmonic )
+				for( Harmonic harmonic = 0; harmonic < harmonic_max_mag_bins.size(); ++harmonic )
 					{
-					const Frequency freq = baseFreq * ( harmonic + 1 );                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+					const Frequency freq = base_freq * ( harmonic + 1 );                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 
-					const MF modifiedHarmonic = prismFunc( 
-						contourIndex, 
-						frame_to_time( use_local_contour_time ? contourFrame : frame ), 
+					const MF modified_harmonic = prism_func( 
+						contour_index, 
+						frame_to_time( use_local_contour_time ? contour_frame : frame ), 
 						harmonic + 1, 
-						baseFreq, 
-						harmonicMaxMags );
+						base_freq, 
+						harmonic_max_mags );
 						
-					if( modifiedHarmonic.f < 0 ) 
+					if( modified_harmonic.f < 0 ) 
 						continue;
 					
-					if( harmonicMaxMags[harmonic] != 0 )
+					if( harmonic_max_mags[harmonic] != 0 )
 						{
-						const std::vector<Bin> & binsToChange = binsToChangeVec[harmonic];
+						const std::vector<Bin> & bins_to_change = bins_to_change_vec[harmonic];
 
-						const Bin newMaxMagBin = modifiedHarmonic.f / freq * harmonicMaxMagBins[harmonic];
-						const Bin binShift = newMaxMagBin - harmonicMaxMagBins[harmonic];
-						const Frequency fScale = modifiedHarmonic.f / freq;
-						const Frequency mScale = modifiedHarmonic.m / harmonicMaxMags[harmonic];
-						for( auto bin : binsToChange )
+						const Bin new_max_mag_bin = modified_harmonic.f / freq * harmonic_max_mag_bins[harmonic];
+						const Bin bin_shift = new_max_mag_bin - harmonic_max_mag_bins[harmonic];
+						const Frequency f_scale = modified_harmonic.f / freq;
+						const Frequency m_scale = modified_harmonic.m / harmonic_max_mags[harmonic];
+						for( auto bin : bins_to_change )
 							{
-							const Bin newBin = bin + binShift;
-							if( newBin < 0 || newBin >= get_num_bins() )	
+							const Bin new_bin = bin + bin_shift;
+							if( new_bin < 0 || new_bin >= get_num_bins() )	
 								continue;
 
 							// Set new bin to updated value
 							//std::lock_guard<std::mutex> lock( mutexBuffer[frame] );
-							const MF & sourceMF = *( sourceFramePtr + bin );
-							MF & destMF = out.get_MF( channel, frame, newBin );
-							if( destMF.m < sourceMF.m * mScale )
-								destMF = { sourceMF.m * mScale, sourceMF.f * fScale };
+							const MF & source_MF = *( source_frame_ptr + bin );
+							MF & dest_MF = out.get_MF( channel, frame, new_bin );
+							if( dest_MF.m < source_MF.m * m_scale )
+								dest_MF = { source_MF.m * m_scale, source_MF.f * f_scale };
 							}
 						}
 					else // There is no harmonic to scale, so create one
 						{
 						const Frequency frequency_bandwidth = 10;
-						const Frequency low_frequency = modifiedHarmonic.f - frequency_bandwidth / 2;
-						const Frequency high_frequency = modifiedHarmonic.f + frequency_bandwidth / 2;
+						const Frequency low_frequency = modified_harmonic.f - frequency_bandwidth / 2;
+						const Frequency high_frequency = modified_harmonic.f + frequency_bandwidth / 2;
 						const Bin low_bin  = std::max( 0, 						(Bin) std::ceil ( out.frequency_to_bin( low_frequency ) ) );
 						const Bin high_bin = std::min( out.get_num_bins() - 1, 	(Bin) std::floor( out.frequency_to_bin( high_frequency ) ) );
 
 						for( Bin bin = low_bin; bin <= high_bin; ++bin )
 							{
 							const float window_position = ( out.bin_to_frequency( bin ) - low_frequency ) / frequency_bandwidth;
-							const Magnitude bin_magnitude = modifiedHarmonic.m * Windows::hann( window_position );
-							out.get_MF( channel, frame, bin ) = { bin_magnitude, modifiedHarmonic.f };
+							const Magnitude bin_magnitude = modified_harmonic.m * Windows::hann( window_position );
+							out.get_MF( channel, frame, bin ) = { bin_magnitude, modified_harmonic.f };
 							}
 						}
 					}

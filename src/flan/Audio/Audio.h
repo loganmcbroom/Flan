@@ -463,13 +463,13 @@ public:
 
 	/** Generates a volume-decaying iteration of the input. If a mod is supplied, it will 
 	 *	be fed the previous iteration's ouput, rather than the original Audio.
-	 *	\param length The time at which delay events stop generating.
+	 *	\param added_length How much additional time should be added to the input.
 	 *	\param delay_time The amount of time between delays.
 	 *	\param decay Each delay event will have its gain scaled by the decay at the event time.
 	 *	\param mod This allows user-defined processing of each delay. Delay line feedback will have this repeatedly applied.
 	 */
 	Audio delay( 
-		Second length, 
+		Second added_length, 
 		const Function<Second, Second> & delay_time, 
 		const Function<Second, float> & decay = .5, 
 		const AudioMod & mod = AudioMod() 
@@ -506,10 +506,10 @@ public:
 	 *  \param slice_length The length of each output.
 	 *  \param fade The start and end fade time of each slice.
 	 */
-	// Audio rearrange( 
-	// 	Second slice_length, 
-	// 	Second fade = 0
-	// 	) const;
+	Audio rearrange( 
+		Second slice_length, 
+		Second fade_time = 0
+		) const;
 
 	Audio random_chunks(
 		Second length,
@@ -864,13 +864,13 @@ public:
 		return mix( p_ins );
 		}
 
-	static Audio mix_variable_gain( 
+	static Audio mix( 
 		std::vector<const Audio *> ins, 
 		std::vector<Second> start_times, 
 		const std::vector<const Function<Second, Amplitude> *> & gains 
 		);
 
-	static Audio mix_variable_gain( 
+	static Audio mix( 
 		const std::vector<Audio> & ins, 
 		const std::vector<Second> & start_times, 
 		const std::vector<Function<Second, Amplitude>> & gains 
