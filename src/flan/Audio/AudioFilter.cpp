@@ -829,10 +829,10 @@ Audio Audio::filter_1pole_allpass_n(
 	}
 
 Audio Audio::filter_1pole_multinotch(
-	const Function<Second, Frequency> & cutoff,
-	const Function<Second, float> & wet_dry,
 	uint16_t order,
-	bool invert
+	const Function<Second, Frequency> & cutoff,
+	bool invert,
+	const Function<Second, float> & wet_dry
 	) const
 	{
 	if( is_null() ) return Audio::create_null();
@@ -878,11 +878,11 @@ Audio filter_2pole_allpass_n(
 	}
 
 Audio Audio::filter_2pole_multinotch(
+	uint16_t order,
 	const Function<Second, Frequency> & cutoff,
 	const Function<Second, float> & damping,
-	const Function<Second, float> & wet_dry,
-	uint16_t order,
-	bool invert
+	bool invert,
+	const Function<Second, float> & wet_dry
 	) const
 	{
 	if( is_null() ) return Audio::create_null();
@@ -1273,7 +1273,7 @@ Audio Audio::phaser_texture(
 			}, lowest_exec ), 
 		fade_time );
 
-	const Function<Second, Amplitude> wet_dry = [&]( Second t ){ return 1.0f - dry_wet(t); };
+	const Function<Second, Amplitude> wet_dry( [&]( Second t ){ return 1.0f - dry_wet(t); }, dry_wet.get_execution_policy() );
 	const std::vector< const Function<Second, Amplitude> *> gains = { &wet_dry, &dry_wet };
 	return Audio::mix( { this, &wet }, {}, gains );
 	}

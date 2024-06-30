@@ -814,18 +814,18 @@ public:
 	/* Other filters ==================== */
 
 	Audio filter_1pole_multinotch(
+		uint16_t order,
 		const Function<Second, Frequency> & cutoff,
-		const Function<Second, float> & wet_dry = .5,
-		uint16_t order = 1,
-		bool invert = false
+		bool invert = false,
+		const Function<Second, float> & wet_dry = .5
 		) const;
 
 	Audio filter_2pole_multinotch(
+		uint16_t order,
 		const Function<Second, Frequency> & cutoff,
 		const Function<Second, float> & damping,
-		const Function<Second, float> & wet_dry = .5,
-		uint16_t order = 1,
-		bool invert = false
+		bool invert = false,
+		const Function<Second, float> & wet_dry = .5
 		) const;
 
 	Audio filter_comb(
