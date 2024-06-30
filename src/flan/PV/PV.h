@@ -29,7 +29,7 @@ class PV : public PVBuffer
 public:
 
 	template<typename T>
-	FunctionSample<T> sample_function_over_domain( const Function<TF, T> & f ) const	
+	FunctionSample2d<T> sample_function_over_domain( const Function<TF, T> & f ) const	
 		{
 		return f.sample( 0, get_num_frames(), 1.0f / get_analysis_rate(), 0, get_num_bins(), bin_to_frequency( 1 ) );
 		}
@@ -323,6 +323,20 @@ public:
 	PV desample( 
 		const Function<TF, float> & decimation_ratio, 
 		const Interpolator & interp = Interpolator::linear() 
+		) const;
+
+	/** This is desamples big brother. This process assigns to each output MF an average of the surrounding MFs in time.
+	 * \param smear_size Gives the distance the smear window should reach in each direction from the current point in time.
+	 * \param granularity The number of frames to jump per sample when sampling surrounding data. At the minimum value of 1 this process becomes very slow.
+	 * \param distribution The amounts of surrounding MF data to average from. Must be defined on [-1,1], and is not used outside this interval.
+	 */
+	PV smear_time( 
+		const Function<TF, Second> & smear_size, 
+		const Function<TF, int> & granularity = 5,
+		const Function<Second, float> & distribution = []( Second t )
+			{ 
+			return 0.5f * ( 1.0f + std::cos( std::_Pi * t ) );
+			}
 		) const;
 
 	/** Warning: this process can produce very loud outputs with unscrupulouss parameters.

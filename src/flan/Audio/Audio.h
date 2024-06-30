@@ -378,6 +378,11 @@ public:
 	// Temporal
 	//============================================================================================================================================================
 
+	Audio modify_boundaries_frames( 
+		Frame start, 
+		Frame end 
+		) const;
+
 	Audio modify_boundaries( 
 		Second start, 
 		Second end 
@@ -830,7 +835,99 @@ public:
 		bool invert = false
 		) const;
 
+	/** Apply
+	 */
+	Audio filter_1pole_allpass_n(
+		const Function<Second, Frequency> & cutoff,
+		uint16_t order
+		) const;
 
+	Audio filter_1pole_multi_allpass(
+		const std::vector<Function<Second, Frequency>> & cutoffs
+		) const;
+
+	/** This one is sort of hard to explain. A purely real signal contains mirrored positive and negative frequency components.
+	 * This process applies an approximation of a hilbert transform to produce a signal that contains the same positive spectrum, but
+	 * with no negative spectral component. That signal is then multiplied by the modulator, which is equivalent to spectral convolution.
+	 * Using a complex sinusoid, this becomes frequency shifting. Without the hilbert transform it is essentially ring modulation.
+	 * I am not sure how useful this is, but it's certainly interesting, and that's enough to make it worth exposing to the api.
+	 * Note, though, that it will alias to some degree for almost any input. This is practically unavoidable on my end, as antialiasing the
+	 * input before processing would require analyzing the spectra of both the input and the modulator, and making a call on what level of
+	 * aliasing is acceptable.
+	 */
+	Audio halfband_modulate(
+		const Function<Second, std::complex<float>> & modulator
+		) const;
+
+	Audio shift_frequency(
+		const Function<Second, Frequency> & shift,
+		Frequency low_cutoff = 30
+		) const;
+
+	/** See Audio::halfband_modulate. This uses an approximate hilbert transform on both input Audio, and multiplies the results.
+	 */
+	Audio halfband_multiply(
+		const Audio & modulator
+		) const;
+
+	/** A traditional phaser is a number of allpass or notch filters, each controlled by an lfo. Those lfos may or may not be synchronized.
+		This applies a single lfo controlled notch filter with a lot of freedom. You can apply several of this process to generate any number
+		of phaser-ish sounds. If you just want a phaser sound without working that hard, see Audio::easy_phaser.
+		\param lfo_central_cutoff The middle cutoff frequency of the filter.
+		\param lfo_amplitude The distance in frequency the filter cutoff should stray from the middle.
+		\param lfo_frequency The speed at which the filter cutoff oscillates in radians per second.
+		\param initial_phase The phase of the lfo at t=0.
+		\param pitch_domain Enabling this will bring the lfo into the pitch domain. For a pitch p, frequency will be obtained by 2^p.
+	 */
+	Audio phaser_step(
+		const Function<Second, float> & lfo_central_cutoff,
+		const Function<Second, float> & lfo_amplitude,
+		const Function<Second, float> & lfo_frequency,
+		float resonance = 1.0f,
+		int filter_order = 4,
+		Radian initial_phase = 0,
+		bool pitch_domain = false
+		) const;
+
+	/** We made it easy, not hard. Easy, not hard! Just fiddle with the knobs and let the compuuuuter do the thinking for you dum-dum!
+	 *
+	 */
+	Audio easy_phaser(
+		const Function<Second, float> & speed,
+		const Function<Second, float> & wow_amount = 1,
+		int how_many_notches = 3, 
+		int filter_order = 4,
+		float resonance = 1.0f
+		) const;
+
+	/** Applies a large number of moving notch filters to the input. This creates a "phasey" sound, but whereas a traditional phaser effect
+		controls a number of filters using lfos, this controls them with the flan texture timing engine, moving them between user defined start
+		and end pitches.
+		\param effects_per_second The number of times the mod should be applied per second.
+		\param time_scatter The amount that the effect applications should be randomized in time, given in standard deviations for a normal distribution.
+		\param effect_length The amount of time each effect application should last.
+		\param pitch_start The starting cutoff pitch for the filter. Frequency is 2^pitch.
+		\param pitch_movement The ending cutoff pitch for the filter. Frequency is 2^pitch.
+		\param resonance The filter resonance
+		\param order The filter order.
+		\param intensity The amount of the effect to apply over time
+		\param fade_time The amount of fade in/fade out time for each effect. Bounded at half the current effect length.
+		\param interp The way in which the filter cutoff should move between its start and end in the pitch domain.
+	 */
+	Audio phaser_texture(
+		const Function<Second, float> & effects_per_second, 
+		const Function<Second, float> & time_scatter,
+		const Function<Second, Second> & effect_length,
+
+		const Function<Second, float> & pitch_start, 
+		const Function<Second, float> & pitch_movement,
+		const Function<Second, float> & resonance = 1,
+		const Function<Second, int> order = 4,
+
+		const Function<Second, float> & intensity = 1,
+		Second fade_time = 10*60, // Ten minutes is meant to be max, but max requires more care with conversions
+		const Interpolator & interp = Interpolator::smoothstep()
+		) const;
 
 	//============================================================================================================================================================
 	// Combination
@@ -1032,6 +1129,23 @@ public:
 		const Function<Second, float> & time_scatter, 
 		const AudioMod & mod = AudioMod(),
 		bool mod_feedback = false
+		) const;
+
+	/** Apply an effect to sections of the input, fading between.
+		\param effects_per_second The number of times the mod should be applied per second.
+		\param time_scatter The amount that the effect applications should be randomized in time, given in standard deviations for a normal distribution.
+		\param effect_length The amount of time each effect application should last.
+		\param mod The effect to apply.
+		\param fade_time The amount of fade in/fade out time for each effect. Bounded at half the current effect length.
+		\param interp The way in which fades should be applied. Linear will sound more natural for effect that return signals correlated to the input, sqrt will sound more natural for the opposite.
+	 */
+	Audio texture_effect(
+		const Function<Second, float> & effects_per_second, 
+		const Function<Second, float> & time_scatter,
+		const Function<Second, Second> & effect_length,
+		const AudioMod & mod,
+		Second fade_time = 16.0f/48000.0f,		
+		Interpolator interp = Interpolator::linear()
 		) const;
 
 	// Grain Compositions ===================================================================================================================

@@ -154,12 +154,12 @@ struct Function
 
 	template<typename Input = I>
 	requires std::convertible_to<Input, vec2>
-	FunctionSample<O> sample( float x_start, float x_end, float x_scale, float y_start, float y_end, float y_scale ) const
+	FunctionSample2d<O> sample( float x_start, float x_end, float x_scale, float y_start, float y_end, float y_scale ) const
 		{
 		const int x_size = std::ceil( x_end - x_start );
 		const int y_size = std::ceil( y_end - y_start );
 		if( is_constant() )
-			return FunctionSample<O>( operator()({0,0}), x_size * y_size );
+			return FunctionSample2d<O>( operator()({0,0}), x_size * y_size, y_size );
 		std::vector<O> out( x_size * y_size );
 		runtime_execution_policy_handler( get_execution_policy(), [&]( auto policy ){
 			std::for_each( FLAN_POLICY iota_iter( x_start ), iota_iter( x_end ), [&]( int x ){ 
@@ -167,7 +167,7 @@ struct Function
 					out[ buffer_access( (y-y_start), (x-x_start), y_size ) ] = operator()( vec2( x * x_scale, y * y_scale ) ); 
 				} ); 
 			} );
-		return out;
+		return FunctionSample2d<O>( std::move( out ), y_size );
 		}
 
 	template<typename Input = I>

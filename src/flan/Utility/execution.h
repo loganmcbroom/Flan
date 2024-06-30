@@ -51,6 +51,7 @@ ExecutionPolicy lowest_execution( const std::vector<ExecutionPolicy> & );
 
 template<typename... Ts>
 using AllExePolicies = typename std::enable_if_t<std::conjunction_v< std::is_convertible<Ts, ExecutionPolicy>... >>;
+
 template<typename ... Ts, typename = AllExePolicies<Ts...> >
 ExecutionPolicy lowest_execution( 
 	Ts ... ins 

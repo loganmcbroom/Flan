@@ -47,7 +47,14 @@ Audio Audio::synthesize_waveform(
 
 	// Get the phases that wave_samples needs to be evaluated at
 	// Modular sum is associative, prefer exclusive_scan over partial_sum
-	FunctionSample<float> phases = frequency_sampled.exclusive_scan( 0.0f, [&]( float a, float b ){ return std::fmod( a + b, in_sample_rate ); } );
+	// fmod fixed handles negative frequency correctly
+	auto fmod_fixed = []( float a, float b )
+		{
+		float remainder = std::fmod( a, b );
+		if (remainder < 0) remainder += b;
+		return remainder;
+		};
+	FunctionSample<float> phases = frequency_sampled.exclusive_scan( 0.0f, [&]( float a, float b ){ return fmod_fixed( a + b, in_sample_rate ); } );
 	phases.for_each( [&]( float & phase ){ phase /= in_sample_rate; } ); // freq sum -> phase
 
 	// Evaluate wave at phases
@@ -463,6 +470,70 @@ Audio Audio::texture(
 		// 	} );
 		}
 	return Audio::mix( modded_audio, event_times );
+	}
+
+Audio Audio::texture_effect(
+	const Function<Second, float> & effects_per_second, 
+	const Function<Second, float> & time_scatter,
+	const Function<Second, Second> & effect_length,
+	const AudioMod & mod,
+	Second fade_time,
+	Interpolator interp
+	) const
+	{
+	if( is_null() || mod.is_null() ) return Audio::create_null();
+
+	const Frame fade_frames = std::max( 0.0f, time_to_frame( fade_time ) );
+
+	const std::vector<Second> event_times = integrate_event_rate( get_length(), effects_per_second, time_scatter, get_sample_rate() );
+
+	Audio out = copy();
+
+	// For each event, cut the event from out, apply the effect, and paste it back in ( with crossfading )
+	for( Second t : event_times )
+		{
+		// Cut out a section and mod
+		const Frame event_frame = time_to_frame( t );
+		const Second mod_input_length_c = std::max( effect_length(t), 0.0f );
+		const Second mod_input_frames_c = time_to_frame( mod_input_length_c );
+		Audio piece = out.modify_boundaries_frames( event_frame, event_frame + mod_input_frames_c - out.get_num_frames() );
+		mod( piece, t );
+		const Second mod_output_length_c = piece.get_length();
+		const Frame mod_output_frames_c = piece.get_num_frames();
+		const Frame fade_frames_c = std::min( (Frame) std::floor( time_to_frame( mod_output_length_c/2 ) ), fade_frames );
+		piece.fade_frames_in_place( fade_frames_c, fade_frames_c, interp );
+
+		// Cut a space into out and paste the modded piece back in
+		for( Channel channel = 0; channel < get_num_channels(); ++channel )
+			{
+			// Add fades to out
+			if( fade_frames_c > 0 )
+				flan::for_each_i( fade_frames_c, ExecutionPolicy::Parallel_Unsequenced, [&]( Frame piece_frame )
+					{
+					const float scale = interp( 1.0f - float( piece_frame ) / fade_frames_c );
+					if( event_frame + piece_frame < out.get_num_frames() ) 
+						out.get_sample( channel, event_frame + piece_frame ) *= scale;
+					if( event_frame + mod_output_frames_c - piece_frame < out.get_num_frames() )
+						out.get_sample( channel, event_frame + mod_output_frames_c - piece_frame ) *= scale;
+					} );	
+			
+			// Fill the area between the fades of out with zero
+			flan::for_each_i( mod_output_frames_c - 2*fade_frames_c + 1, ExecutionPolicy::Parallel_Unsequenced, [&]( Frame piece_frame )
+				{
+				if( piece_frame + event_frame + fade_frames_c < out.get_num_frames() )
+					out.get_sample( channel, piece_frame + event_frame + fade_frames_c ) = 0.0f;
+				} );	
+
+			// Add the faded + effected piece back into out
+			flan::for_each_i( piece.get_num_frames(), ExecutionPolicy::Parallel_Unsequenced, [&]( Frame piece_frame )
+				{
+				if( piece_frame + event_frame < out.get_num_frames() )
+					out.get_sample( channel, piece_frame + event_frame ) += piece.get_sample( channel, piece_frame );
+				} );
+			}
+		}
+
+	return out;
 	}
 
 //=====================================================================================================================================

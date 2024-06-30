@@ -1,4 +1,4 @@
-toilets
+toilet
 kitchen cabs
 mirrors
 microwave
@@ -17,7 +17,6 @@ Maybe todo:
 	perturb sucks currently but might have potential using something like simplex noise, see comments on process
 		it also could be placing frequencies outside bins that can hold them, use the bin shift strategy as in PV::time_extrapolate
 	PV::time_extrapolate could use a Func2x1 instead of interp, not sure the best way to set it up though
-	find a better way to handle function sampling, then remove buffer_access
 
 Process ideas:
 	Audio::limiter
@@ -37,7 +36,7 @@ Task:
 
 	factor get_pointers to... somewhere
 
-	fix PV::repitch via integration
+	multinotch filters are not right
 
 
 	

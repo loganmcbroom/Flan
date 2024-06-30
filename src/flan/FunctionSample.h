@@ -131,16 +131,6 @@ struct FunctionSample
 		{
 		return [sr, this]( Second t ){ return operator[]( t * sr ); };
 		}
-	
-	// Function<TF, O> to_time_frequency_function( FrameRate frames_per_second, float bins_per_frequency, Bin num_bins )
-	// 	{
-	// 	return [=, this]( TF tf )
-	// 		{ 
-	// 		const Frame frame = tf.t * frames_per_second;
-	// 		const Bin bin = tf.f * bins_per_frequency;
-	// 		return operator[]( buffer_access( bin, frame, num_bins ) ); 
-	// 		};
-	// 	}
 
 	template<VectorSpace T = O>
 	T accumulate() const
@@ -179,5 +169,34 @@ struct FunctionSample
 		return op( *std::ranges::max_element( get_vector(), std::ranges::less(), op ) );
 		}
 };
+
+template<typename O>
+struct FunctionSample2d : public FunctionSample<O>
+{
+	FunctionSample2d( std::vector<O> && v, size_t small_dimension_size )
+		: FunctionSample<O>( std::move( v ) )
+		, small_dim_size( small_dimension_size )
+		{}
+
+	FunctionSample2d( O v, size_t n, size_t small_dimension_size )
+		: FunctionSample<O>( v, n )
+		, small_dim_size( small_dimension_size )
+		{}
+
+	O & at( Frame f, Bin b )
+		{
+		if( FunctionSample<O>::is_constant() ) return FunctionSample<O>::get_constant();
+		else return FunctionSample<O>::get_vector()[ f * small_dim_size + b ];
+		}
+
+	O at( Frame f, Bin b ) const
+		{
+		if( FunctionSample<O>::is_constant() ) return FunctionSample<O>::get_constant();
+		else return FunctionSample<O>::get_vector()[ f * small_dim_size + b ];
+		}
+
+	const size_t small_dim_size;
+};
+
 
 }

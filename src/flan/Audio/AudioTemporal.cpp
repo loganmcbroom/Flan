@@ -93,14 +93,14 @@ static std::vector<const T *> get_pointers( const std::vector<T> & ts )
 	return std::move( ptrs );
 	}
 
-Audio Audio::modify_boundaries( 
-	Second start, 
-	Second end 
+Audio Audio::modify_boundaries_frames( 
+	Frame start_frame, 
+	Frame end_frame
 	) const
 	{
 	if( is_null() ) return Audio::create_null();
 
-	const Frame num_out_frames = time_to_frame( -start ) + get_num_frames() + time_to_frame( end );
+	const Frame num_out_frames = -start_frame + get_num_frames() + end_frame;
 	if( num_out_frames <= 0 ) return Audio::create_null();
 
 	Audio::Format format = get_format();
@@ -108,9 +108,17 @@ Audio Audio::modify_boundaries(
 	Audio out( format );
 	out.clear_buffer();
 
-	out.mix_in_place( *this, -start );
+	out.mix_in_place( *this, -frame_to_time( start_frame ) );
 
 	return out;
+	}
+
+Audio Audio::modify_boundaries( 
+	Second start, 
+	Second end 
+	) const
+	{
+	return modify_boundaries_frames( time_to_frame( start ), time_to_frame( end ) );
 	}
 
 Audio Audio::remove_edge_silence( 
@@ -216,7 +224,7 @@ Audio Audio::cut_frames(
 	Audio out( format );
 
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
-		std::for_each( FLAN_PAR_UNSEQ iota_iter( 0 ), iota_iter( out.get_num_frames() ), [&]( Frame frame )
+		flan::for_each_i( out.get_num_frames(), ExecutionPolicy::Parallel_Unsequenced, [&]( Frame frame )
 			{
 			out.set_sample( channel, frame, get_sample( channel, start + frame ) );
 			} );

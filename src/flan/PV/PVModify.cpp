@@ -6,6 +6,7 @@
 
 #include "spline/spline.h"
 #include "flan/Utility/iota_iter.h"
+#include "flan/Utility/buffer_access.h"
 
 using namespace std::ranges;
 
@@ -192,7 +193,11 @@ PV PV::modify( const Function<TF, TF> & mod, const Interpolator & interp ) const
 	return out;
 	}
 
-PV modify_frequency_base( const PV & me, const FunctionSample<Frequency> & mod, const std::vector<Frequency> input_frequencies_modded, const Interpolator & interp )
+PV modify_frequency_base( 
+	const PV & me, 
+	const FunctionSample2d<Frequency> & mod, 
+	const std::vector<Frequency> input_frequencies_modded, 
+	const Interpolator & interp )
 	{
 	if( me.is_null() ) return PV();
 
@@ -219,8 +224,8 @@ PV modify_frequency_base( const PV & me, const FunctionSample<Frequency> & mod, 
 				const Bin start_bin = std::clamp( loBinRound, 0, out.get_num_bins() - 1 );
 				const Bin end_bin   = std::clamp( hiBinRound, 0, out.get_num_bins() - 1 );
 
-				const MF & loMF = MF{ me.get_MF( channel, frame, bin - 1 ).m, in_modified[ buffer_access( bin - 1, frame, me.get_num_bins() ) ] };
-				const MF & hiMF = MF{ me.get_MF( channel, frame, bin     ).m, in_modified[ buffer_access( bin    , frame, me.get_num_bins() ) ] };
+				const MF & loMF = MF{ me.get_MF( channel, frame, bin - 1 ).m, in_modified[buffer_access( bin - 1, frame, me.get_num_bins() )] };
+				const MF & hiMF = MF{ me.get_MF( channel, frame, bin     ).m, in_modified[buffer_access( bin, frame, me.get_num_bins())] };
 
 				for( Bin y = start_bin; y != end_bin; forward? ++y : --y )
 					{
@@ -272,7 +277,7 @@ PV PV::repitch( const Function<TF, float> & local_expansion_factor, const Interp
 	// Partial integral with respect to time. Factor_sampled becomes TF -> Frame.
 	for( Frame frame = 0; frame < get_num_frames(); ++frame )
 		for( Bin bin = 1; bin < get_num_bins(); ++bin )
-			factor_sampled[buffer_access( bin, frame, get_num_bins() )] += factor_sampled[buffer_access( bin - 1, frame, get_num_bins() )];
+			factor_sampled.at( frame, bin ) += factor_sampled.at( frame, bin - 1 );
 
 	// Bin to frequency conversion. Factor_sampled becomes TF->Frequency.
 	for( int i = 0; i < factor_sampled.size(); ++i )
@@ -288,8 +293,8 @@ PV PV::repitch( const Function<TF, float> & local_expansion_factor, const Interp
 				const fBin fbin = std::clamp( frequency_to_bin( get_MF( channel, frame, bin ).f ), 0.0f, fBin( get_num_bins() - 1 ) - 0.0001f );
 				const Bin lo = std::floor( fbin );
 				const Bin hi = lo + 1;
-				const Frequency lo_freq = factor_sampled[buffer_access( lo, frame, get_num_bins() )];
-				const Frequency hi_freq = factor_sampled[buffer_access( hi, frame, get_num_bins() )];
+				const Frequency lo_freq = factor_sampled.at( frame, lo );
+				const Frequency hi_freq = factor_sampled.at( frame, hi );
 				const float r = fbin - lo;
 				const Frequency lerp = lo_freq * ( 1.0f - r ) + hi_freq * r;
 				
@@ -299,7 +304,7 @@ PV PV::repitch( const Function<TF, float> & local_expansion_factor, const Interp
 	return modify_frequency_base( *this, factor_sampled, in_modified, interp );
 	}
 
-PV modify_time_base( const PV & me, const FunctionSample<Second> & mod, const Interpolator & interp )
+PV modify_time_base( const PV & me, const FunctionSample2d<Second> & mod, const Interpolator & interp )
 	{
 	if( me.is_null() ) return PV();
 
@@ -322,8 +327,8 @@ PV modify_time_base( const PV & me, const FunctionSample<Second> & mod, const In
 			// For each adjacent pair of frames
 			std::for_each( iota_iter( 1 ), iota_iter( me.get_num_frames() ), [&]( Frame frame )
 				{
-				const float lFrame = me.time_to_frame( mod[ buffer_access( bin, frame - 1, me.get_num_bins() ) ] );
-				const float rFrame = me.time_to_frame( mod[ buffer_access( bin, frame    , me.get_num_bins() ) ] );
+				const float lFrame = me.time_to_frame( mod.at( frame - 1, bin ) );
+				const float rFrame = me.time_to_frame( mod.at( frame, bin ) );
 				const bool forward = rFrame > lFrame;
 
 				const Frame start_frame = forward ? std::ceil( lFrame ) : std::floor( lFrame );
@@ -370,7 +375,7 @@ PV PV::stretch( const Function<TF, float> & local_expansion_factor, const Interp
 	// Partial integral with respect to time. Factor_sampled becomes TF -> Frame.
 	for( Bin bin = 0; bin < get_num_bins(); ++bin )
 		for( Frame frame = 1; frame < get_num_frames(); ++frame )
-			factor_sampled[buffer_access( bin, frame, get_num_bins() )] += factor_sampled[buffer_access( bin, frame - 1, get_num_bins() )];
+			factor_sampled.at( frame, bin ) += factor_sampled.at( frame - 1, bin );
 
 	// Frame to second conversion. Factor_sampled becomes TF->Second.
 	for( int i = 0; i < factor_sampled.size(); ++i )
@@ -439,10 +444,10 @@ PV PV::stretch_spline( const Function<Second, float> & interpolation ) const
 
 PV PV::desample( const Function<TF, float> & decimation_ratio, const Interpolator & interp ) const
 	{
+	if( is_null() ) return PV();
+
 	// Sample factor over frames and bins
 	auto decimation_ratio_samples = sample_function_over_domain( decimation_ratio );
-
-	if( is_null() ) return PV();
 
 	PV out( get_format() );
 	out.clear_buffer();
@@ -459,7 +464,7 @@ PV PV::desample( const Function<TF, float> & decimation_ratio, const Interpolato
 			for( Frame frame = 0; frame < get_num_frames(); ++frame )
 				{
 				float & accum = accums[bin];
-				const float factor_c = std::clamp( decimation_ratio_samples[buffer_access( bin, frame, get_num_bins() )], 0.0f, 1.0f );
+				const float factor_c = std::clamp( decimation_ratio_samples.at( frame, bin ), 0.0f, 1.0f );
 				accum += factor_c;
 				if( accum >= 1.0f )
 					{
@@ -501,6 +506,100 @@ PV PV::desample( const Function<TF, float> & decimation_ratio, const Interpolato
 				}
 			} );
 		}
+
+	return out;
+	}
+
+PV PV::smear_time( 
+	const Function<TF, Second> & smear_size, 
+	const Function<TF, int> & granularity,
+	const Function<Second, float> & distribution
+	) const
+	{
+	if( is_null() ) return PV();
+
+	auto granularity_sampled = sample_function_over_domain( granularity );
+	granularity_sampled.for_each( [&]( int & i ){ i = std::max( i, 1 ); } ); 
+
+	auto smear_size_sampled = sample_function_over_domain( smear_size );
+	smear_size_sampled.for_each( [&]( Second & s ){ s = std::max( s, 0.0f ); } );
+
+	/* 
+	We could use the input size for the output but I'd rather capture the fade-in
+	But because the smear size could change over time we need to figure out just how big the output needs to beeeeee
+	And oh my god we need to do it for every bin and use the max of those, fantastic
+
+	Something else odd about this algorithm is that without an additional parameter, we can't know if far off in either time direction the smear_size gets huge 
+	and contains the input again. If it does, the user may have intended to include the sound that would generate, but we can't just sample the smear_size
+	out to infinity. The compromise is to sample the smear size on the input domain, and assume that the size remains constant outside the input domain.
+	*/
+	std::vector<Frame> leftmost_frame( get_num_bins(), 0 );
+	std::vector<Frame> rightmost_frame( get_num_bins(), get_num_frames() - 1 );
+	flan::for_each_i( get_num_bins(), ExecutionPolicy::Parallel_Unsequenced, [&]( Bin bin )
+		{
+		Frame & l = leftmost_frame[bin];
+		Frame & r = rightmost_frame[bin];
+		for( Frame frame = 0; frame < get_num_frames(); ++frame )
+			{
+			const Frame expansion_frames = time_to_frame( smear_size_sampled.at( frame, bin ) );
+			const Frame l_c = frame - expansion_frames;
+			const Frame r_c = frame + expansion_frames;
+			l = std::min( l, l_c );
+			r = std::max( r, r_c );
+			}
+		} );
+	const Frame true_leftmost_frame = *std::min_element( leftmost_frame.begin(), leftmost_frame.end() );
+	const Frame true_rightmost_frame = *std::max_element( rightmost_frame.begin(), rightmost_frame.end() );
+
+	// The distribution function is assumed to be relatively smooth, and so it will be sampled now rather than directly accessed later
+	const Frame max_smear_frames = time_to_frame( smear_size_sampled.maximum() );
+	const Frame dist_samples_2 = max_smear_frames * 2;
+	auto distribution_sampled = distribution.sample( -dist_samples_2, dist_samples_2, 1.0f / dist_samples_2 );
+
+	Format format = get_format();
+	format.num_frames = true_rightmost_frame - true_leftmost_frame;
+	PV out( format );
+
+	for( Channel channel = 0; channel < get_num_channels(); ++channel )
+		flan::for_each_i( out.get_num_frames(), ExecutionPolicy::Parallel_Unsequenced, [&]( Frame out_frame )
+			{
+			const Frame in_frame = std::clamp( out_frame + true_leftmost_frame, 0, get_num_frames() - 1 );
+
+			for( Bin bin = 0; bin < get_num_bins(); ++bin )
+				{
+				// Here we take a time average of the surrounding MF data
+				const Frame expansion_frames = time_to_frame( smear_size_sampled.at( in_frame, bin ) );
+				double mag_sum = 0;
+				double freq_sum = 0;
+				double total_dist_weight = 0;
+				double dist_weight_used = 0;
+				const int granularity_c = granularity_sampled.at( in_frame, bin );
+			 	for( Frame frame_offset = -expansion_frames; frame_offset < expansion_frames; frame_offset += granularity_c )
+			 		{
+					const float smear_size_c = smear_size_sampled.at( in_frame, bin ); // Forced >= 0 earlier
+					const float dist_input = frame_to_time( frame_offset ) / smear_size_c;
+					int dist_sampled_access = distribution_sampled.size() * 0.5f * ( 1 + dist_input );
+					dist_sampled_access = std::clamp( dist_sampled_access, 0, int( distribution_sampled.size() - 1 ) );
+					const float dist_c = distribution_sampled[dist_sampled_access];
+					total_dist_weight += dist_c;
+
+					const Frame source_frame = out_frame + true_leftmost_frame + frame_offset;
+					if( source_frame < 0 || source_frame >= get_num_frames() ) continue;
+
+					const MF mf_c = get_MF( channel, source_frame, bin );
+					dist_weight_used += dist_c;
+					mag_sum += mf_c.m * dist_c;
+					freq_sum += mf_c.f * dist_c;
+			 		}
+				// In this averaging we treat magnitude and frequency differently.
+				// If we are drawing data from outside the edge of the input, we count the magnitude as 0
+				// The frequency we don't want to count at all, as using any number would be wrong, so nothing is added.
+				if( total_dist_weight > 0.0 ) mag_sum /= total_dist_weight;
+				if( dist_weight_used > 0.0 ) freq_sum /= dist_weight_used;
+
+				out.get_MF( channel, out_frame, bin ) = MF( mag_sum, freq_sum );
+			 	}
+			} );
 
 	return out;
 	}

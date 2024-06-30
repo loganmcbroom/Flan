@@ -7,7 +7,6 @@
 #include <ranges>
 
 #include "flan/FFTHelper.h"
-#include "flan/Utility/buffer_access.h"
 #include "flan/WindowFunctions.h"
 
 using namespace std::ranges;
@@ -225,7 +224,7 @@ PV PV::replace_amplitudes( const PV & amp_source, const Function<TF, float> & am
 			for( Bin bin = 0; bin < num_bins; ++bin )
 				{
 				const auto currentBin = get_MF( channel, frame, bin );
-				const float amount_c = amount_sampled[buffer_access( bin, frame, get_num_bins() )];
+				const float amount_c = amount_sampled.at( frame, bin );
 				out.set_MF( channel, frame, bin,
 					{
 					amp_source.get_MF( channel, frame, bin ).m * amount_c + currentBin.m * ( 1.0f - amount_c ),
@@ -256,7 +255,7 @@ PV PV::subtract_amplitudes( const PV & amp_source, const Function<TF, float> & a
 			for( Bin bin = 0; bin < num_bins; ++bin )
 				{
 				auto & outBin = out.get_MF( channel, frame, bin );
-				const float amount_c = amount_sampled[buffer_access( bin, frame, get_num_bins() )];
+				const float amount_c = amount_sampled.at( frame, bin );
 				outBin.m = std::abs( outBin.m - amp_source.get_MF( channel, frame, bin ).m * amount_c );
 				} 
 			} );
@@ -629,7 +628,7 @@ PV PV::resonate( Second length, const Function<TF, float> & decay ) const
 			{
 			for( Frame frame = 1; frame < out.get_num_frames(); ++frame )
 				{
-				const float decay_t = std::pow( decay_sampled[buffer_access( bin, frame, get_num_bins() )], secondsPerFrame_c );
+				const float decay_t = std::pow( decay_sampled.at( frame, bin ), secondsPerFrame_c );
 				const float decayed_amp = out.get_MF( channel, frame - 1, bin ).m * decay_t;
 				if( frame < get_num_frames() && get_MF( channel, frame, bin ).m > decayed_amp )
 					out.set_MF( channel, frame, bin, get_MF( channel, frame, bin ) );
