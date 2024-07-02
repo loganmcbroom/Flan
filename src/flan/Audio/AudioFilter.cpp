@@ -1177,13 +1177,13 @@ Audio Audio::phaser_step(
 	bool pitch_domain
 	) const
 	{	
-	filter_order = std::clamp( filter_order, 1, 10 );
+	filter_order = std::clamp( filter_order, 1, 128 );
 
 	auto lfo_central_cutoff_sampled = sample_function_over_domain( lfo_central_cutoff );
 	auto lfo_amplitude_sampled = sample_function_over_domain( lfo_amplitude );
 	auto lfo_frequency_sampled = sample_function_over_domain( lfo_frequency ); // In cycles per second
 	lfo_frequency_sampled.for_each( [&]( float & x ){ x = x / get_sample_rate() * pi2; } ); // Convert to radians per frame
-	auto phase = lfo_frequency_sampled.exclusive_scan( initial_phase, []( float a, float b ){ return a + b; } );
+	const std::vector<Radian> phase = lfo_frequency_sampled.exclusive_scan( initial_phase, []( float a, float b ){ return a + b; } );
 
 	return filter_2pole_notch(
 		[&]( Second t )
@@ -1201,8 +1201,8 @@ Audio Audio::easy_phaser(
 	const Function<Second, float> & speed,
 	const Function<Second, float> & wow_amount,
 	int how_many_notches,
-	int filter_order,
-	float resonance 
+	float resonance,
+	int filter_order
 	) const
 	{
 	std::random_device rd;
@@ -1213,6 +1213,7 @@ Audio Audio::easy_phaser(
 
 	auto speed_sampled = sample_function_over_domain( speed );
 	speed_sampled.for_each( [&]( float & x ){ x = x / get_sample_rate() * pi2;} ); // Convert cycles/second to radian/frame
+	const std::vector<Radian> phase = speed_sampled.exclusive_scan( 0.0f, [&]( float a, float b ){ return a + b; } ); // Integrate speed to phase
 	auto wow_amount_sampled = sample_function_over_domain( wow_amount );
 
 	Audio out = copy();	
@@ -1220,14 +1221,14 @@ Audio Audio::easy_phaser(
 		{ 
 		const float notch_initial_pitch = 9 + notch * 5.0f / how_many_notches + .3 * unit_dist( rng );
 		const Radian notch_initial_phase = unit_dist( rng ) * pi2;
-		std::vector<Radian> phase = speed_sampled.exclusive_scan( notch_initial_phase, [&]( float a, float b ){ return a + b; } );
+		
 		const float speed_mod = std::pow( 2.0f, unit_dist( rng ) * 2.0f - 1.0f );
 
 		out = out.filter_2pole_notch(
 			[&]( Second t )
 				{ 
 				const Frame frame = time_to_frame( t );
-				const float current_pitch = notch_initial_pitch + wow_amount_sampled[frame] * std::sin( phase[frame]*speed_mod );
+				const float current_pitch = notch_initial_pitch + wow_amount_sampled[frame] * std::sin( notch_initial_phase + phase[frame]*speed_mod );
 				return std::pow( 2.0f, current_pitch ); 
 				},
 			resonance,
@@ -1265,7 +1266,7 @@ Audio Audio::phaser_texture(
 			const float start_pitch_c = pitch_start(t);
 			const float pitch_movement_c = pitch_movement(t);
 			const float R = resonance(t);
-			const int order_c = std::clamp( order(t), 1, 32 );
+			const int order_c = std::clamp( order(t), 1, 128 );
 			a = a.filter_2pole_notch( [&]( Second t )
 				{ 
 				return std::pow( 2.0f, start_pitch_c + pitch_movement_c * interp( t / a.get_length() ) ); 

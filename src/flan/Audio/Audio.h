@@ -896,8 +896,8 @@ public:
 		const Function<Second, float> & speed,
 		const Function<Second, float> & wow_amount = 1,
 		int how_many_notches = 3, 
-		int filter_order = 4,
-		float resonance = 1.0f
+		float resonance = 1.0f,
+		int filter_order = 4
 		) const;
 
 	/** Applies a large number of moving notch filters to the input. This creates a "phasey" sound, but whereas a traditional phaser effect
@@ -908,9 +908,9 @@ public:
 		\param effect_length The amount of time each effect application should last.
 		\param pitch_start The starting cutoff pitch for the filter. Frequency is 2^pitch.
 		\param pitch_movement The ending cutoff pitch for the filter. Frequency is 2^pitch.
-		\param resonance The filter resonance
+		\param resonance The filter resonance.
 		\param order The filter order.
-		\param intensity The amount of the effect to apply over time
+		\param intensity The amount of the effect to apply over time.
 		\param fade_time The amount of fade in/fade out time for each effect. Bounded at half the current effect length.
 		\param interp The way in which the filter cutoff should move between its start and end in the pitch domain.
 	 */

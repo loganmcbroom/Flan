@@ -36,8 +36,6 @@ Task:
 
 	factor get_pointers to... somewhere
 
-	multinotch filters are not right
-
 
 	
 
