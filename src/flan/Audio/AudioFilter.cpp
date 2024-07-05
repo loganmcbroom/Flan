@@ -161,11 +161,11 @@ struct Filter_2Pole {
 		{
 		}
 
-	std::array<Sample, 3> process_sample( Sample x, Frequency cutoff_unwarped, float R )
+	std::array<Sample, 3> process_sample( Sample x, Frequency cutoff_unwarped, float R, bool use_prewarp = true )
 		{
 		//See section 4.4 for the implementation.
 
-		const Frequency w = prewarp( cutoff_unwarped, T_half );
+		const Frequency w = use_prewarp? prewarp( cutoff_unwarped, T_half ) : cutoff_unwarped;
 
 		const float g = w * T_half;
 		const float g1 = 2.0f*R + g;
@@ -181,9 +181,9 @@ struct Filter_2Pole {
 		return { lp, bp*2*R, hp };
 		}
 
-	Sample process_sample_and_mix( Sample x, Frequency cutoff_unwarped, float R, Mix_2pole mix )
+	Sample process_sample_and_mix( Sample x, Frequency cutoff_unwarped, float R, Mix_2pole mix, bool use_prewarp = true )
 		{
-		const auto filtered = process_sample( x, cutoff_unwarped, R );
+		const auto filtered = process_sample( x, cutoff_unwarped, R, use_prewarp );
 		return filtered[0]*mix[0] + filtered[1]*mix[1] + filtered[2]*mix[2];
 		}
 
@@ -401,7 +401,7 @@ std::vector<Audio> Audio::filter_1pole_split(
 	auto cutoff_sampled = sample_function_over_domain( cutoff );
 	cutoff_sampled.for_each( [&]( auto & c ){ c = std::clamp( c, 1.0f, get_sample_rate()/2.0f ); } );
 	
-	auto cutoff_no_resample_func = [&]( Second t ){ return cutoff_sampled[time_to_frame( t )]; };
+	auto cutoff_no_resample_func = [&]( Second t ){ return cutoff_sampled[std::round(time_to_frame( t ))]; };
 
 	if( order <= 1 )
 		{
@@ -799,99 +799,190 @@ Audio Audio::filter_2pole_highshelf(
 // 		}
 // 	}
 
-Audio Audio::filter_1pole_allpass_n(
-	const Function<Second, Frequency> & cutoff,
-	uint16_t order
-	) const
-	{
-	auto cutoff_sampled = sample_function_over_domain( cutoff );
-	cutoff_sampled.for_each( [&]( auto & c ){ c = std::clamp( c, 1.0f, get_sample_rate()/2.0f ); } );
-
-	Audio allpass = Audio::create_from_format( get_format() );
-
-	for( Channel channel = 0; channel < get_num_channels(); ++channel )
-		{
-		std::vector<Filter_1Pole> filters( order, get_sample_rate() );
-		for( Frame frame = 0; frame < get_num_frames(); ++frame )
-			{
-			Sample allpassed;
-			const Frequency w = cutoff_sampled[frame];
-			for( Index filter_i = 0; filter_i < filters.size(); ++filter_i )
-				{
-				const Sample input_sample = filter_i == 0? get_sample( channel, frame ) : allpassed;
-				allpassed = filters[filter_i].process_sample_and_mix( input_sample, w, { 1.0f, -1.0f } );
-				}
-			allpass.get_sample( channel, frame ) = allpassed;
-			}
-		}
-
-	return allpass;
-	}
-
 Audio Audio::filter_1pole_multinotch(
 	uint16_t order,
 	const Function<Second, Frequency> & cutoff,
+	const Function<Second, float> & feedback,
 	bool invert,
-	const Function<Second, float> & wet_dry
+	const Function<Second, float> & wet_dry,
+	bool use_saturator
 	) const
 	{
 	if( is_null() ) return Audio::create_null();
-	
-	// See section 11.1
-	Audio allpass = filter_1pole_allpass_n( cutoff, order );
-	if( invert ) allpass.modify_volume_in_place( -1 );
-	Function<Second, Amplitude> wet_dry_inv( [&]( Second t ){ return 1.0f - wet_dry( t ); }, wet_dry.get_execution_policy() );
-	return Audio::mix( { this, &allpass }, {}, { &wet_dry, &wet_dry_inv } );
-	}
 
-Audio filter_2pole_allpass_n(
-	const Audio & me,
-	const Function<Second, Frequency> & cutoff,
-	const Function<Second, float> & damping,
-	uint16_t order
-	)
-	{
-	auto cutoff_sampled = me.sample_function_over_domain( cutoff );
-	cutoff_sampled.for_each( [&]( auto & c ){ c = std::clamp( c, 1.0f, me.get_sample_rate()/2.0f ); } );
-	const auto damping_sampled = me.sample_function_over_domain( damping );
+	auto cutoff_sampled = sample_function_over_domain( cutoff );
+	cutoff_sampled.for_each( [&]( auto & c ){ c = std::clamp( c, 1.0f, get_sample_rate()/2.0f ); } );
+	auto feedback_sampled = sample_function_over_domain( feedback );
+	const int inv = invert? -1 : 1;
 
-	Audio allpass = Audio::create_from_format( me.get_format() );
+	const float T_half = pi / get_sample_rate();
 
-	for( Channel channel = 0; channel < me.get_num_channels(); ++channel )
+	Audio out = Audio::create_from_format( get_format() );
+
+	for( Channel channel = 0; channel < get_num_channels(); ++channel )
 		{
-		std::vector<Filter_2Pole> filters( order, me.get_sample_rate() );
-		for( Frame frame = 0; frame < me.get_num_frames(); ++frame )
+		float previous_output = 0.0f;
+		std::vector<Filter_1Pole> filters( order, get_sample_rate() );
+		for( Frame frame = 0; frame < get_num_frames(); ++frame )
 			{
-			Sample allpassed;
-			const Frequency w = cutoff_sampled[frame];
-			const float R = damping_sampled[frame];
+			const float x = get_sample( channel, frame );
+			const Frequency w = prewarp( cutoff_sampled[frame], T_half );
+			const float k = feedback( frame_to_time( frame ) );
+			const float mix = wet_dry( frame_to_time( frame ) );
+
+			const float g = w * T_half;
+			const float G = (g-1)/(g+1);
+
+			float memory_sum = 0;
+			for( int i = 0; i < order; ++i )
+				memory_sum += std::pow( G, i ) * filters[filters.size() - 1 - i].s;
+			memory_sum *= 2.0f / ( 1.0f + g );
+
+			float x_bar;
+			if( use_saturator )
+				{
+				auto tanh_newton_iteration = [&]( float u_n )
+					{ 
+					const float Gn = std::pow( G, order );
+					const float tanh_c = std::tanh( k * ( Gn * u_n + memory_sum ) );
+					const float denom = inv * ( 1.0f - tanh_c*tanh_c ) * k * Gn - 1.0f;
+					if( std::abs( denom ) < 0.000001 ) // Shouldn't happen
+						return 0.0f; 
+					return u_n - ( x + inv * tanh_c - u_n ) / denom;
+					};
+
+				float u_n = previous_output;
+				for( int i = 0; i < 16; ++i ) // Max 16 iterations, just in case
+					{
+					const float u_n1 = tanh_newton_iteration( u_n );
+					const float epsilon = 0.00000001;
+					if( std::abs( u_n1 - u_n ) < epsilon )
+						break;
+					u_n = u_n1;
+					}
+				x_bar = u_n;
+				}
+			else
+				{
+				x_bar = ( x + inv*k*memory_sum ) / ( 1.0f - inv*k*std::pow( G, order ) );
+				}
+
+			Sample y_bar;
 			for( Index filter_i = 0; filter_i < filters.size(); ++filter_i )
 				{
-				const Sample input_sample = filter_i == 0? me.get_sample( channel, frame ) : allpassed;
-				allpassed = filters[filter_i].process_sample_and_mix( input_sample, w, R, { 1.0f, -1.0f, 1.0f } );
+				const Sample input_sample = filter_i == 0? x_bar : y_bar;
+				y_bar = filters[filter_i].process_sample_and_mix( input_sample, w, { 1.0f, -1.0f }, false );
 				}
-			allpass.get_sample( channel, frame ) = allpassed;
+			y_bar *= inv;
+
+			const float y = mix * x_bar + ( 1.0f - mix ) * y_bar;
+			out.get_sample( channel, frame ) = y;
+			previous_output = y;
 			}
 		}
 
-	return allpass;
+	return out;
 	}
 
 Audio Audio::filter_2pole_multinotch(
 	uint16_t order,
 	const Function<Second, Frequency> & cutoff,
 	const Function<Second, float> & damping,
+	const Function<Second, float> & feedback,
 	bool invert,
-	const Function<Second, float> & wet_dry
+	const Function<Second, float> & wet_dry,
+	bool use_saturator
 	) const
 	{
+	/* See sections 11.2/11.6
+	Logan, sorry if you need to modify this in the future. I hope not. If you do, first go to page 110.
+	Using Figure 4.15 and equation 4.14, you can get the high, band, and low pass signals without instant feedback,
+	although you don't have to get the highpass if you use the second equation in the next step.
+	Use either A=H-B1+L (B1 = 2R*B, bandpass normalization), or A = 1-2B1 (1 is the identity function, so A(x)=x-2B1(x)).
+	That gets a single allpass. Iterating that and keeping in mind that each iteration has two distinct memory units,
+	you can get n allpasses as G^n*x + S, where G is a constant, and S is a combination sum of the memory units. 
+	See the function below for how those end up being computed. From there solve v = x + k*A^n(v) for v, where A^n is the n
+	distinct allpasses being applied. In the book v is called x bar. The allpasses can be applied to that value in sequence
+	to get y_bar, which is inverted if needed, mixed with x_bar, and written to out. Good luck!
+
+	Adding a saturator to the feedback path means solving v = x + f(k*A^n(v)) using newtons method.
+	*/
 	if( is_null() ) return Audio::create_null();
 
-	// See section 11.2
-	Audio allpass = filter_2pole_allpass_n( *this, cutoff, damping, order );
-	if( invert ) allpass.modify_volume_in_place( -1 );
-	Function<Second, Amplitude> wet_dry_inv( [&]( Second t ){ return 1.0f - wet_dry( t ); }, wet_dry.get_execution_policy() );
-	return Audio::mix( { this, &allpass }, {}, { &wet_dry, &wet_dry_inv } );
+	auto cutoff_sampled = sample_function_over_domain( cutoff );
+	cutoff_sampled.for_each( [&]( auto & c ){ c = std::clamp( c, 1.0f, get_sample_rate()/2.0f ); } );
+	auto feedback_sampled = sample_function_over_domain( feedback );
+	auto damping_sampled = sample_function_over_domain( damping );
+	const int inv = invert? -1 : 1;
+
+	const float T_half = pi / get_sample_rate();
+
+	Audio out = Audio::create_from_format( get_format() );
+
+	for( Channel channel = 0; channel < get_num_channels(); ++channel )
+		{
+		std::vector<Filter_2Pole> filters( order, get_sample_rate() );
+		float previous_output = 0.0f;
+		for( Frame frame = 0; frame < get_num_frames(); ++frame )
+			{
+			const float x = get_sample( channel, frame );
+			const Frequency w = prewarp( cutoff_sampled[frame], T_half );
+			const float k = feedback_sampled[frame];
+			const float R = damping_sampled[frame];
+
+			const float g = w * T_half;
+			const float d = 1.0f / ( 1.0f + 2.0f*R*g + g*g );
+			const float G = d * ( 1.0f - 2.0f*R*g + g*g );
+			
+			float memory_sum = 0;
+			for( int i = 0; i < order; ++i )
+				memory_sum += std::pow( G, i ) * ( g*filters[order-1-i].s2 - filters[order-1-i].s1 );
+
+			float x_bar;
+			if( use_saturator )
+				{
+				auto tanh_newton_iteration = [&]( float u_n )
+					{ 
+					const float Gn = std::pow( G, order );
+					const float tanh_c = std::tanh( k * ( Gn * u_n + memory_sum ) );
+					const float denom = inv * ( 1.0f - tanh_c*tanh_c ) * k * Gn - 1.0f;
+					if( std::abs( denom ) < 0.000001 ) // Shouldn't happen
+						return 0.0f; 
+					return u_n - ( x + inv * tanh_c - u_n ) / denom;
+					};
+
+				float u_n = previous_output;
+				for( int i = 0; i < 16; ++i ) // Max 16 iterations, just in case
+					{
+					const float u_n1 = tanh_newton_iteration( u_n );
+					const float epsilon = 0.00000001;
+					if( std::abs( u_n1 - u_n ) < epsilon )
+						break;
+					u_n = u_n1;
+					}
+				x_bar = u_n;
+				}
+			else
+				{
+				x_bar = ( x + inv*k*4*R*d*memory_sum ) / ( 1.0f - inv*k*std::pow( G, order ) );
+				}
+
+			Sample y_bar;
+			for( Index filter_i = 0; filter_i < filters.size(); ++filter_i )
+				{
+				const Sample input_sample = filter_i == 0? x_bar : y_bar;
+				y_bar = filters[filter_i].process_sample_and_mix( input_sample, w, R, { 1.0f, -1.0f, 1.0f }, false );
+				}
+			y_bar *= inv;
+
+			const float mix = wet_dry( frame_to_time( frame ) );
+			const float y = mix * x_bar + ( 1.0f - mix ) * y_bar;
+			out.get_sample( channel, frame ) = y;
+			previous_output = y;
+			}
+		}
+
+	return out;
 	}
 
 Audio Audio::filter_comb(
@@ -951,45 +1042,33 @@ Audio Audio::filter_comb(
 	return out;
 	}
 
-Audio Audio::filter_1pole_multi_allpass(
-	const std::vector<Function<Second, Frequency>> & cutoffs
-	) const
+Audio filter_1pole_multi_allpass(
+	const Audio & me,
+	const std::vector<Frequency> & cutoffs
+	)
 	{
+	if( me.is_null() ) return Audio::create_null();
+
 	if( cutoffs.empty() ) return Audio::create_null();
 
-	std::vector<FunctionSample<Frequency>> cutoffs_sampled;
-	for( int i = 0; i < cutoffs.size(); ++i )
-		cutoffs_sampled.push_back( sample_function_over_domain( cutoffs[i] ) );
+	Audio allpass = Audio::create_from_format( me.get_format() );
 
-	Audio allpass = Audio::create_from_format( get_format() );
-
-	for( Channel channel = 0; channel < get_num_channels(); ++channel )
+	for( Channel channel = 0; channel < me.get_num_channels(); ++channel )
 		{
-		std::vector<Filter_1Pole> filters( cutoffs.size(), get_sample_rate() );
-		for( Frame frame = 0; frame < get_num_frames(); ++frame )
+		std::vector<Filter_1Pole> filters( cutoffs.size(), me.get_sample_rate() );
+		for( Frame frame = 0; frame < me.get_num_frames(); ++frame )
 			{
 			Sample allpassed;
 			for( Index filter_i = 0; filter_i < filters.size(); ++filter_i )
 				{
-				const Sample input_sample = filter_i == 0? get_sample( channel, frame ) : allpassed;
-				allpassed = filters[filter_i].process_sample_and_mix( input_sample, cutoffs_sampled[filter_i][frame], { 1.0f, -1.0f }, false );
+				const Sample input_sample = filter_i == 0? me.get_sample( channel, frame ) : allpassed;
+				allpassed = filters[filter_i].process_sample_and_mix( input_sample, cutoffs[filter_i], { 1.0f, -1.0f }, false );
 				}
 			allpass.get_sample( channel, frame ) = allpassed;
 			}
 		}
 
 	return allpass;
-	}
-
-Audio filter_1pole_multi_allpass_constant(
-	const Audio & me,
-	const std::vector<Frequency> & cutoffs
-	)
-	{
-	std::vector<Function<Second, Frequency>> cutoff_funcs;
-	for( int i = 0; i < cutoffs.size(); ++i )
-		cutoff_funcs.push_back( cutoffs[i] );
-	return me.filter_1pole_multi_allpass( cutoff_funcs );
 	}
 
 // #include <fftw3.h>
@@ -1076,14 +1155,16 @@ std::pair<Audio, Audio> hilbert_phase_diff_network( const Audio & me )
 	// See https://nathan.ho.name/posts/frequency-shifter/
 	const auto poles = phase_diff_network_pole_design( 20, 5, 22000 );
 	return std::make_pair( 
-		filter_1pole_multi_allpass_constant( me, poles.first ),
-	 	filter_1pole_multi_allpass_constant( me, poles.second ) );
+		filter_1pole_multi_allpass( me, poles.first ),
+	 	filter_1pole_multi_allpass( me, poles.second ) );
 	}
 
 Audio Audio::halfband_modulate(
 	const Function<Second, std::complex<float>> & modulator
 	) const
 	{
+	if( is_null() ) return Audio::create_null();
+
 	auto modulator_sampled = sample_function_over_domain( modulator );
 
 	const auto hilberted = hilbert_phase_diff_network( *this );
@@ -1109,7 +1190,9 @@ Audio Audio::shift_frequency(
 	const Frequency low_cutoff
 	) const
 	{
-	const Frequency high_cutoff = get_sample_rate()/2 - 100; // Using exactly nyquist causes feedback in high order filter.
+	if( is_null() ) return Audio::create_null();
+
+	const Frequency high_cutoff = get_sample_rate()/2 - 1000; // Using exactly nyquist causes feedback in high order filter.
 
 	auto shift_sampled = sample_function_over_domain( shift );
 
@@ -1117,26 +1200,38 @@ Audio Audio::shift_frequency(
 	const Audio antialiased = 
 		filter_1pole_lowpass( [&]( Second t )
 			{ 
-			if( shift_sampled[time_to_frame(t)] > 0 )
-				return high_cutoff - shift_sampled[time_to_frame(t)];
+			const Frame frame = std::round(time_to_frame(t));
+			if( shift_sampled[frame] > 0 )
+				return high_cutoff - shift_sampled[frame];
 			else
 				return high_cutoff;
 			}, 8 )
 		.filter_1pole_highpass( [&]( Second t )
 			{ 
-			if( shift_sampled[time_to_frame(t)] < 0 )
-				return low_cutoff-shift_sampled[time_to_frame(t)];
+			const Frame frame = std::round(time_to_frame(t));
+			if( shift_sampled[frame] < 0 )
+				return low_cutoff - shift_sampled[frame];
 			else
 				return low_cutoff;
 			}, 8 );
 
-	return antialiased.halfband_modulate( [&]( Second t ){ return std::exp( std::complex<float>( 0.0f, pi2 * shift(t) * t ) ); } );
+	shift_sampled.for_each( [&]( Frequency & f ){ f = f * pi2 / get_sample_rate(); } ); 
+	const std::vector<Radian> phase = shift_sampled.exclusive_scan( 0.0f, []( float a, float b ){ return a + b; } );
+
+	return antialiased.halfband_modulate( [&]( Second t )
+		{ 
+		const Frame frame = std::round(time_to_frame(t));
+		const float shift_c = shift_sampled[frame];
+		return std::exp( std::complex<float>( 0.0f, phase[frame] ) ); 
+		} );
 	}
 
 Audio Audio::halfband_multiply(
 	const Audio & modulator
 	) const
 	{
+	if( is_null() ) return Audio::create_null();
+
 	auto bandpass_antialias = []( const Audio & a )
 		{
 		const Frequency low_cutoff = 30;
@@ -1165,116 +1260,4 @@ Audio Audio::halfband_multiply(
 		}
 	
 	return out;
-	}
-
-Audio Audio::phaser_step(
-	const Function<Second, float> & lfo_central_cutoff,
-	const Function<Second, float> & lfo_amplitude,
-	const Function<Second, float> & lfo_frequency,
-	float resonance,
-	int filter_order,
-	Radian initial_phase,
-	bool pitch_domain
-	) const
-	{	
-	filter_order = std::clamp( filter_order, 1, 128 );
-
-	auto lfo_central_cutoff_sampled = sample_function_over_domain( lfo_central_cutoff );
-	auto lfo_amplitude_sampled = sample_function_over_domain( lfo_amplitude );
-	auto lfo_frequency_sampled = sample_function_over_domain( lfo_frequency ); // In cycles per second
-	lfo_frequency_sampled.for_each( [&]( float & x ){ x = x / get_sample_rate() * pi2; } ); // Convert to radians per frame
-	const std::vector<Radian> phase = lfo_frequency_sampled.exclusive_scan( initial_phase, []( float a, float b ){ return a + b; } );
-
-	return filter_2pole_notch(
-		[&]( Second t )
-			{ 
-			const Frame frame = time_to_frame( t );
-			const float cutoff = lfo_central_cutoff_sampled[frame] + lfo_amplitude_sampled[frame] * std::sin( phase[frame] );
-			if( pitch_domain ) return std::pow( 2.0f, cutoff ); 
-			else return cutoff;
-			},
-		resonance,
-		filter_order );
-	}
-
-Audio Audio::easy_phaser(
-	const Function<Second, float> & speed,
-	const Function<Second, float> & wow_amount,
-	int how_many_notches,
-	float resonance,
-	int filter_order
-	) const
-	{
-	std::random_device rd;
-	std::mt19937 rng( rd() );
-	std::uniform_real_distribution<> unit_dist( 0.0f, 1.0f );
-
-	filter_order = std::clamp( filter_order, 1, 10 );
-
-	auto speed_sampled = sample_function_over_domain( speed );
-	speed_sampled.for_each( [&]( float & x ){ x = x / get_sample_rate() * pi2;} ); // Convert cycles/second to radian/frame
-	const std::vector<Radian> phase = speed_sampled.exclusive_scan( 0.0f, [&]( float a, float b ){ return a + b; } ); // Integrate speed to phase
-	auto wow_amount_sampled = sample_function_over_domain( wow_amount );
-
-	Audio out = copy();	
-	for( int notch = 0; notch < how_many_notches; ++notch )
-		{ 
-		const float notch_initial_pitch = 9 + notch * 5.0f / how_many_notches + .3 * unit_dist( rng );
-		const Radian notch_initial_phase = unit_dist( rng ) * pi2;
-		
-		const float speed_mod = std::pow( 2.0f, unit_dist( rng ) * 2.0f - 1.0f );
-
-		out = out.filter_2pole_notch(
-			[&]( Second t )
-				{ 
-				const Frame frame = time_to_frame( t );
-				const float current_pitch = notch_initial_pitch + wow_amount_sampled[frame] * std::sin( notch_initial_phase + phase[frame]*speed_mod );
-				return std::pow( 2.0f, current_pitch ); 
-				},
-			resonance,
-			filter_order );
-		}
-
-	return out;
-	}
-
-Audio Audio::phaser_texture(
-	const Function<Second, float> & effects_per_second, 
-	const Function<Second, float> & time_scatter,
-	const Function<Second, Second> & effects_length,
-
-	const Function<Second, float> & pitch_start, 
-	const Function<Second, float> & pitch_movement,
-	const Function<Second, float> & resonance,
-	const Function<Second, int> order,
-
-	const Function<Second, float> & dry_wet,
-	Second fade_time,
-	const Interpolator & interp
-	) const
-	{
-	const ExecutionPolicy lowest_exec = lowest_execution( { 
-		pitch_start.get_execution_policy(), 
-		pitch_movement.get_execution_policy(),
-		resonance.get_execution_policy(),
-		order.get_execution_policy() 
-		} );
-
-	const Audio wet = texture_effect( effects_per_second, time_scatter, effects_length, 
-		AudioMod( [&]( Audio & a, Second t )
-			{
-			const float start_pitch_c = pitch_start(t);
-			const float pitch_movement_c = pitch_movement(t);
-			const float R = resonance(t);
-			const int order_c = std::clamp( order(t), 1, 128 );
-			a = a.filter_2pole_notch( [&]( Second t )
-				{ 
-				return std::pow( 2.0f, start_pitch_c + pitch_movement_c * interp( t / a.get_length() ) ); 
-				}, R, order_c );
-			}, lowest_exec ), 
-		fade_time );
-
-	const Function<Second, Amplitude> wet_dry( [&]( Second t ){ return 1.0f - dry_wet(t); }, dry_wet.get_execution_policy() );
-	const std::vector< const Function<Second, Amplitude> *> gains = { &wet_dry, &dry_wet };
-	return Audio::mix( { this, &wet }, {}, gains );
 	}

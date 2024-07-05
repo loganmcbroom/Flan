@@ -36,6 +36,9 @@ Task:
 
 	factor get_pointers to... somewhere
 
+	ohhhh maaaaaan time_to_frame always rounding down might be causing extremely small issues all over
 
-	
+	explodes:
+		synth.filter_1pole_multinotch( 5, []( Second t ){ return 10000*t; }, .9 );
+
 
