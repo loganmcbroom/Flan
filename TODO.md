@@ -1,15 +1,3 @@
-toilet
-kitchen cabs
-mirrors
-microwave
-palish appliances/clean air fryer
-trash maintain
-bathroom counter/sink
-tub
-sweep/vac
-mop
-put away dishes maintain
-
 Maybe todo:
 	contour pitch mean should be magnitude weighted
 	ir generation - https://dsp.stackexchange.com/questions/41696/calculating-the-inverse-filter-for-the-exponential-sine-sweep-method/41700#41700
@@ -30,15 +18,10 @@ Process ideas:
 Task:
 	Something's in the Lake at Bagel Woods
 
-	in prism, this: "bound_bin( frequency_to_bin( freq ) - 10 );" and the following line use 10 arbitraryly
+	in prism, this: "bound_bin( frequency_to_bin( freq ) - 10 );" and the following line use 10 arbitrarily
 		This seems bad to use without testing, but it might be fine
 		notes_close may also be a bad metric
 
 	factor get_pointers to... somewhere
 
 	ohhhh maaaaaan time_to_frame always rounding down might be causing extremely small issues all over
-
-	explodes:
-		synth.filter_1pole_multinotch( 5, []( Second t ){ return 10000*t; }, .9 );
-
-

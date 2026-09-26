@@ -481,7 +481,7 @@ size_t AudioBuffer::get_buffer_pos( Channel channel, Frame sample ) const
 	return channel * get_num_frames() + sample;
 	}
 
-#if defined(_WIN32) || defined(WIN32)
+#if defined(WIN32) || defined(_WIN32) || defined(__CYGWIN__)
 #include <Windows.h>
 #include <Mmsystem.h>
 void AudioBuffer::play() const

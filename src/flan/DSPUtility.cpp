@@ -5,7 +5,6 @@
 
 #include "flan/FFTHelper.h"
 #include "flan/Utility/vec2.h"
-#include "flan/Utility/iota_iter.h"
 #include "flan/Utility/execution.h"
 
 namespace flan {
@@ -52,98 +51,72 @@ std::pair<float,float> parabolic_interpolation( std::function< float ( int ) > f
     return parabolic_interpolation( f(tau-1), f(tau), f(tau+1), tau );
 	}
 
-std::vector<vec2> find_peaks( std::function< float ( int ) > data, int size,  int maxPeaks, bool ampOrder, bool interpolate ) 
+std::vector<vec2> find_peaks( std::function< float ( int ) > data, int size, int max_peaks, bool amp_order, bool interpolate ) 
     {
-    if( maxPeaks == -1 ) maxPeaks = size / 2;
+    if( max_peaks == -1 ) max_peaks = size / 2;
 
     std::vector<vec2> peaks;
     if( size < 2 ) return peaks;
     peaks.reserve( size );
 
-    // For each data point excluding first and last, check if that point is a peak
-    std::mutex mutex;
-    std::for_each( FLAN_PAR_SEQ iota_iter( 1 ), iota_iter( size - 1 ), [&]( const Frame frame )
+    for( Frame run_start = 1; run_start < size - 1; )
         {
-        const float frameVal = data(frame);
+        const float run_value = data( run_start );
+        Frame run_end = run_start;
+        while( run_end + 1 < size && data( run_end + 1 ) == run_value )
+            ++run_end;
 
-        // Find the first data in one direction that is less than the data for frame, OR return -1 if the data ever goes up (aka frame is not a peak)
-        auto finder = [&]( const bool goRight )
+        const Frame left_frame = run_start - 1;
+        const Frame right_frame = run_end + 1;
+        if( data( left_frame ) < run_value && right_frame < size && data( right_frame ) < run_value )
             {
-            Frame newFrame = frame;
-            while( true )
+            if( run_start == run_end )
                 {
-                goRight? newFrame++ : newFrame--;
-                if( newFrame < 0 || size <= newFrame ) return -1; // We got to the edge of the data and it just stayed constant, return -1
-
-                const float newVal = data(newFrame);
-                if( newVal > frameVal ) return -1; // Frame was not a peak, return -1
-                if( newVal < frameVal ) break; // No need to go farther, we found it
-                }
-            return newFrame;
-            };
-
-        // Find first left data point that is less than frame height, or return 
-        const Frame leftFrame = finder( false );
-        if( leftFrame == -1 ) return;
-
-        // Find first right data point that less than frame height, or return
-        const Frame rightFrame = finder( true );
-        if( rightFrame == -1 ) return;
-
-        if( ( rightFrame - leftFrame ) > 2 ) // If we were in a plateau
-            {
-            // If frame isn't in the middle of right and left we can just leave
-            // If we didn't do this check, all the frames in a plateau would be marked as peaks when we only want one
-            // It isn't super important that the middle of the plateau is the frame used, but it makes the most sense
-            const float plateauMean = ( rightFrame + leftFrame ) * 0.5;
-            if( frame != std::floor( plateauMean ) ) return;
-
-            std::lock_guard<std::mutex> lock(mutex);
-            peaks.emplace_back( interpolate ? plateauMean : frame, data(frame) );
-            }
-        else // Not in a plateau
-            {
-            if( interpolate )
-                {
-                std::lock_guard<std::mutex> lock(mutex);
-                const auto interpolatedData = parabolic_interpolation( data, frame );
-                peaks.emplace_back( interpolatedData.first, interpolatedData.second );
+                if( interpolate )
+                    {
+                    const auto interpolatedData = parabolic_interpolation( data, run_start );
+                    peaks.emplace_back( interpolatedData.first, interpolatedData.second );
+                    }
+                else
+                    peaks.emplace_back( static_cast<float>( run_start ), run_value );
                 }
             else
                 {
-                std::lock_guard<std::mutex> lock(mutex);
-                peaks.emplace_back( frame, data(frame) );
+                const float plateau_mean = ( right_frame + left_frame ) * 0.5f;
+                peaks.emplace_back( interpolate ? plateau_mean : std::floor( plateau_mean ), run_value );
                 }
             }
-        } );
 
-    if( ampOrder ) // Sort peaks by descending y value if requested
+        run_start = run_end + 1;
+        }
+
+    if( amp_order ) // Sort peaks by descending y value if requested
         std::sort( FLAN_PAR_UNSEQ peaks.begin(), peaks.end(), []( auto & l, auto & r ){ return l.y() > r.y(); } );
     else // Otherwise sort by ascending x value
         std::sort( FLAN_PAR_UNSEQ peaks.begin(), peaks.end(), []( auto & l, auto & r ){ return l.x() < r.x(); } );
 
     // We only want this many peaks
-    const size_t nWantedPeaks = std::min( (size_t) maxPeaks, peaks.size() );
-    peaks.resize( nWantedPeaks );
+    const size_t n_wanted_peaks = std::min( (size_t) max_peaks, peaks.size() );
+    peaks.resize( n_wanted_peaks );
 
     return peaks;
     }
 
-std::vector<vec2> find_peaks( const std::vector<float> & data, int maxPeaks, bool ampOrder, bool interpolate )
+std::vector<vec2> find_peaks( const std::vector<float> & data, int max_peaks, bool amp_order, bool interpolate )
     {
-    return find_peaks( [&data]( int i ){ return data[i]; }, data.size(), maxPeaks, ampOrder, interpolate );
+    return find_peaks( [&data]( int i ){ return data[i]; }, data.size(), max_peaks, amp_order, interpolate );
     }
 
-std::vector<vec2> find_valleys( std::function< float ( int ) > data, int size, int maxPeaks, bool ampOrder, bool interpolate )
+std::vector<vec2> find_valleys( std::function< float ( int ) > data, int size, int max_peaks, bool amp_order, bool interpolate )
     {
-    std::vector<vec2> flippedPeaks = find_peaks( [&data]( int i ){ return -data( i ); }, size, maxPeaks, ampOrder, interpolate );
+    std::vector<vec2> flippedPeaks = find_peaks( [&data]( int i ){ return -data( i ); }, size, max_peaks, amp_order, interpolate );
     std::for_each( FLAN_PAR_UNSEQ flippedPeaks.begin(), flippedPeaks.end(), []( vec2 & v ){ v.y() *= -1; } );
     return flippedPeaks;
     }
    
-std::vector<vec2> find_valleys( const std::vector<float> & data, int maxPeaks, bool ampOrder, bool interpolate )
+std::vector<vec2> find_valleys( const std::vector<float> & data, int max_peaks, bool amp_order, bool interpolate )
     {
-    return find_valleys( [&data]( int i ){ return data[i]; }, data.size(), maxPeaks, ampOrder, interpolate );
+    return find_valleys( [&data]( int i ){ return data[i]; }, data.size(), max_peaks, amp_order, interpolate );
     }
 
 float mean( const std::vector<float> & data )

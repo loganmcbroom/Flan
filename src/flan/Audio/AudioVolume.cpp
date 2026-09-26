@@ -63,7 +63,7 @@ Audio& Audio::set_volume_in_place(
 	const Sample max_mag = get_max_sample_magnitude();
 
 	if( max_mag == 0 ) return *this;
-	else return modify_volume_in_place( [&]( float t ){ return level(t) / max_mag; } );
+	else return modify_volume_in_place( Function<Second, Amplitude>([&]( float t ){ return level(t) / max_mag; }, level.get_execution_policy() ) );
 	}
 
 Audio Audio::fade( 
@@ -141,50 +141,6 @@ Audio Audio::invert_phase(
 	Audio out = copy();
 	std::for_each( FLAN_PAR_UNSEQ out.get_buffer().begin(), out.get_buffer().end(), []( Sample & s ){ s = -s; } );
 	return out;
-	}
-
-Audio Audio::waveshape( 
-	const Function< std::pair<Second, Sample>, Sample > & shaper,
-	uint16_t oversample_factor
-	) const
-	{
-	if( is_null() ) return Audio::create_null();
-
-	Audio oversampled = resample( get_sample_rate() * oversample_factor );
-	for( Channel channel = 0; channel < get_num_channels(); ++channel )
-		{
-		runtime_execution_policy_handler( shaper.get_execution_policy(), [&]( auto policy )
-			{
-			std::for_each( FLAN_POLICY iota_iter( 0 ), iota_iter( oversampled.get_num_frames() ), [&]( Frame frame )
-				{ 
-				Sample & s = oversampled.get_sample( channel, frame );
-				s = shaper( std::pair( oversampled.frame_to_time( frame ), s ) );
-				} );
-			} );
-		}
-	return oversampled.resample( get_sample_rate() );
-	}
-
-Audio Audio::add_moisture(
-	const Function<Second, Amplitude> & amount,
-	const Function<Second, Frequency> & frequency,
-	const Function<Second, float> & skew,
-	const Function<Second, Amplitude> & waveform
-	) const
-	{
-	auto amount_sampled = sample_function_over_domain( amount );
-	auto frequency_sampled = sample_function_over_domain( frequency );
-	auto skew_sampled = sample_function_over_domain( skew );
-
-	return waveshape( [&]( std::pair<Second, Sample> ts ) -> Sample
-		{ 
-		const float amount_c 	= amount_sampled	[time_to_frame(ts.first)];
-		const float frequency_c = frequency_sampled	[time_to_frame(ts.first)];
-		const float skew_c 		= skew_sampled		[time_to_frame(ts.first)];
-
-		const float power = ts.second >= 0 ? std::pow( ts.second, skew_c ) : -std::pow( -ts.second, skew_c );
-		return ts.second + amount_c * ts.second * waveform( pi2 * frequency_c * power ); 
-		} );
 	}
 
 Audio Audio::compress( 

@@ -105,7 +105,7 @@ struct FunctionSample
 			std::vector<C> v;
 			v.reserve( size() );
 			for( auto & x : get_vector() )
-				v.push_back( x );
+				v.push_back( static_cast<C>(x) );
 			return std::move( v );
 			}
 		}

@@ -317,20 +317,19 @@ std::vector<Frequency> Audio::get_local_frequencies( Channel channel, Frame star
     // return out;
     }
 
-Function<Second, Amplitude> Audio::get_amplitude_envelope(
-	Second window_width
-	) const
-	{
-	if( is_null() ) return 0;
+std::vector<Sample> Audio::get_amplitude_envelope_as_vector(
+    Second window_width
+    ) const
+    {
+	if( is_null() ) return {};
 
-	if( window_width <= 0 ) return 0;
+	if( window_width <= 0 ) return {};
 
 	Audio mono = convert_to_mono();
 
 	// Rectify
 	for( Frame frame = 0; frame < get_num_frames(); ++frame )
-		if( mono.get_sample( 0, frame ) < 0 )
-			mono.get_sample( 0, frame ) *= -1;
+		mono.get_sample( 0, frame ) = std::abs( mono.get_sample( 0, frame ) );
 
 	const fFrame window_width_frames = time_to_frame( window_width );
 
@@ -344,10 +343,15 @@ Function<Second, Amplitude> Audio::get_amplitude_envelope(
 
 	auto convolved = mono.convolve( hann_window, false );
 	convolved.modify_volume_in_place( pi / 2.0f / hann_integral );
-
-	float x = convolved.get_max_sample_magnitude();
 	
-	std::vector<float> ys = std::move( convolved.get_buffer() );
+	return convolved.get_buffer();
+    }
+
+Function<Second, Amplitude> Audio::get_amplitude_envelope(
+	Second window_width
+	) const
+	{
+    auto ys = get_amplitude_envelope_as_vector( window_width );
 	return [ys = std::move( ys ), sr = get_sample_rate() ]( float t )
 		{
 		// Get the image sample index as a float

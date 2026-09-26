@@ -7,9 +7,9 @@ namespace flan {
 /** Rectangular map from U to V. */
 struct View
 	{
-	View( const Rect & _U, const Rect & _V )
-		: U( _U )
-		, V( _V )
+	View( const Rect & U_, const Rect & V_ )
+		: U( U_ )
+		, V( V_ )
 		{}
 
 	float wUToV( float w ) const { return w * V.w() / U.w(); }

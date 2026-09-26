@@ -1,16 +1,12 @@
 #include "flan/Audio/Audio.h"
 
+#include <numbers>
+
+#include "flan/Audio/filter_defs.h"
+
 /*
 https://ia601900.us.archive.org/5/items/the-art-of-va-filter-design-rev.-2.1.2/VAFilterDesign_2.1.2.pdf#chapter.10
 */
-
-using namespace flan;
-
-using Pole = std::complex<float>;
-using Mix_1pole = std::array<float,2>;
-using Mix_2pole = std::array<float,3>;
-using Mix_Func_1pole = Function<Second, Mix_1pole>;
-using Mix_Func_2pole = Function<Second, Mix_2pole>;
 
 //===============================================================================================================================
 // Utility
@@ -49,39 +45,34 @@ std::vector<Pole> generate_butterworth_type1_poles( uint16_t N )
 // 1-pole base
 //===============================================================================================================================
 
-struct Filter_1Pole {
-	Filter_1Pole( FrameRate sr )
-		: s( 0 )
-		// Note the factor of 2pi. The reference book uses a non-standard Forier transform definition, much to my annoyance. This fixes that.
-		// Saving a few cycles, the factor of 1/2 is baked into T, taking the 2pi down to pi.
-		, T_half( pi / sr )
-		{
-		}
+Filter_1Pole::Filter_1Pole( FrameRate sr )
+    : s( 0 )
+    // Note the factor of 2pi. The reference book uses a non-standard Forier transform definition, much to my annoyance. This fixes that.
+    // Saving a few cycles, the factor of 1/2 is baked into T, taking the 2pi down to pi.
+    , T_half( pi / sr )
+    {
+    }
 
-	std::array<Sample, 2> process_sample( Sample x, Frequency cutoff_unwarped, bool use_prewarp = true )
-		{
-		// See section 3.10 for the details.
-		
-		const Frequency w = use_prewarp? prewarp( cutoff_unwarped, T_half ) : cutoff_unwarped;
-		
-		const float g = w * T_half; 
-		const float G = g / ( 1 + g );
-		const float v = G * ( x - s );
-		const Sample lp = v + s;
-		s = lp + v;
+std::array<Sample, 2> Filter_1Pole::process_sample( Sample x, Frequency cutoff_unwarped, bool use_prewarp )
+    {
+    // See section 3.10 for the details.
+    
+    const Frequency w = use_prewarp? prewarp( cutoff_unwarped, T_half ) : cutoff_unwarped;
+    
+    const float g = w * T_half; 
+    const float G = g / ( 1 + g );
+    const float v = G * ( x - s );
+    const Sample lp = v + s;
+    s = lp + v;
 
-		return { lp, x - lp };
-		}
+    return { lp, x - lp };
+    }
 
-	Sample process_sample_and_mix( Sample x, Frequency cutoff_unwarped, Mix_1pole mix, bool use_prewarp = true )
-		{
-		const auto filtered = process_sample( x, cutoff_unwarped, use_prewarp );
-		return filtered[0]*mix[0] + filtered[1]*mix[1];
-		}
-
-	Sample s;
-	const float T_half;
-};
+Sample Filter_1Pole::process_sample_and_mix( Sample x, Frequency cutoff_unwarped, Mix_1pole mix, bool use_prewarp )
+    {
+    const auto filtered = process_sample( x, cutoff_unwarped, use_prewarp );
+    return filtered[0]*mix[0] + filtered[1]*mix[1];
+    }
 
 // std::vector<Audio> base_filter_1pole_multimode( 
 // 	const Audio & me,
@@ -146,50 +137,44 @@ Audio base_filter_1pole_highpass(
 	}
 
 
-
 //===============================================================================================================================
 // 2-pole base
 //===============================================================================================================================
 
-struct Filter_2Pole {
-	Filter_2Pole( FrameRate sr )
-		: s1( 0 )
-		, s2( 0 )
-		// Note the factor of 2pi. The reference book uses a non-standard Forier transform definition, much to my annoyance. This fixes that.
-		// Saving a few cycles, the factor of 1/2 is baked into T, taking the 2pi down to pi.
-		, T_half( pi / sr )
-		{
-		}
+Filter_2Pole::Filter_2Pole( FrameRate sr )
+    : s1( 0 )
+    , s2( 0 )
+    // Note the factor of 2pi. The reference book uses a non-standard Forier transform definition, much to my annoyance. This fixes that.
+    // Saving a few cycles, the factor of 1/2 is baked into T, taking the 2pi down to pi.
+    , T_half( pi / sr )
+    {
+    }
 
-	std::array<Sample, 3> process_sample( Sample x, Frequency cutoff_unwarped, float R, bool use_prewarp = true )
-		{
-		//See section 4.4 for the implementation.
+std::array<Sample, 3> Filter_2Pole::process_sample( Sample x, Frequency cutoff_unwarped, float R, bool use_prewarp )
+    {
+    //See section 4.4 for the implementation.
 
-		const Frequency w = use_prewarp? prewarp( cutoff_unwarped, T_half ) : cutoff_unwarped;
+    const Frequency w = use_prewarp? prewarp( cutoff_unwarped, T_half ) : cutoff_unwarped;
 
-		const float g = w * T_half;
-		const float g1 = 2.0f*R + g;
-		const float d = 1.0f / ( 1.0f + 2.0f*R*g + g*g );
-		const float hp = ( x - g1*s1 - s2 ) * d;
-		const float v1 = g*hp;
-		const float bp = v1 + s1;
-		s1 = bp + v1;
-		const float v2 = g*bp;
-		const float lp = v2 + s2;
-		s2 = lp + v2;
+    const float g = w * T_half;
+    const float g1 = 2.0f*R + g;
+    const float d = 1.0f / ( 1.0f + 2.0f*R*g + g*g );
+    const float hp = ( x - g1*s1 - s2 ) * d;
+    const float v1 = g*hp;
+    const float bp = v1 + s1;
+    s1 = bp + v1;
+    const float v2 = g*bp;
+    const float lp = v2 + s2;
+    s2 = lp + v2;
 
-		return { lp, bp*2*R, hp };
-		}
+    return { lp, bp*2*R, hp };
+    }
 
-	Sample process_sample_and_mix( Sample x, Frequency cutoff_unwarped, float R, Mix_2pole mix, bool use_prewarp = true )
-		{
-		const auto filtered = process_sample( x, cutoff_unwarped, R, use_prewarp );
-		return filtered[0]*mix[0] + filtered[1]*mix[1] + filtered[2]*mix[2];
-		}
-
-	Sample s1, s2;
-	const float T_half;
-};
+Sample Filter_2Pole::process_sample_and_mix( Sample x, Frequency cutoff_unwarped, float R, Mix_2pole mix, bool use_prewarp )
+    {
+    const auto filtered = process_sample( x, cutoff_unwarped, R, use_prewarp );
+    return filtered[0]*mix[0] + filtered[1]*mix[1] + filtered[2]*mix[2];
+    }
 
 // This base function is needed because R and w sometimes use one another
 // Having a single function return both would make a bad forward interface but saves several trig calls per frame sometimes
@@ -799,15 +784,74 @@ Audio Audio::filter_2pole_highshelf(
 // 		}
 // 	}
 
+double multinotch_tanh_saturator( double G, double S, int order, double k, int inv, double x, double previous_x_bar )
+	{
+	/*
+	Solving the zero delay feedback equation for a multinotch structure with the central allpass applying as Gx+S
+	and a tanh saturator in the feedback path just after the k gain element, we arrive at x_bar = x + tanh(k*G^n*x_bar + k*S).
+	Subtracting the x_bar term to the right, let f(x_bar) = x + tanh(k*G^n*x_bar + k*S) - x_bar.
+	This function finds a root of f using Newton's method, thus obtaining x_bar.
+	*/
+
+	const double Gn = std::pow( G, order );
+
+	auto tanh_newton_iteration = [&]( double u_n )
+		{ 
+		const double tanh_c = std::tanh( k * ( Gn * u_n + S ) );
+		const double denom = inv * ( 1.0f - tanh_c*tanh_c ) * k * Gn - 1.0f;
+		if( std::abs( denom ) < 0.000001 ) // Shouldn't happen
+			return 0.0; 
+		return u_n - ( x + inv * tanh_c - u_n ) / denom;
+		};	
+
+	/* 
+	We need to decide on an initial guess for Newton's method, which is not just for convergence speeds sake.
+	For k >= 1, Newton's method can get trapped when the starting guess isn't sufficiently close to a root.
+	Luckily, we can predict and avoid this. Let f be the function we are finding the root of using Newton's method.
+	Letting the derivative of f equal 0, we can find the extrema, which only exist when kG^n >= 1.
+	Finding f of the extrema, we only need to worry about convergence when both are positive or negative.
+	In those cases the initial guess can be +2 or -2 respectively. For mixed sign extrema, there are three solutions.
+	I do not currently know any of them to be more correct than the others, so we will initialize to the previous x_bar value.
+	*/
+	double u_n = previous_x_bar;
+	if( k * Gn > 1.0 ) // Uh oh, extrema
+		{
+		auto get_peak_y = [&]( int sign )
+			{ 
+			const double root = sign*std::sqrt( 1.0 - 1.0 / (k*Gn) );
+			const double peak_x = ( std::atanh( root ) - k*S ) / ( k*Gn );
+			return x + root - peak_x; 
+			};
+		const double left_y = get_peak_y( -1 );
+		const double right_y = get_peak_y( +1 );
+		if( left_y > 0 && right_y > 0 )
+			u_n = 2;
+		else if( left_y < 0 && right_y < 0 )
+			u_n = -2;
+		}
+
+	for( int i = 0; i < 16; ++i ) // Cap iterations, just in case. If we didn't find a root... whatever man, something bad happened.
+		{
+		const double u_n1 = tanh_newton_iteration( u_n );
+		const double epsilon = 0.0000000000001;
+		if( std::abs( u_n1 - u_n ) < epsilon )
+			break;
+		u_n = u_n1;
+		}
+	return u_n;
+	}
+
 Audio Audio::filter_1pole_multinotch(
 	uint16_t order,
 	const Function<Second, Frequency> & cutoff,
 	const Function<Second, float> & feedback,
 	bool invert,
-	const Function<Second, float> & wet_dry,
-	bool use_saturator
+	bool use_saturator,
+	const Function<Second, float> & wet_dry
 	) const
 	{
+	/* For information on this algorithm, see the 2-pole version. */
+
 	if( is_null() ) return Audio::create_null();
 
 	auto cutoff_sampled = sample_function_over_domain( cutoff );
@@ -815,69 +859,44 @@ Audio Audio::filter_1pole_multinotch(
 	auto feedback_sampled = sample_function_over_domain( feedback );
 	const int inv = invert? -1 : 1;
 
-	const float T_half = pi / get_sample_rate();
+	const double T_half = std::acos(-1.0) / get_sample_rate();
 
 	Audio out = Audio::create_from_format( get_format() );
 
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
 		{
-		float previous_output = 0.0f;
+		double x_bar = 0.0;
 		std::vector<Filter_1Pole> filters( order, get_sample_rate() );
 		for( Frame frame = 0; frame < get_num_frames(); ++frame )
 			{
-			const float x = get_sample( channel, frame );
-			const Frequency w = prewarp( cutoff_sampled[frame], T_half );
-			const float k = feedback( frame_to_time( frame ) );
-			const float mix = wet_dry( frame_to_time( frame ) );
+			const double x = get_sample( channel, frame );
+			const double w = prewarp( cutoff_sampled[frame], T_half );
+			const double k = feedback( frame_to_time( frame ) );
+			const double mix = wet_dry( frame_to_time( frame ) );
 
-			const float g = w * T_half;
-			const float G = (g-1)/(g+1);
+			const double g = w * T_half;
+			const double G = (g-1)/(g+1);
 
-			float memory_sum = 0;
+			double S = 0;
 			for( int i = 0; i < order; ++i )
-				memory_sum += std::pow( G, i ) * filters[filters.size() - 1 - i].s;
-			memory_sum *= 2.0f / ( 1.0f + g );
-
-			float x_bar;
+				S += std::pow( G, i ) * filters[filters.size() - 1 - i].s;
+			S *= 2.0f / ( 1.0f + g );
+		
 			if( use_saturator )
-				{
-				auto tanh_newton_iteration = [&]( float u_n )
-					{ 
-					const float Gn = std::pow( G, order );
-					const float tanh_c = std::tanh( k * ( Gn * u_n + memory_sum ) );
-					const float denom = inv * ( 1.0f - tanh_c*tanh_c ) * k * Gn - 1.0f;
-					if( std::abs( denom ) < 0.000001 ) // Shouldn't happen
-						return 0.0f; 
-					return u_n - ( x + inv * tanh_c - u_n ) / denom;
-					};
-
-				float u_n = previous_output;
-				for( int i = 0; i < 16; ++i ) // Max 16 iterations, just in case
-					{
-					const float u_n1 = tanh_newton_iteration( u_n );
-					const float epsilon = 0.00000001;
-					if( std::abs( u_n1 - u_n ) < epsilon )
-						break;
-					u_n = u_n1;
-					}
-				x_bar = u_n;
-				}
+				x_bar = multinotch_tanh_saturator( G, S, order, k, inv, x, x_bar );
 			else
-				{
-				x_bar = ( x + inv*k*memory_sum ) / ( 1.0f - inv*k*std::pow( G, order ) );
-				}
-
-			Sample y_bar;
+				x_bar = ( x + inv*k*S ) / ( 1.0f - inv*k*std::pow( G, order ) );
+			
+			double y_bar;
 			for( Index filter_i = 0; filter_i < filters.size(); ++filter_i )
 				{
-				const Sample input_sample = filter_i == 0? x_bar : y_bar;
+				const double input_sample = filter_i == 0? x_bar : y_bar;
 				y_bar = filters[filter_i].process_sample_and_mix( input_sample, w, { 1.0f, -1.0f }, false );
 				}
 			y_bar *= inv;
 
-			const float y = mix * x_bar + ( 1.0f - mix ) * y_bar;
+			const double y = mix * x_bar + ( 1.0f - mix ) * y_bar;
 			out.get_sample( channel, frame ) = y;
-			previous_output = y;
 			}
 		}
 
@@ -890,8 +909,8 @@ Audio Audio::filter_2pole_multinotch(
 	const Function<Second, float> & damping,
 	const Function<Second, float> & feedback,
 	bool invert,
-	const Function<Second, float> & wet_dry,
-	bool use_saturator
+	bool use_saturator,
+	const Function<Second, float> & wet_dry
 	) const
 	{
 	/* See sections 11.2/11.6
@@ -915,57 +934,34 @@ Audio Audio::filter_2pole_multinotch(
 	auto damping_sampled = sample_function_over_domain( damping );
 	const int inv = invert? -1 : 1;
 
-	const float T_half = pi / get_sample_rate();
+	const double T_half = std::acos(-1.0) / get_sample_rate();
 
 	Audio out = Audio::create_from_format( get_format() );
 
 	for( Channel channel = 0; channel < get_num_channels(); ++channel )
 		{
 		std::vector<Filter_2Pole> filters( order, get_sample_rate() );
-		float previous_output = 0.0f;
+		double x_bar = 0.0;
 		for( Frame frame = 0; frame < get_num_frames(); ++frame )
 			{
-			const float x = get_sample( channel, frame );
-			const Frequency w = prewarp( cutoff_sampled[frame], T_half );
-			const float k = feedback_sampled[frame];
-			const float R = damping_sampled[frame];
+			const double x = get_sample( channel, frame );
+			const double w = prewarp( cutoff_sampled[frame], T_half );
+			const double k = feedback_sampled[frame];
+			const double R = damping_sampled[frame];
+			const double mix = wet_dry( frame_to_time( frame ) );
 
-			const float g = w * T_half;
-			const float d = 1.0f / ( 1.0f + 2.0f*R*g + g*g );
-			const float G = d * ( 1.0f - 2.0f*R*g + g*g );
+			const double g = w * T_half;
+			const double d = 1.0f / ( 1.0f + 2.0f*R*g + g*g );
+			const double G = d * ( 1.0f - 2.0f*R*g + g*g );
 			
-			float memory_sum = 0;
+			double S = 0;
 			for( int i = 0; i < order; ++i )
-				memory_sum += std::pow( G, i ) * ( g*filters[order-1-i].s2 - filters[order-1-i].s1 );
-
-			float x_bar;
+				S += std::pow( G, i ) * ( g*filters[order-1-i].s2 - filters[order-1-i].s1 );
+			
 			if( use_saturator )
-				{
-				auto tanh_newton_iteration = [&]( float u_n )
-					{ 
-					const float Gn = std::pow( G, order );
-					const float tanh_c = std::tanh( k * ( Gn * u_n + memory_sum ) );
-					const float denom = inv * ( 1.0f - tanh_c*tanh_c ) * k * Gn - 1.0f;
-					if( std::abs( denom ) < 0.000001 ) // Shouldn't happen
-						return 0.0f; 
-					return u_n - ( x + inv * tanh_c - u_n ) / denom;
-					};
-
-				float u_n = previous_output;
-				for( int i = 0; i < 16; ++i ) // Max 16 iterations, just in case
-					{
-					const float u_n1 = tanh_newton_iteration( u_n );
-					const float epsilon = 0.00000001;
-					if( std::abs( u_n1 - u_n ) < epsilon )
-						break;
-					u_n = u_n1;
-					}
-				x_bar = u_n;
-				}
+				x_bar = multinotch_tanh_saturator( G, S, order, k, inv, x, x_bar );
 			else
-				{
-				x_bar = ( x + inv*k*4*R*d*memory_sum ) / ( 1.0f - inv*k*std::pow( G, order ) );
-				}
+				x_bar = ( x + inv*k*4*R*d*S ) / ( 1.0f - inv*k*std::pow( G, order ) );
 
 			Sample y_bar;
 			for( Index filter_i = 0; filter_i < filters.size(); ++filter_i )
@@ -975,10 +971,8 @@ Audio Audio::filter_2pole_multinotch(
 				}
 			y_bar *= inv;
 
-			const float mix = wet_dry( frame_to_time( frame ) );
-			const float y = mix * x_bar + ( 1.0f - mix ) * y_bar;
+			const double y = mix * x_bar + ( 1.0f - mix ) * y_bar;
 			out.get_sample( channel, frame ) = y;
-			previous_output = y;
 			}
 		}
 
@@ -1117,13 +1111,13 @@ static std::pair<std::vector<float>, std::vector<float>> phase_diff_network_pole
 	const double k = std::sqrt(1.0-1.0/(B*B));
 	const double L = 0.5*(1.0-std::sqrt(k))/(1.0+std::sqrt(k));
 	const double A_p = L + 2.0*std::pow(L,5.0) + 15.0*std::pow(L,9.0);
-	const double A = std::exp(std::_Pi*std::_Pi/std::log(A_p));
+	const double A = std::exp(std::numbers::pi_v<float>*std::numbers::pi_v<float>/std::log(A_p));
 	//const double E = 1;
-	const double n = num_poles;//std::ceil( std::log(E*std::_Pi/720.0)/std::log(A) );
+	const double n = num_poles;//std::ceil( std::log(E*std::numbers::pi_v<float>/720.0)/std::log(A) );
 
 	std::vector<double> phi;
 	for( int r = 1; r <= n; ++r )
-		phi.push_back( std::_Pi/4.0/n*(2*r-1) );
+		phi.push_back( std::numbers::pi_v<float>/4.0/n*(2*r-1) );
 
 	std::vector<double> phi_p;
 	for( int r = 0; r < phi.size(); ++r)
@@ -1135,7 +1129,7 @@ static std::pair<std::vector<float>, std::vector<float>> phase_diff_network_pole
 
 	std::vector<double> p;
 	for( int r = 0; r < phi.size(); ++r)
-		p.push_back( std::sqrt(B) * std::tan(phi[r] - phi_p[r]) * 2.0 * std::_Pi * f_l );
+		p.push_back( std::sqrt(B) * std::tan(phi[r] - phi_p[r]) * 2.0 * std::numbers::pi_v<float> * f_l );
 
 	std::vector<float> p_a;
 	std::vector<float> p_b;
@@ -1261,3 +1255,46 @@ Audio Audio::halfband_multiply(
 	
 	return out;
 	}
+
+
+
+
+Shaper_1Pole::Shaper_1Pole( int order_, const Function<Second, Frequency>& cutoff_, bool lowpass_ ) 
+    : order( order_ )
+    , cutoff( cutoff_.copy() )
+    , lowpass( lowpass_ )
+    , poles( generate_butterworth_type1_poles( order ) )
+    
+    , sr()
+    , filter_1pole()
+    , filter_2poles()
+    {
+    }
+
+void Shaper_1Pole::init( const Audio& me )
+    {
+    sr = me.get_sample_rate();
+    }
+
+void Shaper_1Pole::reset() 
+    {
+    filter_1pole.emplace( Filter_1Pole( sr ) );
+    filter_2poles = std::vector<Filter_2Pole>( poles.size(), sr );
+    }
+
+Sample Shaper_1Pole::process(Second time, Sample sample) 
+    {
+    const Frequency w = std::clamp( cutoff( time ), 1.0f, sr/2.0f );
+
+    // For odd orders there is a pole at -1
+    if( order % 2 != 0 ) 
+        sample = filter_1pole.value().process_sample( sample, w )[lowpass? 0:1];
+
+    for( Index pole_i = 0; pole_i < poles.size(); ++pole_i )
+        {
+        const float R = -poles[pole_i].real();
+        sample = filter_2poles[pole_i].process_sample( sample, w, R )[lowpass? 0:2];
+        }
+
+    return sample;
+    }

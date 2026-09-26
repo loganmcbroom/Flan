@@ -3,6 +3,7 @@
 #include <functional>
 #include <map>
 #include <complex>
+#include <numbers>
 
 #include "flan/PV/PVBuffer.h"
 #include "flan/Function.h"
@@ -335,7 +336,7 @@ public:
 		const Function<TF, int> & granularity = 5,
 		const Function<Second, float> & distribution = []( Second t )
 			{ 
-			return 0.5f * ( 1.0f + std::cos( std::_Pi * t ) );
+			return 0.5f * ( 1.0f + std::cos( std::numbers::pi_v<float> * t ) );
 			}
 		) const;
 

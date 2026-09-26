@@ -1,11 +1,15 @@
 #pragma once
 
+#include <optional>
+
 #include "flan/Audio/AudioBuffer.h"
 #include "flan/Audio/AudioMod.h"
 #include "flan/Utility/Interpolator.h"
 #include "flan/Utility/Interval.h"
 #include "flan/Utility/vec2.h"
 #include "flan/Function.h"
+#include "flan/Audio/filter_defs.h"
+#include "flan/Audio/distortion_defs.h"
 
 namespace flan {
 
@@ -102,9 +106,9 @@ public:
 	// Conversions
 	//============================================================================================================================================================
 
-	Audio resample( 
-		FrameRate new_sample_rate 
-		) const; 
+    Audio resample( 
+        FrameRate new_sample_rate
+        ) const;
 
 	/** Converts the Audio to a waveform bmp.
 	 *  \param I The time interval to graph. Passing the defalt of (0,-1) will graph the entire Audio.
@@ -365,6 +369,10 @@ public:
 		flan_CANCEL_ARG 
 		) const;
 
+    std::vector<Sample> get_amplitude_envelope_as_vector(
+		Second window_width = 0.1f
+		) const;
+
 	Function<Second, Amplitude> get_amplitude_envelope(
 		Second window_width = 0.1f
 		) const;
@@ -392,6 +400,11 @@ public:
 		Amplitude non_silent_level,
 		Second fade_time = 0
 		) const;
+
+    std::vector<Audio> split_at_minima(
+        float window_width = 0.1,
+        float gain_threshold = 0.1
+        ) const;
 
 	std::vector<Audio> get_loud_chunks(
 		Amplitude non_silent_level,
@@ -486,6 +499,11 @@ public:
 	// 	const Function<Second, Second> & r_time,
 	// 	const Function<Second, Amplitude> & decay
 	// 	) const;
+
+	std::vector<Audio> split_at_frames(
+		std::vector<Frame> split_frames, // Pass by value is intentional
+		Frame fade_frames = 0
+		) const;
 
 	std::vector<Audio> split_at_times(
 		std::vector<Second> split_times, // Pass by value is intentional
@@ -592,28 +610,6 @@ public:
 	Audio invert_phase(
 		) const;
 
-	/** This applies the shaper as a function to each sample in the input.
-	 *	\param shaper Each sample in the input is passed through this. 
-	 *		Samples will be values on [-1,1] under normal circumstances.
-	 *		For example, the function y = x would have no effect as a shaper.
-	 */
-	Audio waveshape( 
-		const Function< std::pair<Second, Sample>, Sample > & shaper,
-		uint16_t oversample_factor = 4
-		) const;
-
-	/** This is meant to be a black box process for adding a moisture effect to bass signals.
-	 *  \param amount How much of the effect to add.
-	 *  \param frequency Base effect frequency when skew is 1.
-	 *  \param skew Magic ingredient.
-	 */
-	Audio add_moisture(
-		const Function<Second, Amplitude> & amount = .5f,
-		const Function<Second, Frequency> & frequency = 96,
-		const Function<Second, float> & skew = 4,
-		const Function<Second, Amplitude> & waveform = waveforms::sine
-		) const;
-
 	/** This is a dynamic range compressor.
 	 */
 	Audio compress( 
@@ -643,6 +639,48 @@ public:
 		Second release_time,
 		float attack_exponent = 1,
 		float release_exponent = 1
+		) const;
+
+
+    //============================================================================================================================================================
+	// Distortion
+	//============================================================================================================================================================
+
+    /** This applies the shaper as a function to each sample in the input.
+	 *	\param shaper Each sample in the input is passed through this. 
+	 *		Samples will be values on [-1,1] under normal circumstances.
+	 *		For example, the function y = x would have no effect as a shaper.
+	 */
+	Audio waveshape( 
+		const Function< std::pair<Second, Sample>, Sample > & shaper,
+		uint16_t oversample_factor = 4
+		) const;
+
+    /** This apples the shaper as a function to each sample in the input.
+     *      It then feeds the output into the feedback shaper chain, which always starts with a dc blocker.
+     *      The output of the feedback shaper chain is multiplied by feedback_amount and added to the next input sample for shaping.
+     */
+    Audio waveshape_feedback( 
+		const std::shared_ptr<Shaper>& shaper,
+        const Function<Second, float>& feedback_amount,
+		const std::vector<std::shared_ptr<Shaper>>& feedback_shapers = {},
+        uint16_t oversample_factor = 4
+        ) const;
+
+    Audio downsample( 
+        const Function<Second, FrameRate>& new_sample_rate
+        ) const;
+
+    /** This is meant to be a black box process for adding a moisture effect to bass signals.
+	 *  \param amount How much of the effect to add.
+	 *  \param frequency Base effect frequency when skew is 1.
+	 *  \param skew Magic ingredient.
+	 */
+	Audio add_moisture(
+		const Function<Second, Amplitude> & amount = .5f,
+		const Function<Second, Frequency> & frequency = 96,
+		const Function<Second, float> & skew = 4,
+		const Function<Second, Amplitude> & waveform = waveforms::sine
 		) const;
 
 	//============================================================================================================================================================
@@ -746,7 +784,7 @@ public:
 		) const;
 
 	/** This applies the same 1-pole low pass filter to the input n times. 
-		It is mainly a tool used for modeling atmospheric scattering in spacialization methods.
+		It is mainly a tool used for modeling atmospheric scattering in spatialization methods.
 	*/
 	Audio filter_1pole_repeat_low(
 		const Function<Second, Frequency> & cutoff,
@@ -818,8 +856,8 @@ public:
 		const Function<Second, Frequency> & cutoff,
 		const Function<Second, float> & feedback = 0,
 		bool invert = false,
-		const Function<Second, float> & wet_dry = .5,
-		bool use_saturator = false
+		bool use_saturator = false,
+		const Function<Second, float> & wet_dry = .5
 		) const;
 
 	Audio filter_2pole_multinotch(
@@ -828,8 +866,8 @@ public:
 		const Function<Second, float> & damping,
 		const Function<Second, float> & feedback = 0,
 		bool invert = false,
-		const Function<Second, float> & wet_dry = .5,
-		bool use_saturator = false
+		bool use_saturator = false,
+		const Function<Second, float> & wet_dry = .5
 		) const;
 
 	Audio filter_comb(
@@ -1143,6 +1181,8 @@ public:
 	// 	const Function<Second, Frequency> & waveform_frequency,
 	// 	const Function<float, Amplitude> & pulsaret_envelope,
 	// 	);
+
+
 
 private:
 	static std::vector<Audio> match_sample_rates_or_return_null( const std::vector<const Audio *> & ins );

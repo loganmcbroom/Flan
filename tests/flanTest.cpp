@@ -31,18 +31,21 @@ const float pi = std::acos( -1.0f );
 
 int main()
 	{
-	auto synth1 = Audio::synthesize_waveform( waveforms::saw, 10, []( Second t ){ return 100*t; } ).set_volume( .7 );
-	// auto synth2 = Audio::synthesize_waveform( waveforms::saw, 2, []( Second t ){ return 200; } ).set_volume( .5 ).modify_boundaries( -1, 1 );
-	// auto synth3 = Audio::synthesize_waveform( waveforms::saw, 2, []( Second t ){ return 300; } ).set_volume( .3 ).modify_boundaries( -1, 1 );
-	auto bah = Audio::load_from_file( "slaw.wav" ).set_volume( .9 );
+	// auto synth = Audio::synthesize_waveform( waveforms::square, 2, 200 ).set_volume([]( float t ){ return std::sin( t*10 )*0.3 + 0.5; });        
+	auto slaw = Audio::load_from_file( "slaw.wav" ).set_volume( .9 );
+	//auto bah = Audio::load_from_file( "bah.wav" ).set_volume( .9 );
 
-	bah
-		.convert_to_PV()
-		//.prism( []( int, Second, Harmonic h, Frequency f, const std::vector<float> & ms ){ return MF( ms[h-1], f*h ); } )
-		.repitch( []( TF tf ){ return tf.t; } )
-		.convert_to_audio()
-		.play();
-
+	auto out1 = slaw.set_volume( 0.9 ).waveshape_feedback( 
+        std::make_shared<SoftClipShaper>(3),
+        0.5,
+        {
+        // std::make_shared<AsymmetricClipShaper>( 0.5, 0.01, 2 ),
+        // std::make_shared<SoftClipShaper>(1), 
+        // std::make_shared<RingModShaper>(1000), 
+        std::make_shared<NoiseGateShaper>( 0.4 ), 
+        } );
+    out1.set_volume( 0.9 ).play();
+    
 	return 0;
 	}
 

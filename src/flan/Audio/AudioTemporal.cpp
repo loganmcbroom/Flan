@@ -3,6 +3,7 @@
 #include <ranges>
 
 #include "WDL/resample.h"
+#include "flan/DSPUtility.h"
 
 using namespace flan;
 using namespace std::ranges;
@@ -151,6 +152,39 @@ Audio Audio::remove_edge_silence(
 	const Frame end_fade_frames = end_frame + fade_frames >= get_num_frames()? get_num_frames() - end_frame : fade_frames;
 	return cut_frames( start_frame - fade_frames, end_frame + fade_frames, start_fade_frames, end_fade_frames );
 	}
+
+std::vector<Audio> Audio::split_at_minima(
+    float window_width,
+    float gain_threshold
+    ) const
+    {
+    const Frame min_dist_frames = time_to_frame( 0.03 );
+    Frame window_offset = time_to_frame( window_width );
+
+    // Discover minima
+    auto env = get_amplitude_envelope_as_vector( window_width );
+
+    // get_amplitude_envelope().convert_to_graph().save_image( "Temp.bmp" );
+	// system( (std::string("start ") + "Temp.bmp").c_str() );
+    
+    // Locate split points
+    std::vector<Frame> split_frames;
+    for( Frame frame = 1; frame + 1 < env.size(); ++frame ) 
+        {
+        if( env[frame] < env[frame - 1] && env[frame] < env[frame + 1] && env[frame] <= gain_threshold ) 
+            {
+            Frame target_frame = frame - window_offset;
+
+            if( !split_frames.empty() && (target_frame - split_frames.back()) < min_dist_frames )
+                continue;
+
+            // size_t snappedSample = snapToZeroCrossing(pcmSamples, target_sample, stepSamples);
+            split_frames.push_back(target_frame);
+            }
+        }
+
+    return split_at_frames( split_frames );
+    }
 
 std::vector<Audio> Audio::get_loud_chunks(
 	Amplitude non_silent_level,
@@ -340,7 +374,7 @@ Audio Audio::delay(
 
 	auto events_per_second = [&]( float t )
 		{ 
-		const Second delay_time_c = delay_time_sampled[ time_to_frame( t ) ];
+		const Second delay_time_c = delay_time_sampled[ std::round( time_to_frame( t ) ) ];
 		if( delay_time_c <= 0 ) return 1.0f / float( get_sample_rate() );
 		return 1.0f / delay_time_c;
 		};
@@ -353,7 +387,7 @@ Audio Audio::delay(
 			mod( in, t );
 
 		// Modify gain
-		const float decay_t = decay_sampled[ time_to_frame( t ) ];
+		const float decay_t = decay_sampled[ std::round( time_to_frame( t ) ) ];
 		std::for_each( in.get_buffer().begin(), in.get_buffer().end(), [decay_t]( Sample & s ){ s *= decay_t; } );
 		};
 
@@ -406,27 +440,26 @@ Audio Audio::delay(
 // 	return out;
 // 	}
 
-std::vector<Audio> Audio::split_at_times(
-	std::vector<Second> split_times,
-	Second fade
+std::vector<Audio> Audio::split_at_frames(
+	std::vector<Frame> split_frames_unsafe,
+	Frame fade_frames
 	) const
-	{
-	if( is_null() ) return std::vector<Audio>();
+    {
+    if( is_null() ) return std::vector<Audio>();
 
-	const Frame fade_frames = time_to_frame( fade );
-
-	std::sort( split_times.begin(), split_times.end() );
-
+    // Filter invalid frames
 	std::vector<Frame> split_frames;
+    split_frames.reserve( split_frames_unsafe.size() );
 	split_frames.push_back( 0 );
-	for( Second t : split_times )
+	for( Frame f : split_frames_unsafe )
 		{
-		const Frame f = time_to_frame( t );
 		if( f <= 0 ) continue;
 		if( get_num_frames() <= f ) break;
 		split_frames.push_back( f );
 		}
 	split_frames.push_back( get_num_frames() );
+
+	std::sort( split_frames.begin(), split_frames.end() );
 
 	std::vector<Audio> outs( split_frames.size() - 1 );
 	flan::for_each_i( split_frames.size() - 1, ExecutionPolicy::Parallel_Unsequenced, [&]( int i )
@@ -435,6 +468,16 @@ std::vector<Audio> Audio::split_at_times(
 		} );
 
 	return outs;
+    }
+
+std::vector<Audio> Audio::split_at_times(
+	std::vector<Second> split_times,
+	Second fade
+	) const
+	{
+    std::vector<Frame> split_frames;
+    std::ranges::transform( split_times, std::back_inserter( split_frames ), [&]( Second s ){ return time_to_frame( s ); } );
+    return split_at_frames( split_frames, time_to_frame( fade ) );
 	}
 
 std::vector<Audio> Audio::split_with_lengths(

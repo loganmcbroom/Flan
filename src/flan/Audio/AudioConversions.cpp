@@ -3,7 +3,6 @@
 #include <iostream>
 #include <execution>
 
-#include "WDL/resample.h"
 #include "r8brain/CDSPResampler.h"
 
 #include "flan/WindowFunctions.h"

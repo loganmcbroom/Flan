@@ -51,6 +51,7 @@ add_library( Flan STATIC
 	src/flan/Audio/AudioFilter.cpp
 	src/flan/Audio/AudioCombination.cpp
 	src/flan/Audio/AudioSynthesis.cpp
+	src/flan/Audio/AudioDistortion.cpp
 	
 	src/flan/PV/PV.cpp
 	src/flan/PV/PVBuffer.cpp
@@ -112,6 +113,7 @@ target_include_directories( Flan
 
 set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/" )
 
+target_compile_definitions( Flan PRIVATE SNDFILE_STATIC )
 find_package( FFTWF REQUIRED ) # FFTWF::fftwf
 target_link_libraries( Flan PUBLIC FFTWF::fftwf )
 
@@ -124,7 +126,7 @@ target_link_libraries( Flan PUBLIC SndFile::SndFile )
 
 include( GNUInstallDirs )
 set( INSTALL_CONFIGDIR ${CMAKE_INSTALL_LIBDIR}/cmake/flan )
-
+ 
 # Copy include folder into install folder
 install( DIRECTORY src DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/src )
 

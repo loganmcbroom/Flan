@@ -587,9 +587,9 @@ Audio Audio::granulate(
 
 	auto grain_generator = [&]( const Audio & in, float t ) -> Audio
 		{
-		const Second selection_c = selection_sampled[ time_to_frame( t ) ];
-		const Second grain_length_c = grain_length_sampled[ time_to_frame( t ) ];
-		const Second fade_time_c = fade_time_sampled[ time_to_frame( t ) ];
+		const Second selection_c = selection_sampled[ std::round( time_to_frame( t ) ) ];
+		const Second grain_length_c = grain_length_sampled[ std::round( time_to_frame( t ) ) ];
+		const Second fade_time_c = fade_time_sampled[ std::round( time_to_frame( t ) ) ];
 		Audio grain = in.cut( selection_c, selection_c + grain_length_c, fade_time_c, fade_time_c );
 		return std::move( grain );
 		};
@@ -628,10 +628,10 @@ Audio Audio::psola(
 
 	return granulate( 
 		length,
-		[&]( Second t ){ return freq( time_selection_sampled[time_to_frame(t)] ); },
+		[&]( Second t ){ return freq( time_selection_sampled[std::round(time_to_frame(t))] ); },
 		0,
-		[&]( Second t ){ return time_selection_sampled[time_to_frame(t)]; },
-		[&]( Second t ){ return 2.0f / freq( time_selection_sampled[time_to_frame(t)] ); },
+		[&]( Second t ){ return time_selection_sampled[std::round(time_to_frame(t))]; },
+		[&]( Second t ){ return 2.0f / freq( time_selection_sampled[std::round(time_to_frame(t))] ); },
 		0.05,
 		composition_mod 
 		);

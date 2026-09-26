@@ -7,13 +7,14 @@ namespace flan {
 const Interval Interval::Empty( 0, 0 );
 const Interval Interval::R( -std::numeric_limits<float>::max(), std::numeric_limits<float>::max() );
 
-Interval::Interval( float _x1, float _x2 )
-	: x1( _x1 )
-	, x2( _x2 )
-	{}
+Interval::Interval(float x1_, float x2_)
+    : x1( x1_ )
+    , x2( x2_ )
+    {
+    }
 
-bool Interval::operator!=( const Interval & o ) const 
-	{ 
+bool Interval::operator!=(const Interval &o) const
+{ 
 	return o.x1 != x1 || o.x2 != x2; 
 	}
 

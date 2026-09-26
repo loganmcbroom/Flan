@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-namespace flan {
+using namespace flan;
 
 Color Color::from_hsv( int H, float S, float V ) 
 	{
@@ -20,5 +20,3 @@ Color Color::from_hsv( int H, float S, float V )
 
 	return Color( uint8_t((Rs + m) * 255),  uint8_t((Gs + m) * 255),  uint8_t((Bs + m) * 255) );
 	}
-
-}

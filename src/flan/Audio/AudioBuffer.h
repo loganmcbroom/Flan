@@ -40,6 +40,20 @@ public:
 
 	struct SndfileStrings 
 		{
+		// Workaround for gcc bug
+		SndfileStrings() 
+			: title("")
+			, copyright("")
+			, software("")
+			, artist("")
+			, comment("")
+			, date("")
+			, album("")
+			, license("")
+			, tracknumber("")
+			, genre("")
+			{			}
+
 		std::string title = "";
 		std::string copyright = "";
 		std::string software = "";
@@ -120,7 +134,8 @@ public:
 	bool save( 
 		const std::string & filepath, 
 		int format = -1, 
-		SndfileStrings = SndfileStrings() // Used for string smuggling
+		// Used for string smuggling
+		SndfileStrings = AudioBuffer::SndfileStrings() 
 		) const;
 
 	/** Prints buffer dimensions and sample rate to cout.
@@ -217,7 +232,7 @@ public:
 
 	inline size_t get_buffer_pos( Channel, Frame ) const;
 
-#if defined(_WIN32) || defined(WIN32)
+#if defined(_WIN32) || defined(WIN32) || defined(__CYGWIN__)
 	void play() const;
 #endif
 

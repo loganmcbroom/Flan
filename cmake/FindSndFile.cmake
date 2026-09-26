@@ -21,7 +21,7 @@ find_path( SndFile_INCLUDE_DIR
   )
   
 find_library( SndFile_LIBRARY_RELEASE
-    NAME sndfile
+    NAME sndfile libsndfile-1
     PATHS ${PC_SndFile_LIBRARY_DIRS}
 	PATH_SUFFIXES
 		lib

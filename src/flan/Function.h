@@ -123,6 +123,11 @@ struct Function
 	// 		}, lowest_execution( mean.get_execution_policy(), sigma.get_execution_policy() ) );
 	// 	}
 
+    /* Call op taking two floats when vec2 would normally be needed. */
+	template<typename Input = I>
+	requires std::convertible_to<Input, vec2>
+	float operator()( float x, float y ) const { return Function::operator()( vec2{ x, y } ); }
+
 	template<typename Input = I>
 	requires std::convertible_to<Input, float>
 	Function periodize( float period ) const
@@ -143,10 +148,10 @@ struct Function
 		if( is_constant() )
 			return FunctionSample<O>( operator()(0), end - start );
 		std::vector<O> out( end - start );
-		runtime_execution_policy_handler( get_execution_policy(), [&]( auto policy ){
+		runtime_execution_policy_handler( get_execution_policy(), [&]( auto policy ) {
 			std::for_each( FLAN_POLICY iota_iter( start ), iota_iter( end ), [&]( int x )
 				{ 
-				out[x-start] = operator()( x * scale ); 
+				out[x-start] = this->operator()( x * scale ); 
 				} ); 
 			} );
 		return FunctionSample<O>( std::move( out ) );
@@ -164,7 +169,7 @@ struct Function
 		runtime_execution_policy_handler( get_execution_policy(), [&]( auto policy ){
 			std::for_each( FLAN_POLICY iota_iter( x_start ), iota_iter( x_end ), [&]( int x ){ 
 				for( int y = y_start; y < y_end; ++y )
-					out[ buffer_access( (y-y_start), (x-x_start), y_size ) ] = operator()( vec2( x * x_scale, y * y_scale ) ); 
+					out[ buffer_access( (y-y_start), (x-x_start), y_size ) ] = this->operator()( vec2( x * x_scale, y * y_scale ) ); 
 				} ); 
 			} );
 		return FunctionSample2d<O>( std::move( out ), y_size );
@@ -253,11 +258,6 @@ struct Function
 	// 			static_cast<I2>( v.y() ) ) ); 
 	// 		} ) 
 	// 	{}
-
-	/* Call op taking two floats when vec2 would normally be needed. */
-	template<typename Input = I>
-	requires std::convertible_to<Input, vec2>
-	float operator()( float x, float y ) const { return Function::operator()( vec2{ x, y } ); }
 
 protected:
 	std::variant<O, StdFuncType> f;
